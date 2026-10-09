@@ -5,7 +5,13 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { RelayerConfigError, getRelayerKeypair, sponsorTransaction } from "./relayer";
+import {
+  RelayerConfigError,
+  getRelayerKeypair,
+  isMerchantSponsored,
+  sponsorTransaction,
+  topUpLamports,
+} from "./relayer";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -24,6 +30,38 @@ describe("getRelayerKeypair", () => {
   it.each(["oops", "[1,2,3]", '["a"]', "[300]"])("rejects malformed key %s", (value) => {
     vi.stubEnv("RELAYER_SECRET_KEY", value);
     expect(() => getRelayerKeypair()).toThrow(RelayerConfigError);
+  });
+});
+
+describe("isMerchantSponsored", () => {
+  const merchant = Keypair.generate().publicKey;
+  const other = Keypair.generate().publicKey;
+
+  it("sponsors nobody by default", () => {
+    vi.stubEnv("RELAYER_ALLOWED_MERCHANTS", "");
+    expect(isMerchantSponsored(merchant)).toBe(false);
+  });
+
+  it("sponsors only listed merchants, tolerating whitespace", () => {
+    vi.stubEnv("RELAYER_ALLOWED_MERCHANTS", ` ${other.toBase58()} , ${merchant.toBase58()} `);
+    expect(isMerchantSponsored(merchant)).toBe(true);
+    expect(isMerchantSponsored(Keypair.generate().publicKey)).toBe(false);
+  });
+});
+
+describe("topUpLamports", () => {
+  const costs = { subscriptionRent: 1_600_000, systemAccountMinimum: 890_880 };
+
+  it("tops up an empty wallet to cover rent and a rent-exempt remainder", () => {
+    expect(topUpLamports({ subscriberBalance: 0, ...costs })).toBe(2_490_880);
+  });
+
+  it("only tops up the shortfall", () => {
+    expect(topUpLamports({ subscriberBalance: 1_000_000, ...costs })).toBe(1_490_880);
+  });
+
+  it("adds nothing when the wallet already has enough", () => {
+    expect(topUpLamports({ subscriberBalance: 5_000_000, ...costs })).toBe(0);
   });
 });
 

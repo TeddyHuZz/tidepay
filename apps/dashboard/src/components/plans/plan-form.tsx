@@ -13,6 +13,7 @@ import { INTERVALS, getInterval, type IntervalId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://[your-domain]";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://[your-api-domain]";
 const PRICE_PATTERN = /^\d+(\.\d{1,6})?$/;
 
 export function PlanForm() {
@@ -25,7 +26,8 @@ export function PlanForm() {
   const interval = getInterval(intervalId);
   const priceValid = PRICE_PATTERN.test(price) && Number(price) > 0;
   const slug = slugify(name) || "your-plan";
-  const actionUrl = `${APP_URL}/api/actions/subscribe/${slug}`;
+  // The Action API identifies a plan by its on-chain address, known after creation.
+  const actionUrl = `${API_URL}/api/actions/subscribe/[plan-address]`;
   const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(actionUrl)}`;
   const embed = `<iframe src="${APP_URL}/checkout/${slug}" width="420" height="520"></iframe>`;
   const canSubmit = connected && priceValid && name.trim().length > 0;
