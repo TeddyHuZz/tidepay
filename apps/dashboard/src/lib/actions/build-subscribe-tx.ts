@@ -6,7 +6,8 @@ import {
   VersionedTransaction,
   clusterApiUrl,
 } from "@solana/web3.js";
-import type { PlanSummary } from "@/lib/mock-data";
+import type { PlanSummary } from "@/lib/types";
+import { getRelayerKeypair, sponsorTransaction } from "./relayer";
 
 const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 
@@ -49,16 +50,23 @@ export async function buildSubscribeTransaction(
     data: Buffer.from(`tidepay:mock-subscribe:${plan.id}`, "utf8"),
   });
 
+  // With a relayer configured it pays the network fee, so a wallet holding
+  // USDC but no SOL can still subscribe.
+  const relayer = getRelayerKeypair();
+
   const message = new TransactionMessage({
-    payerKey: subscriber,
+    payerKey: relayer?.publicKey ?? subscriber,
     recentBlockhash: blockhash,
     instructions: [memo],
   }).compileToV0Message();
 
-  const transaction = Buffer.from(new VersionedTransaction(message).serialize()).toString("base64");
+  const tx = new VersionedTransaction(message);
+  if (relayer) sponsorTransaction(tx, relayer);
 
   return {
-    transaction,
-    message: `Test transaction for ${plan.name}. No funds move and no subscription is created.`,
+    transaction: Buffer.from(tx.serialize()).toString("base64"),
+    message:
+      `Test transaction for ${plan.name}. No funds move and no subscription is created.` +
+      (relayer ? " Network fee sponsored." : ""),
   };
 }

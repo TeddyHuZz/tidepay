@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { slugify } from "@/lib/format";
-import { INTERVALS, getInterval, type IntervalId } from "@/lib/mock-data";
+import { INTERVALS, getInterval, type IntervalId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://[your-domain]";

@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PLANS, getInterval } from "@/lib/mock-data";
+import { listPlans } from "@/lib/data";
+import { getInterval } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Plans" };
 
-export default function PlansPage() {
+export default async function PlansPage() {
+  const plans = await listPlans();
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,7 +38,7 @@ export default function PlansPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {PLANS.map((plan) => (
+            {plans.map((plan) => (
               <TableRow key={plan.id}>
                 <TableCell className="font-medium">{plan.name}</TableCell>
                 <TableCell className="tabular-nums">{plan.priceUsdc}</TableCell>

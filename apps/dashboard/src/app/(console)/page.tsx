@@ -5,13 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatTimeUtc, shortAddress } from "@/lib/format";
-import { ACTIVITY, CRANK_STATUS, METRICS } from "@/lib/mock-data";
+import { getCrankStatus, getOverviewMetrics, getRecentActivity } from "@/lib/data";
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  const [metrics, activity, crank] = await Promise.all([
+    getOverviewMetrics(),
+    getRecentActivity(),
+    getCrankStatus(),
+  ]);
+
   return (
     <div className="flex flex-col gap-7">
       <section aria-label="Key metrics" className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
-        {METRICS.map((metric) => (
+        {metrics.map((metric) => (
           <Card key={metric.label} className="flex flex-col gap-2 p-5">
             <div className="text-[13px] text-muted-foreground">{metric.label}</div>
             <div className="text-[28px] font-semibold leading-[34px] tracking-tight tabular-nums">{metric.value}</div>
@@ -39,7 +45,7 @@ export default function OverviewPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ACTIVITY.map((event) => (
+              {activity.map((event) => (
                 <TableRow key={event.id}>
                   <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                     {formatTimeUtc(event.at)}
@@ -75,7 +81,7 @@ export default function OverviewPage() {
           <Card>
             <CardContent className="flex flex-col">
               <CardTitle className="mb-2.5">Keeper crank</CardTitle>
-              {CRANK_STATUS.map((row) => (
+              {crank.map((row) => (
                 <div key={row.label} className="flex items-center justify-between gap-3 border-t py-2 text-sm">
                   <span className="text-muted-foreground">{row.label}</span>
                   <span className="font-mono text-[13px]">{row.value}</span>

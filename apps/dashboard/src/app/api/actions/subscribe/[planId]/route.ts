@@ -2,13 +2,14 @@ import { PublicKey } from "@solana/web3.js";
 import { SubscribeTxUnavailableError, buildSubscribeTransaction } from "@/lib/actions/build-subscribe-tx";
 import { actionError, actionResponse, actionsOptions, getBaseUrl } from "@/lib/actions/http";
 import type { ActionGetResponse, ActionPostRequest, ActionPostResponse } from "@/lib/actions/types";
-import { getInterval, getPlan } from "@/lib/mock-data";
+import { getPlan } from "@/lib/data";
+import { getInterval } from "@/lib/types";
 
 type Context = RouteContext<"/api/actions/subscribe/[planId]">;
 
 export async function GET(request: Request, ctx: Context) {
   const { planId } = await ctx.params;
-  const plan = getPlan(planId);
+  const plan = await getPlan(planId);
   if (!plan) return actionError("Plan not found.", 404);
 
   const interval = getInterval(plan.interval);
@@ -40,7 +41,7 @@ export async function GET(request: Request, ctx: Context) {
 
 export async function POST(request: Request, ctx: Context) {
   const { planId } = await ctx.params;
-  const plan = getPlan(planId);
+  const plan = await getPlan(planId);
   if (!plan) return actionError("Plan not found.", 404);
 
   let account: string | undefined;

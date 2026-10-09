@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTimeUtc, shortAddress } from "@/lib/format";
-import { SUBSCRIBERS } from "@/lib/mock-data";
+import { listSubscribers } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Subscribers" };
 
-export default function SubscribersPage() {
+export default async function SubscribersPage() {
+  const subscribers = await listSubscribers();
+
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">Wallets subscribed to your plans, with their next renewal.</p>
@@ -26,7 +28,7 @@ export default function SubscribersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {SUBSCRIBERS.map((row) => (
+            {subscribers.map((row) => (
               <TableRow key={`${row.wallet}-${row.plan}`}>
                 <TableCell className="font-mono text-xs">{shortAddress(row.wallet)}</TableCell>
                 <TableCell className="text-foreground/80">{row.plan}</TableCell>

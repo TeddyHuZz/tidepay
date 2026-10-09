@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { CheckoutCard } from "@/components/checkout/checkout-card";
 import { Logo } from "@/components/logo";
 import { WalletButton } from "@/components/wallet-button";
-import { getInterval, getPlan } from "@/lib/mock-data";
+import { getPlan } from "@/lib/data";
+import { getInterval } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Checkout" };
 
@@ -26,7 +27,7 @@ export default function CheckoutPage({ params }: PageProps<"/checkout/[planId]">
 
 async function CheckoutContent({ params }: { params: PageProps<"/checkout/[planId]">["params"] }) {
   const { planId } = await params;
-  const plan = getPlan(planId);
+  const plan = await getPlan(planId);
   if (!plan) notFound();
 
   const interval = getInterval(plan.interval);

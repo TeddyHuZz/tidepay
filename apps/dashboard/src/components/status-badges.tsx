@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { ActivityKind, SubscriptionStatus } from "@/lib/mock-data";
+import type { ActivityKind, SubscriptionStatus } from "@/lib/types";
 
 const ACTIVITY_BADGES: Record<ActivityKind, { label: string; variant: "success" | "warning" | "neutral" }> = {
   settled: { label: "Settled", variant: "success" },
