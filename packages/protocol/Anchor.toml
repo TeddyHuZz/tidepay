@@ -7,7 +7,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-tidepay = "Ar6iGy41tpdPX9SspnQ4akMrWuJrGYY2F3QdwsHQ7uEp"
+tidepay = "DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ"
+
+[programs.devnet]
+tidepay = "DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ"
 
 [provider]
 cluster = "localnet"
