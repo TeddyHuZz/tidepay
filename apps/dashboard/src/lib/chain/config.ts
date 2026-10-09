@@ -21,7 +21,7 @@ export const DEMO_PLAN_ADDRESS = process.env.NEXT_PUBLIC_DEMO_PLAN_ADDRESS?.trim
 export const PAST_DUE_GRACE_SECONDS = 120;
 
 /** Crank reward per epoch, deducted from the merchant's share. */
-export const DEFAULT_CRANK_BOUNTY_USDC = "0.01";
+export const DEFAULT_CRANK_BOUNTY_USDC = "0.05";
 
 /** process_epoch does not charge a protocol fee yet; keep plans at 0 bps. */
 export const PROTOCOL_FEE_BPS = 0;

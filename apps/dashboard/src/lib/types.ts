@@ -1,10 +1,10 @@
 // View models used by the dashboard UI. They are deliberately independent of
 // the on-chain account types; src/lib/chain/derive.ts maps accounts into them.
 
-export type IntervalId = "daily" | "monthly" | "demo";
+export type IntervalId = "daily" | "weekly" | "monthly" | "annual" | "custom";
 
 export interface BillingInterval {
-  id: IntervalId;
+  id: string;
   label: string;
   /** Phrase used in "every ..." copy. */
   unit: string;
@@ -13,12 +13,13 @@ export interface BillingInterval {
 
 export const INTERVALS: readonly BillingInterval[] = [
   { id: "daily", label: "Daily", unit: "day", seconds: 86_400 },
+  { id: "weekly", label: "7-Day", unit: "7 days", seconds: 604_800 },
   { id: "monthly", label: "30-Day", unit: "30 days", seconds: 2_592_000 },
-  { id: "demo", label: "60s Demo Mode", unit: "60 seconds", seconds: 60 },
+  { id: "annual", label: "1-Year", unit: "year", seconds: 31_536_000 },
 ];
 
-export function getInterval(id: IntervalId): BillingInterval {
-  return INTERVALS.find((interval) => interval.id === id) ?? INTERVALS[1];
+export function getInterval(id: string): BillingInterval {
+  return INTERVALS.find((interval) => interval.id === id) ?? INTERVALS[2];
 }
 
 function plural(count: number, unit: string) {
@@ -29,6 +30,9 @@ function plural(count: number, unit: string) {
 export function intervalUnit(seconds: number): string {
   const preset = INTERVALS.find((interval) => interval.seconds === seconds);
   if (preset) return preset.unit;
+  if (seconds % 31_536_000 === 0) return plural(seconds / 31_536_000, "year");
+  if (seconds % 2_592_000 === 0) return plural(seconds / 2_592_000, "month");
+  if (seconds % 604_800 === 0) return plural(seconds / 604_800, "week");
   if (seconds % 86_400 === 0) return plural(seconds / 86_400, "day");
   if (seconds % 3_600 === 0) return plural(seconds / 3_600, "hour");
   if (seconds % 60 === 0) return plural(seconds / 60, "minute");

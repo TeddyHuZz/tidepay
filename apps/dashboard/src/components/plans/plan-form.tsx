@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ArrowLeft, Info } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { useMerchantData } from "@/components/merchant-data-provider";
 import { Button } from "@/components/ui/button";
@@ -22,11 +23,20 @@ import {
 } from "@/lib/chain/config";
 import { describeTransactionError } from "@/lib/chain/errors";
 import { parseUsdc } from "@/lib/chain/derive";
-import { INTERVALS, getInterval, type IntervalId } from "@/lib/types";
+import { INTERVALS, getInterval, intervalUnit, type IntervalId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PLAN_ID_PATTERN = /^[a-z0-9-]{1,32}$/;
-const ZERO_PATTERN = /^0*(\.0*)?$/;
+
+const UNIT_MULTIPLIERS = {
+  minutes: 60,
+  hours: 3_600,
+  days: 86_400,
+  months: 2_592_000,
+  years: 31_536_000,
+} as const;
+
+type CustomUnit = keyof typeof UNIT_MULTIPLIERS;
 
 type SubmitState =
   | { status: "idle" }
@@ -43,10 +53,6 @@ function toPlanId(value: string) {
     .slice(0, 32);
 }
 
-function parseBounty(value: string): bigint | null {
-  return ZERO_PATTERN.test(value.trim()) && value.trim() !== "" ? BigInt(0) : parseUsdc(value);
-}
-
 export function PlanForm() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -54,18 +60,30 @@ export function PlanForm() {
   const { buildTransaction, send } = useSendTransaction();
   const client = useMemo(() => createClient(connection), [connection]);
 
-  const [planId, setPlanId] = useState("promptpilot-pro");
-  const [price, setPrice] = useState("29.00");
-  const [bounty, setBounty] = useState(DEFAULT_CRANK_BOUNTY_USDC);
+  const [planId, setPlanId] = useState("");
+  const [price, setPrice] = useState("");
   const [intervalId, setIntervalId] = useState<IntervalId>("monthly");
+  const [customCount, setCustomCount] = useState("1");
+  const [customUnit, setCustomUnit] = useState<CustomUnit>("days");
   const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
 
-  const interval = getInterval(intervalId);
+  const crankBountyAmount = parseUsdc(DEFAULT_CRANK_BOUNTY_USDC) ?? BigInt(50_000);
   const planIdValid = PLAN_ID_PATTERN.test(planId);
+  const planIdError = planId !== "" && !planIdValid;
   const amount = parseUsdc(price);
-  const bountyAmount = parseBounty(bounty);
-  const bountyValid = bountyAmount !== null && amount !== null && bountyAmount < amount;
-  const formValid = planIdValid && amount !== null && bountyValid;
+  const priceTooLow = amount !== null && amount <= crankBountyAmount;
+  const priceError = price !== "" && (amount === null || priceTooLow);
+
+  const customNumber = parseInt(customCount, 10);
+  const customCountValid = !isNaN(customNumber) && customNumber >= 1;
+  const intervalSeconds =
+    intervalId === "custom"
+      ? (customCountValid ? customNumber * UNIT_MULTIPLIERS[customUnit] : 0)
+      : getInterval(intervalId).seconds;
+
+  const intervalValid = intervalSeconds >= 60;
+  const formValid = planIdValid && amount !== null && !priceTooLow && intervalValid;
+  const intervalPhrase = intervalUnit(intervalSeconds);
 
   const planAddress = useMemo(
     () => (publicKey && planIdValid ? client.findMerchantPlanPda(publicKey, planId)[0].toBase58() : null),
@@ -73,7 +91,7 @@ export function PlanForm() {
   );
 
   async function createPlan() {
-    if (!publicKey || !formValid || !planAddress || amount === null || bountyAmount === null) return;
+    if (!publicKey || !formValid || !planAddress || amount === null) return;
     setSubmit({ status: "submitting" });
     try {
       const planPda = client.findMerchantPlanPda(publicKey, planId)[0];
@@ -87,9 +105,9 @@ export function PlanForm() {
         merchant: publicKey,
         planId,
         amount,
-        intervalSeconds: BigInt(interval.seconds),
+        intervalSeconds: BigInt(intervalSeconds),
         protocolFeeBps: PROTOCOL_FEE_BPS,
-        crankBountyAmount: bountyAmount,
+        crankBountyAmount,
         tokenMint: USDC_MINT,
         merchantTokenAccount,
       });
@@ -111,8 +129,23 @@ export function PlanForm() {
   const created = submit.status === "success";
 
   return (
-    <div className="flex flex-wrap items-start gap-6">
-      <Card className="min-w-0 flex-[1_1_420px]">
+    <div className="flex flex-col gap-4">
+      <div>
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
+        >
+          <Link href="/plans">
+            <ArrowLeft className="size-4" />
+            Back to plans
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-start gap-6">
+        <Card className="min-w-0 flex-[1_1_420px]">
         <CardContent className="flex flex-col gap-6 p-6">
           <div>
             <CardTitle className="text-base">Plan details</CardTitle>
@@ -126,57 +159,59 @@ export function PlanForm() {
             <Input
               id="plan-id"
               className="font-mono"
+              placeholder="promptpilot-pro"
               value={planId}
               maxLength={32}
               onChange={(e) => setPlanId(toPlanId(e.target.value))}
-              aria-invalid={!planIdValid}
+              aria-invalid={planIdError}
               aria-describedby="plan-id-hint"
             />
-            <p id="plan-id-hint" className={cn("text-xs", planIdValid ? "text-muted-foreground" : "text-destructive")}>
+            <p id="plan-id-hint" className={cn("text-xs", planIdError ? "text-destructive" : "text-muted-foreground")}>
               Shown to subscribers. Lowercase letters, numbers and hyphens, up to 32 characters.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+            <div className="flex min-w-50 flex-1 flex-col gap-2">
               <Label htmlFor="plan-price">Price (USDC)</Label>
               <Input
                 id="plan-price"
                 inputMode="decimal"
                 className="font-mono tabular-nums"
+                placeholder="29.00"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                aria-invalid={amount === null}
+                aria-invalid={priceError}
                 aria-describedby="plan-price-hint"
               />
-              <p id="plan-price-hint" className={cn("text-xs", amount !== null ? "text-muted-foreground" : "text-destructive")}>
-                {amount !== null ? "Up to 6 decimal places." : "Enter an amount greater than 0."}
+              <p id="plan-price-hint" className={cn("text-xs", priceError ? "text-destructive" : "text-muted-foreground")}>
+                {priceTooLow
+                  ? `Price must be greater than the ${DEFAULT_CRANK_BOUNTY_USDC} USDC renewal fee.`
+                  : priceError
+                    ? "Enter an amount greater than 0."
+                    : "Up to 6 decimal places."}
               </p>
             </div>
-            <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+            <div className="flex min-w-50 flex-1 flex-col gap-2">
               <Label htmlFor="plan-mint">Accepted mint</Label>
               <Input id="plan-mint" value="USDC (Devnet)" readOnly />
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="plan-bounty">Keeper reward per renewal (USDC)</Label>
-            <Input
-              id="plan-bounty"
-              inputMode="decimal"
-              className="font-mono tabular-nums"
-              value={bounty}
-              onChange={(e) => setBounty(e.target.value)}
-              aria-invalid={!bountyValid}
-              aria-describedby="plan-bounty-hint"
-            />
-            <p id="plan-bounty-hint" className={cn("text-xs", bountyValid ? "text-muted-foreground" : "text-destructive")}>
-              Paid to the keeper that settles each renewal, out of the price. Must be less than the price.
+          {/* Network Renewal Fee Callout */}
+          <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-accent/40 p-4">
+            <div className="flex items-center gap-2">
+              <Info className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="text-sm font-medium text-foreground">Network Renewal Fee</span>
+              <span className="ml-auto font-mono text-xs font-semibold text-primary">{DEFAULT_CRANK_BOUNTY_USDC} USDC</span>
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              A fixed {DEFAULT_CRANK_BOUNTY_USDC} USDC network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain Solana gas fees.
             </p>
           </div>
 
-          <fieldset className="flex min-w-0 flex-col gap-2 border-0 p-0">
-            <legend className="mb-2 text-sm font-medium">Billing interval</legend>
+          <fieldset className="flex min-w-0 flex-col gap-3 border-0 p-0">
+            <legend className="mb-1 text-sm font-medium">Billing interval</legend>
             <div role="group" aria-label="Billing interval" className="flex flex-wrap gap-2">
               {INTERVALS.map((option) => {
                 const selected = option.id === intervalId;
@@ -185,9 +220,9 @@ export function PlanForm() {
                     key={option.id}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setIntervalId(option.id)}
+                    onClick={() => setIntervalId(option.id as IntervalId)}
                     className={cn(
-                      "h-11 min-w-[140px] flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
                       selected
                         ? "border-primary bg-success-soft text-success"
                         : "border-input bg-background text-foreground/80 hover:bg-accent",
@@ -197,11 +232,57 @@ export function PlanForm() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                aria-pressed={intervalId === "custom"}
+                onClick={() => setIntervalId("custom")}
+                className={cn(
+                  "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
+                  intervalId === "custom"
+                    ? "border-primary bg-success-soft text-success"
+                    : "border-input bg-background text-foreground/80 hover:bg-accent",
+                )}
+              >
+                Custom
+              </button>
             </div>
-            {intervalId === "demo" && (
-              <p className="mt-1 text-[13px] text-warning">
-                Demo mode bills every 60 seconds on Devnet. Do not use it for production plans.
-              </p>
+
+            {intervalId === "custom" && (
+              <div className="flex flex-col gap-2 rounded-lg border border-input bg-accent/20 p-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-24">
+                    <Input
+                      id="custom-interval-count"
+                      type="number"
+                      min={1}
+                      value={customCount}
+                      onChange={(e) => setCustomCount(e.target.value)}
+                      className="h-11 text-center font-mono"
+                      aria-label="Interval count"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <select
+                      id="custom-interval-unit"
+                      value={customUnit}
+                      onChange={(e) => setCustomUnit(e.target.value as CustomUnit)}
+                      className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                      aria-label="Interval unit"
+                    >
+                      <option value="minutes">Minute(s)</option>
+                      <option value="hours">Hour(s)</option>
+                      <option value="days">Day(s)</option>
+                      <option value="months">Month(s) (30 days)</option>
+                      <option value="years">Year(s) (365 days)</option>
+                    </select>
+                  </div>
+                </div>
+                {!intervalValid && (
+                  <p className="text-xs text-destructive">
+                    Custom interval must be at least 1 minute (60 seconds).
+                  </p>
+                )}
+              </div>
             )}
           </fieldset>
 
@@ -248,11 +329,19 @@ export function PlanForm() {
             </CardDescription>
           </div>
 
-          <div className="flex flex-col gap-2 rounded-md border bg-background p-4">
+          <div className="flex flex-col gap-2.5 rounded-md border bg-background p-4">
             <div className="text-[13px] text-muted-foreground">Terms</div>
-            <div className="text-lg font-semibold leading-[26px] tabular-nums">
-              {amount !== null ? price.trim() : "0.00"} USDC every {interval.unit}
+            <div className="text-lg font-semibold leading-6.5 tabular-nums">
+              {amount !== null && !priceError ? price.trim() : "0.00"} USDC every {intervalPhrase}
             </div>
+            {amount !== null && !priceError && (
+              <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                <span>Net payout to merchant</span>
+                <span className="font-mono font-medium text-foreground">
+                  {(Number(price) - Number(DEFAULT_CRANK_BOUNTY_USDC)).toFixed(2)} USDC / cycle
+                </span>
+              </div>
+            )}
           </div>
 
           {planAddress ? (
@@ -274,7 +363,8 @@ export function PlanForm() {
         </CardContent>
       </Card>
     </div>
-  );
+  </div>
+);
 }
 
 function OutputField({ label, value, copyLabel }: { label: string; value: string; copyLabel: string }) {
@@ -282,7 +372,7 @@ function OutputField({ label, value, copyLabel }: { label: string; value: string
     <div className="flex flex-col gap-2">
       <div className="text-sm font-medium">{label}</div>
       <div className="flex items-start gap-2">
-        <code className="min-w-0 flex-1 break-all rounded-md border bg-background px-3 py-2.5 font-mono text-xs leading-[18px] text-foreground/80">
+        <code className="min-w-0 flex-1 break-all rounded-md border bg-background px-3 py-2.5 font-mono text-xs leading-4.5 text-foreground/80">
           {value}
         </code>
         <CopyButton value={value} label={copyLabel} />
