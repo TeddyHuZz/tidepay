@@ -13,13 +13,16 @@ export const ACTIONS_CORS_HEADERS: Record<string, string> = {
   "X-Blockchain-Ids": DEVNET_BLOCKCHAIN_ID,
 };
 
-export function actionResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: ACTIONS_CORS_HEADERS });
+export function actionResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...ACTIONS_CORS_HEADERS, ...extraHeaders },
+  });
 }
 
-export function actionError(message: string, status: number) {
+export function actionError(message: string, status: number, extraHeaders: Record<string, string> = {}) {
   const body: ActionError = { message };
-  return actionResponse(body, status);
+  return actionResponse(body, status, extraHeaders);
 }
 
 /** Preflight response shared by every Action route. */
@@ -29,6 +32,6 @@ export function actionsOptions() {
 
 /** Public origin used to build absolute URLs (icon, action hrefs). */
 export function getBaseUrl(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
-  return (configured ?? new URL(request.url).origin).replace(/\/$/, "");
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  return (configured || new URL(request.url).origin).replace(/\/$/, "");
 }

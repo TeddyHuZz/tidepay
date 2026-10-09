@@ -16,7 +16,7 @@ export default function CheckoutPage({ params }: PageProps<"/checkout/[planId]">
         <Logo />
         <WalletButton />
       </header>
-      <main className="flex flex-1 items-start justify-center px-4 py-10 md:items-center">
+      <main id="main-content" className="flex flex-1 items-start justify-center px-4 py-10 md:items-center">
         <Suspense fallback={<div className="h-96 w-full max-w-md animate-pulse rounded-lg border bg-card" />}>
           <CheckoutContent params={params} />
         </Suspense>

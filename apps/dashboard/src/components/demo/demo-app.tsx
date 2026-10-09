@@ -46,7 +46,7 @@ export function DemoApp() {
         </div>
       </header>
 
-      <main className="flex flex-wrap items-start gap-6 px-4 py-8 md:px-10 md:py-10">
+      <main id="main-content" className="flex flex-wrap items-start gap-6 px-4 py-8 md:px-10 md:py-10">
         <Card className="min-w-0 flex-[999_1_520px]">
           <CardContent className="flex flex-col gap-5 p-7">
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listPlans } from "@/lib/data";
@@ -26,6 +27,17 @@ export default async function PlansPage() {
       </div>
 
       <Card>
+        {plans.length === 0 ? (
+          <EmptyState
+            title="No plans yet"
+            description="Create your first plan to get a shareable Blink link and checkout page."
+            action={
+              <Button asChild>
+                <Link href="/plans/new">Create a plan</Link>
+              </Button>
+            }
+          />
+        ) : (
         <Table>
           <TableHeader>
             <TableRow className="border-t-0 hover:bg-transparent">
@@ -56,6 +68,7 @@ export default async function PlansPage() {
             ))}
           </TableBody>
         </Table>
+        )}
       </Card>
     </div>
   );

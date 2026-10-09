@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { SubscribeTxUnavailableError, buildSubscribeTransaction } from "@/lib/actions/build-subscribe-tx";
 import { actionError, actionResponse, actionsOptions, getBaseUrl } from "@/lib/actions/http";
+import { checkRateLimit, clientIp } from "@/lib/actions/rate-limit";
 import type { ActionGetResponse, ActionPostRequest, ActionPostResponse } from "@/lib/actions/types";
 import { getPlan } from "@/lib/data";
 import { getInterval } from "@/lib/types";
@@ -39,7 +40,20 @@ export async function GET(request: Request, ctx: Context) {
   return actionResponse(body);
 }
 
+const WINDOW_MS = 60_000;
+const IP_LIMIT = 30;
+const ACCOUNT_LIMIT = 5;
+
+function tooManyRequests(retryAfterSeconds: number) {
+  return actionError("Too many requests. Please wait a moment and try again.", 429, {
+    "Retry-After": String(retryAfterSeconds),
+  });
+}
+
 export async function POST(request: Request, ctx: Context) {
+  const ip = checkRateLimit(`ip:${clientIp(request)}`, IP_LIMIT, WINDOW_MS);
+  if (!ip.ok) return tooManyRequests(ip.retryAfterSeconds);
+
   const { planId } = await ctx.params;
   const plan = await getPlan(planId);
   if (!plan) return actionError("Plan not found.", 404);
@@ -59,6 +73,9 @@ export async function POST(request: Request, ctx: Context) {
   } catch {
     return actionError("Invalid `account`: expected a base58 Solana public key.", 400);
   }
+
+  const wallet = checkRateLimit(`account:${subscriber.toBase58()}`, ACCOUNT_LIMIT, WINDOW_MS);
+  if (!wallet.ok) return tooManyRequests(wallet.retryAfterSeconds);
 
   try {
     const { transaction, message } = await buildSubscribeTransaction(plan, subscriber);

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SubscriptionStatusBadge } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTimeUtc, shortAddress } from "@/lib/format";
@@ -16,6 +17,12 @@ export default async function SubscribersPage() {
       <p className="text-sm text-muted-foreground">Wallets subscribed to your plans, with their next renewal.</p>
 
       <Card>
+        {subscribers.length === 0 ? (
+          <EmptyState
+            title="No subscribers yet"
+            description="Share a plan's Blink link or checkout page and subscribers will show up here."
+          />
+        ) : (
         <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow className="border-t-0 hover:bg-transparent">
@@ -55,6 +62,7 @@ export default async function SubscribersPage() {
             ))}
           </TableBody>
         </Table>
+        )}
       </Card>
     </div>
   );

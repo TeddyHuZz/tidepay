@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { ActivityBadge } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,12 @@ export default async function OverviewPage() {
               View subscribers
             </Link>
           </CardHeader>
+          {activity.length === 0 ? (
+            <EmptyState
+              title="No billing activity yet"
+              description="Settlements and new subscriptions appear here as they happen."
+            />
+          ) : (
           <Table>
             <TableHeader>
               <TableRow className="border-t-0 hover:bg-transparent">
@@ -60,6 +67,7 @@ export default async function OverviewPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </Card>
 
         <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
