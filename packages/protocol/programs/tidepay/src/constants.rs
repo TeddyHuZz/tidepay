@@ -1,10 +1,14 @@
 use anchor_lang::prelude::*;
 
 #[constant]
-pub const COUNTER_SEED: &[u8] = b"counter";
+pub const PLAN_SEED: &[u8] = b"plan";
 
 #[constant]
-pub const HELLO_WORLD_LAMPORTS: u64 = 1;
+pub const SUBSCRIPTION_SEED: &[u8] = b"subscription";
 
 #[constant]
-pub const MAX_COUNT: u64 = 10;
+pub const AUTH_SEED: &[u8] = b"tidepay_auth";
+
+pub const BPS_DENOMINATOR: u64 = 10_000;
+pub const MIN_INTERVAL_SECONDS: i64 = 60;
+pub const MAX_PROTOCOL_FEE_BPS: u16 = 500;

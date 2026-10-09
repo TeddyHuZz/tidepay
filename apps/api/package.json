@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@solana/actions": "^1.6.6",
+    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
     "@tidepay/sdk": "workspace:*",
     "@tidepay/types": "workspace:*",
