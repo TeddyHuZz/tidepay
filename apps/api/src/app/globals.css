@@ -24,9 +24,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a {
+a,
+button,
+[role="button"] {
   color: var(--accent);
   text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 code {
