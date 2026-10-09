@@ -1,0 +1,44 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { WalletButton } from "@/components/wallet-button";
+import { Badge } from "@/components/ui/badge";
+
+const TITLES: Record<string, string> = {
+  "/": "Overview",
+  "/plans": "Plans",
+  "/plans/new": "New plan",
+  "/subscribers": "Subscribers",
+  "/developers": "Developers",
+};
+
+export function Topbar() {
+  const pathname = usePathname();
+  const title = TITLES[pathname] ?? "TidePay";
+  const isNestedPlan = pathname === "/plans/new";
+
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-8">
+      <div className="flex items-center gap-2 text-xl leading-7">
+        {isNestedPlan && (
+          <>
+            <Link href="/plans" className="text-muted-foreground hover:text-foreground">
+              Plans
+            </Link>
+            <span className="text-muted-foreground/60" aria-hidden="true">
+              /
+            </span>
+          </>
+        )}
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+      </div>
+      <div className="flex items-center gap-3">
+        <Badge variant="outline" className="h-8 items-center px-3">
+          Devnet
+        </Badge>
+        <WalletButton />
+      </div>
+    </header>
+  );
+}

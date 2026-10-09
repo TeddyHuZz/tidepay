@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" fill="#0D0F12"/>
+  <rect x="176" y="120" width="160" height="160" rx="36" fill="#4CC2B0"/>
+  <path d="M206 206c18 0 18-24 36-24s18 24 36 24 18-24 36-24M206 242c18 0 18-24 36-24s18 24 36 24 18-24 36-24" stroke="#0B1512" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="256" y="372" fill="#E6E9ED" font-family="Helvetica, Arial, sans-serif" font-size="44" font-weight="600" text-anchor="middle">TidePay</text>
+  <text x="256" y="416" fill="#9AA4B0" font-family="Helvetica, Arial, sans-serif" font-size="24" text-anchor="middle">Recurring payments on Solana</text>
+</svg>
