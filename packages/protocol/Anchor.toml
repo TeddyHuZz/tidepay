@@ -7,7 +7,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-protocol = "Ar6iGy41tpdPX9SspnQ4akMrWuJrGYY2F3QdwsHQ7uEp"
+tidepay = "Ar6iGy41tpdPX9SspnQ4akMrWuJrGYY2F3QdwsHQ7uEp"
 
 [provider]
 cluster = "localnet"

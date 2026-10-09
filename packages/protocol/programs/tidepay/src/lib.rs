@@ -12,7 +12,7 @@ pub use state::*;
 declare_id!("Ar6iGy41tpdPX9SspnQ4akMrWuJrGYY2F3QdwsHQ7uEp");
 
 #[program]
-pub mod protocol {
+pub mod tidepay {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {

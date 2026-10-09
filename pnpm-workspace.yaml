@@ -1,9 +1,12 @@
 packages:
   - "packages/*"
+  - "packages/protocol/crank"
   - "apps/*"
 
 allowBuilds:
+  bigint-buffer: true
   bufferutil: false
+  esbuild: true
   sharp: false
   unrs-resolver: false
   utf-8-validate: false
