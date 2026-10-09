@@ -187,6 +187,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.99.0
         version: 1.99.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@tidepay/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@tidepay/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -284,6 +287,12 @@ importers:
       '@solana/web3.js':
         specifier: ^1.95.0
         version: 1.99.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@tidepay/sdk':
+        specifier: workspace:*
+        version: link:../../sdk
+      '@tidepay/types':
+        specifier: workspace:*
+        version: link:../../types
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1

@@ -20,7 +20,8 @@ Your code must meet enterprise production standards: type-safe, non-custodial, g
    - `packages/protocol`: Anchor Rust program + Keeper Crank.
    - `packages/types`: Shared IDL, account interfaces, and enums.
    - `packages/sdk`: TypeScript SDK (`TidePayClient`).
-   - `apps/dashboard`: Next.js App Router merchant console + Solana Action APIs.
+   - `apps/dashboard`: Next.js App Router merchant console (`app.tidepay.xyz`).
+   - `apps/api`: Next.js App Router Solana Actions / Blinks & developer API (`api.tidepay.xyz`).
    Code in `apps/` must NEVER import directly from `packages/protocol`. All interactions occur via `@tidepay/sdk` or `@tidepay/types`.
 4. **Fast-Forward Testing:** Always retain a `testing_mode` or interval slider allowing billing cycles down to 60 seconds on Devnet for demo validation.
 
@@ -67,7 +68,7 @@ Apply these rules when working in `packages/sdk`:
 
 ## 5. Skill Domain: Solana Actions & Blinks (Next.js App Router)
 
-Apply these rules when working in `apps/dashboard/src/app/api/actions`:
+Apply these rules when working in `apps/api/src/app/api/actions`:
 
 * **Action Headers:** Every Action response must explicitly set standard Action headers:
   - `Access-Control-Allow-Origin: *`
