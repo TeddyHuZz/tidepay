@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("Ar6iGy41tpdPX9SspnQ4akMrWuJrGYY2F3QdwsHQ7uEp");
+declare_id!("DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ");
 
 #[program]
 pub mod tidepay {
