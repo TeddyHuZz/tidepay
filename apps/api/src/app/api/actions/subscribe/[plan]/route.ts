@@ -42,6 +42,7 @@ export async function GET(
 ) {
   try {
     const { plan: planAddress } = await context.params;
+
     let planPubkey: PublicKey;
 
     try {
@@ -99,6 +100,7 @@ export async function POST(
 ) {
   try {
     const { plan: planAddress } = await context.params;
+
     let planPubkey: PublicKey;
 
     try {
