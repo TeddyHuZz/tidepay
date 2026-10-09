@@ -15,8 +15,14 @@ const TITLES: Record<string, string> = {
 
 export function Topbar() {
   const pathname = usePathname();
-  const title = TITLES[pathname] ?? "TidePay";
-  const isNestedPlan = pathname === "/plans/new";
+  const isNestedPlan = pathname.startsWith("/plans/") && pathname !== "/plans";
+  let title = TITLES[pathname];
+  if (!title && isNestedPlan) {
+    title = decodeURIComponent(pathname.replace("/plans/", ""));
+  }
+  if (!title) {
+    title = "TidePay";
+  }
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-8">

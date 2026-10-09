@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { MerchantDataProvider } from "@/components/merchant-data-provider";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
@@ -6,9 +7,13 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
   return (
     <MerchantDataProvider>
       <div className="flex min-h-dvh flex-col md:flex-row">
-        <Sidebar />
+        <Suspense fallback={<aside className="h-dvh w-60 border-r" />}>
+          <Sidebar />
+        </Suspense>
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar />
+          <Suspense fallback={<header className="h-14 border-b px-8 py-3" />}>
+            <Topbar />
+          </Suspense>
           <main id="main-content" className="flex-1 px-4 py-6 md:px-8 md:py-8">
             {children}
           </main>

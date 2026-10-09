@@ -67,11 +67,19 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
   let state: MerchantDataState;
-  if (USE_SAMPLE_DATA) state = { status: "ready", data: getSampleMerchantData(), isSample: true };
-  else if (!requestKey) state = { status: "disconnected" };
-  else if (result?.key !== requestKey) state = { status: "loading" };
-  else if (result.error || !result.data) state = { status: "error", message: result.error ?? "Unknown error" };
-  else state = { status: "ready", data: result.data, isSample: false };
+  if (USE_SAMPLE_DATA) {
+    state = { status: "ready", data: getSampleMerchantData(), isSample: true };
+  } else if (!requestKey) {
+    state = { status: "disconnected" };
+  } else if (result?.data) {
+    // Keep existing data visible smoothly during background refetches (no flicker or jerking)
+    state = { status: "ready", data: result.data, isSample: false };
+  } else if (result?.error) {
+    state = { status: "error", message: result.error };
+  } else {
+    // Initial first-time load only
+    state = { status: "loading" };
+  }
 
   return <MerchantDataContext.Provider value={{ state, refresh }}>{children}</MerchantDataContext.Provider>;
 }

@@ -2,11 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { ArrowLeft, Info } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { useMerchantData } from "@/components/merchant-data-provider";
+import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,8 @@ function toPlanId(value: string) {
 }
 
 export function PlanForm() {
+  const router = useRouter();
+  const { success: toastSuccess, error: toastError } = useToast();
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { refresh } = useMerchantData();
@@ -96,7 +101,9 @@ export function PlanForm() {
     try {
       const planPda = client.findMerchantPlanPda(publicKey, planId)[0];
       if (await connection.getAccountInfo(planPda)) {
-        setSubmit({ status: "error", message: "You already have a plan with this ID. Choose another ID." });
+        const errorMsg = "You already have a plan with this ID. Choose another ID.";
+        setSubmit({ status: "error", message: errorMsg });
+        toastError("Plan ID conflict", errorMsg);
         return;
       }
 
@@ -119,10 +126,25 @@ export function PlanForm() {
       ]);
       const signature = await send(tx);
       setSubmit({ status: "success", signature });
+
+      // Poll until the Solana RPC index confirms the account exists before redirecting
+      for (let i = 0; i < 6; i++) {
+        const info = await connection.getAccountInfo(new PublicKey(planAddress), "confirmed");
+        if (info) break;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+
       refresh();
+      toastSuccess(`Plan "${planId}" created successfully!`, "Redirecting to plan analytics...");
+
+      setTimeout(() => {
+        router.push(`/plans/${encodeURIComponent(planId)}`);
+      }, 1200);
     } catch (error) {
       console.error("[TidePay] createPlan failed:", error);
-      setSubmit({ status: "error", message: describeTransactionError(error) });
+      const errMessage = describeTransactionError(error);
+      setSubmit({ status: "error", message: errMessage });
+      toastError("Failed to create plan", errMessage);
     }
   }
 
