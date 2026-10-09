@@ -17,6 +17,9 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "TidePay Actions API",
   description: "Solana Actions (Blinks) for TidePay recurring subscriptions.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
