@@ -10,7 +10,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@privy-io/react-auth": "^3.48.0",
     "@radix-ui/react-slot": "^1.4.0",
+    "@solana-program/memo": "^0.15.0",
+    "@solana-program/system": "^0.15.0",
+    "@solana-program/token": "^0.17.0",
+    "@solana/kit": "^8.4.0",
     "@solana/spl-token": "^0.4.15",
     "@solana/wallet-adapter-react": "^0.15.40",
     "@solana/wallet-adapter-react-ui": "^0.9.40",
