@@ -1,0 +1,532 @@
+{
+  "address": "DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ",
+  "metadata": {
+    "name": "tidepay",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "cancel_subscription",
+      "discriminator": [
+        60,
+        139,
+        189,
+        242,
+        191,
+        208,
+        143,
+        18
+      ],
+      "accounts": [
+        {
+          "name": "subscriber",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan"
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              },
+              {
+                "kind": "account",
+                "path": "subscriber"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_plan",
+      "discriminator": [
+        207,
+        161,
+        230,
+        194,
+        86,
+        77,
+        169,
+        8
+      ],
+      "accounts": [
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant"
+              },
+              {
+                "kind": "arg",
+                "path": "plan_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "merchant_token_account"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "plan_id",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "interval_seconds",
+          "type": "i64"
+        },
+        {
+          "name": "protocol_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "crank_bounty_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "process_epoch",
+      "discriminator": [
+        115,
+        194,
+        215,
+        160,
+        113,
+        154,
+        81,
+        5
+      ],
+      "accounts": [
+        {
+          "name": "crank",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              },
+              {
+                "kind": "account",
+                "path": "subscription.subscriber",
+                "account": "SubscriptionRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscriber_token_account",
+          "writable": true
+        },
+        {
+          "name": "merchant_token_account",
+          "writable": true
+        },
+        {
+          "name": "crank_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "program_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  100,
+                  101,
+                  112,
+                  97,
+                  121,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "subscribe",
+      "discriminator": [
+        254,
+        28,
+        191,
+        138,
+        156,
+        179,
+        183,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "subscriber",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              },
+              {
+                "kind": "account",
+                "path": "subscriber"
+              }
+            ]
+          }
+        },
+        {
+          "name": "subscriber_token_account",
+          "writable": true
+        },
+        {
+          "name": "merchant_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "program_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  100,
+                  101,
+                  112,
+                  97,
+                  121,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MerchantPlan",
+      "discriminator": [
+        186,
+        54,
+        183,
+        129,
+        39,
+        81,
+        74,
+        89
+      ]
+    },
+    {
+      "name": "SubscriptionRecord",
+      "discriminator": [
+        76,
+        229,
+        85,
+        224,
+        137,
+        37,
+        156,
+        88
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidPlanId",
+      "msg": "Plan ID cannot be empty or exceed 32 characters"
+    },
+    {
+      "code": 6001,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6002,
+      "name": "IntervalTooShort",
+      "msg": "Billing interval must be at least 60 seconds"
+    },
+    {
+      "code": 6003,
+      "name": "EpochNotDue",
+      "msg": "Epoch billing is not yet due"
+    },
+    {
+      "code": 6004,
+      "name": "SubscriptionInactive",
+      "msg": "Subscription is not active"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidFeeBps",
+      "msg": "Protocol fee basis points exceed maximum allowed"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientAllowance",
+      "msg": "Insufficient delegated allowance for subscription pull"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized",
+      "msg": "Unauthorized signer for this action"
+    },
+    {
+      "code": 6008,
+      "name": "MathOverflow",
+      "msg": "Calculation overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "MerchantPlan",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_token_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "interval_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "plan_id",
+            "type": "string"
+          },
+          {
+            "name": "protocol_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "crank_bounty_amount",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubscriptionRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "plan",
+            "type": "pubkey"
+          },
+          {
+            "name": "subscriber",
+            "type": "pubkey"
+          },
+          {
+            "name": "subscriber_token_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "start_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "last_epoch_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "next_epoch_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "cycle_count",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "AUTH_SEED",
+      "type": "bytes",
+      "value": "[116, 105, 100, 101, 112, 97, 121, 95, 97, 117, 116, 104]"
+    },
+    {
+      "name": "PLAN_SEED",
+      "type": "bytes",
+      "value": "[112, 108, 97, 110]"
+    },
+    {
+      "name": "SUBSCRIPTION_SEED",
+      "type": "bytes",
+      "value": "[115, 117, 98, 115, 99, 114, 105, 112, 116, 105, 111, 110]"
+    }
+  ]
+}
