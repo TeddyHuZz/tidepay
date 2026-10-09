@@ -57,7 +57,7 @@ Console routes share the sidebar, top bar and merchant data through the `(consol
   - *Status*: `PastDue` once `next_epoch_timestamp` is more than 2 minutes overdue. Cancelled subscriptions are closed on-chain, so they no longer appear.
   - *Activity*: each subscription's latest settlement plus overdue renewals. The program emits no events, so there is no full history.
   - *Crank uptime*: shown as "—"; the crank does not report health yet.
-- **Checkout plan** (`lib/data/index.ts`) is read on the server by plan address.
+- **Checkout plan** (`lib/data/index.ts`) is read on the server by plan address. `src/proxy.ts` first checks that the address is a TidePay plan account and answers with a real 404 if not; the page streams, so a `notFound()` inside it could only return 200.
 - **Transactions** (`hooks/use-send-transaction.ts`) are signed by the wallet, sent and confirmed. Program errors are mapped to readable messages from the IDL (`lib/chain/errors.ts`).
   - *Create plan*: creates the merchant's USDC account if needed, then `initialize_plan`. Protocol fee is 0 bps; the keeper reward defaults to 0.01 USDC.
   - *Subscribe*: requests the transaction from `POST {API_URL}/api/actions/subscribe/<plan>`, the same builder the Blink uses, including relayer sponsorship.
@@ -69,4 +69,4 @@ Dark by default with a single teal accent, IBM Plex Sans and Mono, flat surfaces
 
 ## Tests
 
-`pnpm --filter dashboard test` covers the derived figures (MRR, status, activity, crank status), USDC parsing and formatting, and the formatting helpers.
+`pnpm --filter dashboard test` covers the derived figures (MRR, status, activity, crank status), USDC parsing and formatting, the plan-account check used by the checkout 404, and the formatting helpers.

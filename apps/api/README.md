@@ -28,6 +28,7 @@ Copy `.env.example` to `.env.local`.
 | `GET /api/actions/subscribe/[plan]` | Action metadata for the plan at address `[plan]`, read from chain |
 | `POST /api/actions/subscribe/[plan]` | Body `{ "account": "<base58 pubkey>" }`; returns `{ type: "transaction", transaction, message }` |
 | `OPTIONS` | CORS preflight |
+| `GET /` | Short human-readable page listing these endpoints |
 | `GET /subscribe/[plan]` | Redirects a browser to the dashboard checkout page |
 
 Responses carry the Actions CORS headers plus `X-Action-Version` and `X-Blockchain-Ids` (Devnet). Errors are `{ "message": "..." }`:

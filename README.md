@@ -38,7 +38,7 @@ pnpm dev                       # runs every app via Turborepo
 
 Other root scripts: `pnpm build`, `pnpm lint`, `pnpm test`.
 
-Each app has its own setup guide and environment reference: [`apps/dashboard`](apps/dashboard/README.md), [`apps/api`](apps/api/README.md).
+Each app has its own setup guide and environment reference: [`apps/dashboard`](apps/dashboard/README.md), [`apps/api`](apps/api/README.md). Deployment (two Vercel projects, relayer wallet, Blink validation) is in [`DEPLOY.md`](DEPLOY.md).
 
 ## Status
 
