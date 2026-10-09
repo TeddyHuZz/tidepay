@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[error_code]
+#[derive(PartialEq, Eq)]
 pub enum TidePayError {
     #[msg("Plan ID cannot be empty or exceed 32 characters")]
     InvalidPlanId,
