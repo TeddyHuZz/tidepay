@@ -1,41 +1,47 @@
-// Single data-access seam for the dashboard.
-//
-// Every function is async and returns UI view models from src/lib/types.
-// They currently serve sample data. To integrate on-chain data, replace each
-// body with @tidepay/sdk calls (getPlan, listSubscribers, ...) mapped into
-// these shapes. Pages, components and the Blink route need no changes.
-//
-// Once these hit the network, wrap the callers in <Suspense> or cache the
-// result with `use cache`: the app runs with cacheComponents enabled.
-import type {
-  ActivityEvent,
-  CrankStatusRow,
-  Metric,
-  PlanSummary,
-  SubscriberRow,
-} from "@/lib/types";
-import { ACTIVITY, CRANK_STATUS, METRICS, PLANS, SUBSCRIBERS } from "./mock";
+// Data entry points that run outside the merchant's wallet context.
+// Merchant-scoped data (plans, subscribers, metrics) is loaded in the browser
+// by components/merchant-data-provider.tsx, because it depends on the
+// connected wallet.
+import { Connection } from "@solana/web3.js";
+import { createClient, fetchPlan, parseAddress } from "@/lib/chain/accounts";
+import { RPC_URL, USE_SAMPLE_DATA } from "@/lib/chain/config";
+import { formatUsdc } from "@/lib/chain/derive";
+import type { MerchantData } from "@/lib/types";
+import { SAMPLE_DATA } from "./mock";
 
-export async function getOverviewMetrics(): Promise<Metric[]> {
-  return METRICS;
+export function getSampleMerchantData(): MerchantData {
+  return SAMPLE_DATA;
 }
 
-export async function getRecentActivity(): Promise<ActivityEvent[]> {
-  return ACTIVITY;
+export interface CheckoutPlan {
+  /** Plan address (sample data: slug). */
+  id: string;
+  name: string;
+  priceUsdc: string;
+  intervalSeconds: number;
+  active: boolean;
+  isSample: boolean;
 }
 
-export async function getCrankStatus(): Promise<CrankStatusRow[]> {
-  return CRANK_STATUS;
-}
+/** Plan shown on /checkout/[planId]; planId is the on-chain plan address. */
+export async function getCheckoutPlan(planId: string): Promise<CheckoutPlan | null> {
+  if (USE_SAMPLE_DATA) {
+    const plan = SAMPLE_DATA.plans.find((candidate) => candidate.id === planId);
+    return plan ? { ...plan, isSample: true } : null;
+  }
 
-export async function listPlans(): Promise<PlanSummary[]> {
-  return PLANS;
-}
+  const address = parseAddress(planId);
+  if (!address) return null;
 
-export async function getPlan(planId: string): Promise<PlanSummary | undefined> {
-  return PLANS.find((plan) => plan.id === planId);
-}
+  const plan = await fetchPlan(createClient(new Connection(RPC_URL, "confirmed")), address);
+  if (!plan) return null;
 
-export async function listSubscribers(): Promise<SubscriberRow[]> {
-  return SUBSCRIBERS;
+  return {
+    id: plan.address,
+    name: plan.planId,
+    priceUsdc: formatUsdc(plan.amount),
+    intervalSeconds: Number(plan.intervalSeconds),
+    active: plan.isActive,
+    isSample: false,
+  };
 }

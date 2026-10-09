@@ -1,5 +1,5 @@
-// View models used by the dashboard UI. These are deliberately independent of
-// the on-chain account types; src/lib/data maps SDK results into them.
+// View models used by the dashboard UI. They are deliberately independent of
+// the on-chain account types; src/lib/chain/derive.ts maps accounts into them.
 
 export type IntervalId = "daily" | "monthly" | "demo";
 
@@ -19,6 +19,25 @@ export const INTERVALS: readonly BillingInterval[] = [
 
 export function getInterval(id: IntervalId): BillingInterval {
   return INTERVALS.find((interval) => interval.id === id) ?? INTERVALS[1];
+}
+
+function plural(count: number, unit: string) {
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
+}
+
+/** "every ..." phrase for any interval, matching the presets where possible. */
+export function intervalUnit(seconds: number): string {
+  const preset = INTERVALS.find((interval) => interval.seconds === seconds);
+  if (preset) return preset.unit;
+  if (seconds % 86_400 === 0) return plural(seconds / 86_400, "day");
+  if (seconds % 3_600 === 0) return plural(seconds / 3_600, "hour");
+  if (seconds % 60 === 0) return plural(seconds / 60, "minute");
+  return plural(seconds, "second");
+}
+
+/** Short label for tables. */
+export function intervalLabel(seconds: number): string {
+  return INTERVALS.find((interval) => interval.seconds === seconds)?.label ?? `Every ${intervalUnit(seconds)}`;
 }
 
 export type SubscriptionStatus = "Active" | "PastDue" | "Cancelled";
@@ -46,18 +65,30 @@ export interface ActivityEvent {
 }
 
 export interface PlanSummary {
+  /** On-chain plan address (sample data uses a slug). */
   id: string;
+  /** The on-chain plan ID; plans have no separate display name. */
   name: string;
   priceUsdc: string;
-  interval: IntervalId;
+  intervalSeconds: number;
   subscribers: number;
   active: boolean;
 }
 
 export interface SubscriberRow {
+  /** Subscription record address (sample data uses a placeholder). */
+  id: string;
   wallet: string;
   plan: string;
   lastBilledAt: string;
   nextDueAt: string;
   status: SubscriptionStatus;
+}
+
+export interface MerchantData {
+  plans: PlanSummary[];
+  subscribers: SubscriberRow[];
+  metrics: Metric[];
+  activity: ActivityEvent[];
+  crank: CrankStatusRow[];
 }

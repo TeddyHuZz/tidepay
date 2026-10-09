@@ -233,6 +233,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.4.0
         version: 1.4.0(@types/react@19.3.0)(react@19.3.0)
+      '@solana/spl-token':
+        specifier: ^0.4.15
+        version: 0.4.15(@solana/web3.js@1.99.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)
       '@solana/wallet-adapter-react':
         specifier: ^0.15.40
         version: 0.15.40(@solana/web3.js@1.99.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(typescript@5.9.3)
@@ -248,6 +251,9 @@ importers:
       '@tidepay/types':
         specifier: workspace:*
         version: link:../../packages/types
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

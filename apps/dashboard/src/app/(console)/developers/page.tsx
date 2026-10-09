@@ -8,35 +8,46 @@ export const metadata: Metadata = { title: "Developers" };
 const SNIPPETS = [
   {
     title: "Subscribe a wallet",
-    description: "Delegates the allowance and settles Epoch 0 in one transaction.",
-    code: `import { TidePayClient } from "@tidepay/sdk";
+    description: "Delegate an allowance to the program authority, then subscribe; Epoch 0 is pulled immediately.",
+    code: `import { Connection } from "@solana/web3.js";
+import { TidePayClient } from "@tidepay/sdk";
 
-const client = new TidePayClient(provider);
+const client = new TidePayClient(new Connection(RPC_URL));
 
-const { txSignature, subscriptionPda } = await client.subscribe({
-  plan: planPda,
+const [programAuthority] = client.findProgramAuthorityPda();
+const approveIx = createApproveInstruction(subscriberAta, programAuthority, wallet.publicKey, plan.amount * 12n);
+
+const { instruction, subscriptionPda } = await client.buildSubscribeInstruction({
   subscriber: wallet.publicKey,
+  plan: planPda,
+  tokenMint: USDC_MINT,
+  subscriberTokenAccount: subscriberAta,
+  merchantTokenAccount: plan.merchantTokenAccount,
 });`,
   },
   {
     title: "Create a plan",
-    description: "Register billing terms. Amounts and timestamps are bigint.",
-    code: `const { txSignature, planPda } = await client.createPlan({
+    description: "Register billing terms. Amounts are bigint in token base units (USDC has 6 decimals).",
+    code: `const { instruction, planPda } = await client.buildInitializePlanInstruction({
+  merchant: wallet.publicKey,
   planId: "promptpilot-pro",
-  amount: 29_000_000n, // 29 USDC, 6 decimals
+  amount: 29_000_000n,
   intervalSeconds: 2_592_000n,
-  mint: USDC_DEVNET_MINT,
+  protocolFeeBps: 0,
+  crankBountyAmount: 10_000n,
+  tokenMint: USDC_MINT,
+  merchantTokenAccount: merchantAta,
 });`,
   },
   {
-    title: "Compose into your own transaction",
-    description: "Instruction builders return raw TransactionInstruction objects.",
-    code: `const ix = await client.buildSubscribeIx({
-  plan: planPda,
-  subscriber: wallet.publicKey,
-});
+    title: "Check a subscription",
+    description: "Gate features on an active subscription record.",
+    code: `const [subscriptionPda] = client.findSubscriptionRecordPda(planPda, wallet.publicKey);
+const record = await client.getSubscriptionRecord(subscriptionPda);
 
-tx.add(ix);`,
+const isActive =
+  record?.isActive === true &&
+  BigInt(Math.floor(Date.now() / 1000)) <= record.nextEpochTimestamp;`,
   },
 ];
 
@@ -44,8 +55,8 @@ export default function DevelopersPage() {
   return (
     <div className="flex flex-col gap-6">
       <p className="max-w-2xl text-sm text-muted-foreground">
-        Integrate TidePay with the TypeScript SDK. Signatures follow the planned @tidepay/sdk API and may change
-        until it is published.
+        Integrate TidePay with the @tidepay/sdk TypeScript client. Builders return raw instructions, so you can
+        compose them into your own transactions.
       </p>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-6">

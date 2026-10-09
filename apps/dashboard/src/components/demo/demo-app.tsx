@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Check, Lock, LockOpen } from "lucide-react";
+import { WalletButton } from "@/components/wallet-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { useSubscription } from "@/hooks/use-subscription";
+import { createClient, fetchPlan, parseAddress } from "@/lib/chain/accounts";
+import { DEMO_PLAN_ADDRESS } from "@/lib/chain/config";
+import { formatUsdc } from "@/lib/chain/derive";
+import { intervalUnit } from "@/lib/types";
 
 const FEATURES = [
   "Unlimited prompt optimizations",
@@ -21,10 +29,90 @@ const OPTIMIZED = [
   { label: "Output", text: "A single paragraph followed by three short feature bullets." },
 ];
 
+const MOCK_TERMS = { price: "29.00", unit: "30 days" };
+
+interface Gate {
+  onChain: boolean;
+  subscribed: boolean;
+  busy: boolean;
+  subscribeLabel: string;
+  error: string | null;
+  onSubscribe: () => void;
+  onReset: () => void;
+  resetLabel: string;
+}
+
+/** Plan terms for the on-chain demo plan, so the pricing card matches the chain. */
+function usePlanTerms(address: string | null) {
+  const { connection } = useConnection();
+  const [terms, setTerms] = useState<{ key: string; price: string; unit: string } | null>(null);
+
+  useEffect(() => {
+    const plan = address ? parseAddress(address) : null;
+    if (!address || !plan) return;
+    let cancelled = false;
+    fetchPlan(createClient(connection), plan).then(
+      (account) => {
+        if (!cancelled && account) {
+          setTerms({ key: address, price: formatUsdc(account.amount), unit: intervalUnit(Number(account.intervalSeconds)) });
+        }
+      },
+      (error: unknown) => console.error("[TidePay] Failed to load demo plan:", error),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [address, connection]);
+
+  return terms?.key === address ? terms : null;
+}
+
+function useDemoGate(): Gate {
+  const { connected } = useWallet();
+  const { setVisible } = useWalletModal();
+  const { lookup, action, subscribe, cancel } = useSubscription(DEMO_PLAN_ADDRESS);
+  const [mockSubscribed, setMockSubscribed] = useState(false);
+
+  return useMemo<Gate>(() => {
+    if (!DEMO_PLAN_ADDRESS) {
+      return {
+        onChain: false,
+        subscribed: mockSubscribed,
+        busy: false,
+        subscribeLabel: "Subscribe with TidePay",
+        error: null,
+        onSubscribe: () => setMockSubscribed(true),
+        onReset: () => setMockSubscribed(false),
+        resetLabel: "Reset demo",
+      };
+    }
+
+    const pending = action.status === "pending";
+    return {
+      onChain: true,
+      subscribed: lookup.status === "active",
+      busy: pending || lookup.status === "loading",
+      subscribeLabel: !connected
+        ? "Connect wallet to subscribe"
+        : pending
+          ? "Confirm in your wallet…"
+          : lookup.status === "loading"
+            ? "Checking subscription…"
+            : lookup.status === "past_due"
+              ? "Renewal overdue: top up USDC"
+              : "Subscribe with TidePay",
+      error: action.status === "error" ? action.message : null,
+      onSubscribe: () => (connected ? void subscribe() : setVisible(true)),
+      onReset: () => void cancel(),
+      resetLabel: pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription",
+    };
+  }, [action, cancel, connected, lookup.status, mockSubscribed, setVisible, subscribe]);
+}
+
 export function DemoApp() {
-  // Mock gate. Replace with an on-chain subscription check from @tidepay/sdk;
-  // the UI only needs a boolean.
-  const [subscribed, setSubscribed] = useState(false);
+  const gate = useDemoGate();
+  const terms = usePlanTerms(DEMO_PLAN_ADDRESS) ?? MOCK_TERMS;
+  const { subscribed } = gate;
 
   return (
     <div className="theme-demo min-h-dvh bg-background text-foreground">
@@ -36,13 +124,14 @@ export function DemoApp() {
           </svg>
           <span className="text-[17px] font-bold tracking-tight">PromptPilot AI</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
             Back to merchant console
           </Link>
           <Badge variant={subscribed ? "success" : "outline"} className="h-8 items-center px-3 text-[13px] font-semibold">
             {subscribed ? "Pro plan active" : "Free tier"}
           </Badge>
+          {gate.onChain && <WalletButton />}
         </div>
       </header>
 
@@ -96,8 +185,8 @@ export function DemoApp() {
                 Optimize prompt
               </Button>
               {subscribed && (
-                <Button variant="outline" onClick={() => setSubscribed(false)}>
-                  Reset demo
+                <Button variant="outline" disabled={gate.busy} onClick={gate.onReset}>
+                  {gate.resetLabel}
                 </Button>
               )}
             </div>
@@ -109,7 +198,7 @@ export function DemoApp() {
             <div className="flex items-baseline justify-between gap-3">
               <CardTitle className="text-[17px] font-bold">Pro plan</CardTitle>
               <span className="text-[22px] font-bold leading-7 tabular-nums">
-                29.00 <span className="text-[13px] font-medium text-muted-foreground">USDC / 30 days</span>
+                {terms.price} <span className="text-[13px] font-medium text-muted-foreground">USDC / {terms.unit}</span>
               </span>
             </div>
 
@@ -125,12 +214,12 @@ export function DemoApp() {
             {subscribed ? (
               <div className="flex flex-col gap-1 rounded-md border border-success/30 bg-success-soft px-4 py-3.5 text-success">
                 <span className="font-semibold">Subscription confirmed</span>
-                <span className="text-[13px] leading-[19px]">Next renewal in 30 days. Manage or cancel from your wallet.</span>
+                <span className="text-[13px] leading-[19px]">Renews every {terms.unit}. Cancel any time.</span>
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
-                <Button size="lg" onClick={() => setSubscribed(true)}>
-                  Subscribe with TidePay
+                <Button size="lg" disabled={gate.busy} onClick={gate.onSubscribe}>
+                  {gate.subscribeLabel}
                 </Button>
                 <p className="text-[13px] leading-[19px] text-muted-foreground">
                   You approve a recurring allowance once. Each renewal is pulled from your wallet; no funds are held by
@@ -139,9 +228,15 @@ export function DemoApp() {
               </div>
             )}
 
+            {gate.error && (
+              <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
+                {gate.error}
+              </p>
+            )}
+
             <div className="flex items-center justify-between gap-2 border-t pt-3.5 text-xs text-muted-foreground">
               <span>Payments by TidePay</span>
-              <span className="font-mono">Mock mode · Devnet</span>
+              <span className="font-mono">{gate.onChain ? "Devnet" : "Mock mode · Devnet"}</span>
             </div>
           </CardContent>
         </Card>

@@ -6,10 +6,10 @@ Subscribers approve a one-time delegated allowance. An off-chain keeper then pul
 
 ## How it works
 
-1. A merchant creates a **plan** (price, interval, accepted mint).
-2. A customer subscribes from a **Blink** (Twitter/X, dial.to), the embeddable checkout page, or the SDK. One transaction delegates a token allowance to the program authority PDA and settles the first epoch.
-3. A **keeper crank** polls for subscriptions whose `next_epoch_timestamp` has passed and submits `process_subscription_epoch`. The program checks the on-chain clock, splits the payment (merchant, protocol fee, keeper reward) with `transfer_checked`, and advances the epoch.
-4. The customer can **cancel** at any time; the subscription account is closed and rent returns to them.
+1. A merchant creates a **plan** (`initialize_plan`): price, interval, accepted mint and keeper reward.
+2. A customer subscribes from a **Blink** (Twitter/X, dial.to), the embeddable checkout page, or the SDK. One transaction delegates a token allowance to the program authority PDA, creates the subscription record and pulls the first payment (`subscribe`).
+3. A **keeper crank** polls for subscriptions whose `next_epoch_timestamp` has passed and submits `process_epoch`. The program checks the on-chain clock, pays the keeper reward and the merchant with `transfer_checked`, and advances the epoch.
+4. The customer can **cancel** at any time (`cancel_subscription`); the subscription account is closed and its rent returns to them.
 
 All execution targets **Solana Devnet** with Devnet USDC. A 60-second billing interval ("demo mode") exists so renewals can be shown live.
 
@@ -17,11 +17,11 @@ All execution targets **Solana Devnet** with Devnet USDC. A 60-second billing in
 
 ```
 apps/
-  dashboard/        Next.js merchant console, checkout, demo app, Solana Action endpoints
-  api/              Scaffolded Next.js app (not used by the dashboard)
+  dashboard/        Next.js merchant console, checkout page and mock SaaS demo   (port 3000)
+  api/              Next.js Solana Actions / Blinks API and gasless relayer       (port 3001)
 packages/
   protocol/         Anchor program and keeper crank
-  types/            Shared types: IDL, PDA seeds, interfaces, enums
+  types/            Shared IDL, program ID, PDA seeds and account interfaces
   sdk/              @tidepay/sdk TypeScript client
 ```
 
@@ -34,21 +34,21 @@ Requirements: Node.js and [pnpm](https://pnpm.io) 12.10.1 (pinned by `packageMan
 ```bash
 pnpm install
 pnpm dev                       # runs every app via Turborepo
-pnpm --filter dashboard dev    # or just the dashboard on http://localhost:3000
 ```
 
 Other root scripts: `pnpm build`, `pnpm lint`, `pnpm test`.
 
-The dashboard has its own setup guide, environment variables and endpoint reference in [`apps/dashboard/README.md`](apps/dashboard/README.md).
+Each app has its own setup guide and environment reference: [`apps/dashboard`](apps/dashboard/README.md), [`apps/api`](apps/api/README.md).
 
 ## Status
 
 | Area | State |
 | --- | --- |
-| Merchant console (overview, plans, subscribers, developers) | Built on sample data |
-| Checkout page and mock SaaS demo (`/demo`) | Built; subscribe is mocked |
-| Solana Action / Blink endpoints and `actions.json` | Built; transaction building waits on the SDK |
-| Gasless fee-payer relayer | Built; signs server-built transactions only |
-| Anchor program, keeper crank, SDK | In progress |
+| Anchor program, protocol tests, keeper crank, SDK | Implemented; program not yet deployed to Devnet |
+| Merchant console | Reads plans and subscriptions from chain for the connected wallet; creates plans on-chain |
+| Checkout page | Subscribes through the Blink endpoint; subscribers can cancel |
+| `/demo` (PromptPilot AI) | Gates on a real subscription when a demo plan is configured; mock mode otherwise |
+| Blink endpoints and `actions.json` | Built on the SDK, rate limited, tested |
+| Gasless relayer | Sponsors fees and rent for allowlisted merchants |
 
-Live on-chain data and real subscribe, create-plan and cancel flows are wired in once the SDK is available. The dashboard keeps that integration behind a single data layer (`apps/dashboard/src/lib/data`).
+Known protocol gaps: `protocol_fee_bps` is stored but not yet charged in `process_epoch`; the program emits no events (activity history is derived from account state); only the subscriber can cancel; the crank does not report health.
