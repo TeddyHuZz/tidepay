@@ -18,7 +18,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || "10000", 10);
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || "15000", 10);
 const DEFAULT_KEYPAIR_PATH = path.join(
   process.env.HOME || "",
   ".config/solana/id.json"

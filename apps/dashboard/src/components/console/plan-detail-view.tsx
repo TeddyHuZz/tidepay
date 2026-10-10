@@ -1,15 +1,19 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Zap, Users, ShieldCheck, DollarSign, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ExternalLink, Zap, Users, ShieldCheck, DollarSign, ArrowUpRight, RefreshCw, Wallet } from "lucide-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl } from "@/lib/chain/config";
-import { intervalLabel, intervalUnit } from "@/lib/types";
+import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
+import { fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface PlanDetailViewProps {
   planId: string;
@@ -18,48 +22,99 @@ interface PlanDetailViewProps {
 export function PlanDetailView({ planId }: PlanDetailViewProps) {
   return (
     <MerchantGate>
-      {({ plans, subscribers, activity }) => {
-        const decodedParam = decodeURIComponent(planId);
-        const plan = plans.find((p) => p.name === decodedParam || p.id === decodedParam);
+      {({ plans, subscribers, activity }, { refresh, isRefreshing, lastRefreshedAt }) => (
+        <PlanDetailContent
+          planId={planId}
+          plans={plans}
+          subscribers={subscribers}
+          activity={activity}
+          onRefresh={refresh}
+          isRefreshing={isRefreshing}
+          lastRefreshedAt={lastRefreshedAt}
+        />
+      )}
+    </MerchantGate>
+  );
+}
 
-        if (!plan) {
-          return (
-            <div className="flex flex-col gap-6">
-              <div>
-                <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
-                  <Link href="/plans">
-                    <ArrowLeft className="size-4" />
-                    Back to plans
-                  </Link>
-                </Button>
-              </div>
-              <Card className="p-8 text-center">
-                <CardTitle className="text-lg">Plan not found</CardTitle>
-                <CardDescription className="mt-2">
-                  Could not find a plan matching &quot;{decodedParam}&quot;. It might still be indexing on Solana Devnet.
-                </CardDescription>
-                <div className="mt-6 flex justify-center gap-3">
-                  <Button asChild variant="outline">
-                    <Link href="/plans">View all plans</Link>
-                  </Button>
-                  <Button asChild>
-                    <Link href="/plans/new">Create a plan</Link>
-                  </Button>
-                </div>
-              </Card>
-            </div>
-          );
-        }
+function PlanDetailContent({
+  planId,
+  plans,
+  subscribers,
+  activity,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
+}: {
+  planId: string;
+  plans: PlanSummary[];
+  subscribers: SubscriberRow[];
+  activity: ActivityEvent[];
+  onRefresh: () => void;
+  isRefreshing: boolean;
+  lastRefreshedAt: number | null;
+}) {
+  const { connection } = useConnection();
+  const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
-        // Metrics calculations
-        const planSubscribers = subscribers.filter(
-          (s) => s.plan === plan.id || s.plan === plan.name,
-        );
-        const activeCount = planSubscribers.filter((s) => s.status === "Active").length;
-        const pastDueCount = planSubscribers.filter((s) => s.status === "PastDue").length;
-        const totalEvaluated = activeCount + pastDueCount;
-        const hasRenewalHistory = totalEvaluated > 0;
-        const successRate = hasRenewalHistory ? `${((activeCount / totalEvaluated) * 100).toFixed(0)}%` : "—";
+  const decodedParam = decodeURIComponent(planId);
+  const plan = plans.find((p) => p.name === decodedParam || p.id === decodedParam);
+
+  useEffect(() => {
+    if (!plan?.id) return;
+    const pubkey = parseAddress(plan.id);
+    if (!pubkey) return;
+
+    setLoadingEvents(true);
+    fetchPlanActivity(connection, pubkey, plan.priceUsdc, DEFAULT_CRANK_BOUNTY_USDC)
+      .then(setOnChainEvents)
+      .finally(() => setLoadingEvents(false));
+  }, [connection, plan?.id, plan?.priceUsdc, lastRefreshedAt]);
+
+  if (!plan) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
+            <Link href="/plans">
+              <ArrowLeft className="size-4" />
+              Back to plans
+            </Link>
+          </Button>
+        </div>
+        <Card className="p-8 text-center">
+          <CardTitle className="text-lg">Plan not found</CardTitle>
+          <CardDescription className="mt-2">
+            Could not find a plan matching &quot;{decodedParam}&quot;. It might still be indexing on Solana Devnet.
+          </CardDescription>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button asChild variant="outline">
+              <Link href="/plans">View all plans</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/plans/new">Create a plan</Link>
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Metrics calculations
+  const planSubscribers = subscribers.filter(
+    (s) => s.plan === plan.id || s.plan === plan.name,
+  );
+  const activeCount = planSubscribers.filter((s) => s.status === "Active").length;
+  const pastDueCount = planSubscribers.filter((s) => s.status === "PastDue").length;
+  const totalEvaluated = activeCount + pastDueCount;
+  const settledCount = onChainEvents.filter((e) => e.kind === "settled").length;
+  const hasRenewalHistory = totalEvaluated > 0 || settledCount > 0;
+  const successRate = hasRenewalHistory
+    ? pastDueCount === 0
+      ? "100%"
+      : `${((activeCount / totalEvaluated) * 100).toFixed(0)}%`
+    : "—";
         
         const priceNum = parseFloat(plan.priceUsdc) || 0;
         const keeperFeeNum = parseFloat(DEFAULT_CRANK_BOUNTY_USDC) || 0.05;
@@ -68,6 +123,20 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
         // Approximate 30-day normalized MRR
         const cycleSeconds = plan.intervalSeconds || 2_592_000;
         const mrr = ((priceNum * activeCount * 2_592_000) / cycleSeconds).toFixed(2);
+        const paidEventsCount = onChainEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed").length;
+        const totalSettledUsdc = (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
+        const grossSettledUsdc = (paidEventsCount * priceNum).toFixed(2);
+
+        // Calculate all-time unique subscriber count (active + past/churned)
+        const allTimeSubscribers = new Set<string>();
+        for (const s of planSubscribers) {
+          if (s.wallet) allTimeSubscribers.add(s.wallet);
+        }
+        for (const event of onChainEvents) {
+          if (event.subscriber) allTimeSubscribers.add(event.subscriber);
+        }
+        const allTimeCount = Math.max(allTimeSubscribers.size, planSubscribers.length);
+        const pastCount = Math.max(0, allTimeCount - activeCount);
 
         // Filtered activity for this plan
         const planActivity = activity.filter(
@@ -89,9 +158,19 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                 </Link>
               </Button>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onRefresh()}
+                  disabled={isRefreshing}
+                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
+                  {isRefreshing ? "Syncing…" : "Refresh"}
+                </Button>
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <a href={checkoutLink} target="_blank" rel="noreferrer">
-                    Test Checkout
+                    Checkout Link
                     <ExternalLink className="size-3.5" />
                   </a>
                 </Button>
@@ -121,6 +200,13 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
               </div>
               <div className="mt-4 flex items-center gap-6 border-t pt-4 md:mt-0 md:border-t-0 md:pt-0">
                 <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Total Earned (Net)</div>
+                  <div className="text-xl font-bold text-primary tabular-nums">
+                    +{totalSettledUsdc} USDC
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-border/60" />
+                <div className="text-right">
                   <div className="text-xs text-muted-foreground">Terms</div>
                   <div className="text-xl font-bold text-foreground tabular-nums">
                     {plan.priceUsdc} USDC
@@ -140,7 +226,13 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                 <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
                   {mrr} USDC
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Normalized across {activeCount} subscriber(s)</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {activeCount > 0
+                    ? `Normalized across ${activeCount} subscriber(s)`
+                    : paidEventsCount > 0
+                      ? `0 active · +${totalSettledUsdc} USDC earned to date`
+                      : `Normalized across 0 subscriber(s)`}
+                </p>
               </Card>
 
               <Card className="p-5">
@@ -152,7 +244,9 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                   {activeCount}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {activeCount > 0 ? "Non-custodial allowances" : "Ready for subscriptions"}
+                  {allTimeCount > 0
+                    ? `${allTimeCount} total all-time (${activeCount} active, ${pastCount} past)`
+                    : "Ready for subscriptions"}
                 </p>
               </Card>
 
@@ -175,13 +269,17 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
 
               <Card className="p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Net Payout per Cycle</span>
-                  <Zap className="size-4 text-primary" />
+                  <span className="text-xs font-medium">Total Earned (Net)</span>
+                  <Wallet className="size-4 text-primary" />
                 </div>
                 <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                  {netPerCycle} USDC
+                  {totalSettledUsdc} USDC
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">After {DEFAULT_CRANK_BOUNTY_USDC} USDC keeper fee</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {paidEventsCount > 0
+                    ? `${grossSettledUsdc} USDC gross across ${paidEventsCount} settlement${paidEventsCount === 1 ? "" : "s"}`
+                    : "Across 0 on-chain settlements"}
+                </p>
               </Card>
             </div>
 
@@ -271,7 +369,7 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                     <div className="flex items-center gap-2.5">
                       <CardTitle className="text-base">Active Subscribers</CardTitle>
                       <Badge variant="outline" className="tabular-nums">
-                        {planSubscribers.length} total
+                        {allTimeCount > 0 ? `${activeCount} active · ${allTimeCount} all-time` : `${activeCount} active`}
                       </Badge>
                     </div>
                     <CardDescription>Wallets subscribed with delegated token allowances.</CardDescription>
@@ -280,7 +378,9 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                     {planSubscribers.length === 0 ? (
                       <div className="p-8 text-center text-sm text-muted-foreground">
                         <Users className="mx-auto mb-2 size-8 text-muted-foreground/50" />
-                        No active subscribers yet. Share your Blink URL on X or send your checkout link to start collecting subscriptions!
+                        {allTimeCount > 0
+                          ? `No active subscribers currently (${allTimeCount} past subscriber${allTimeCount === 1 ? "" : "s"}). Share your Blink URL on X or send your checkout link to start collecting subscriptions!`
+                          : "No active subscribers yet. Share your Blink URL on X or send your checkout link to start collecting subscriptions!"}
                       </div>
                     ) : (
                       <Table>
@@ -319,14 +419,85 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
                 {/* Plan Settlement Activity */}
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Recent Settlements & Events</CardTitle>
+                    <div className="flex items-center gap-2.5">
+                      <CardTitle className="text-base">Recent Settlements & Events</CardTitle>
+                      {onChainEvents.length > 0 && (
+                        <Badge variant="outline" className="tabular-nums">
+                          {onChainEvents.length} on-chain
+                        </Badge>
+                      )}
+                    </div>
                     <CardDescription>On-chain renewal transactions executed by Keeper Cranks.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
-                    {planActivity.length === 0 ? (
+                    {onChainEvents.length === 0 && planActivity.length === 0 ? (
                       <div className="p-8 text-center text-sm text-muted-foreground">
-                        No transactions recorded for this plan yet. Renewals will log here automatically once subscribers are billed.
+                        {loadingEvents
+                          ? "Loading on-chain events from Solana Devnet..."
+                          : "No transactions recorded for this plan yet. Renewals will log here automatically once subscribers are billed."}
                       </div>
+                    ) : onChainEvents.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-t-0 hover:bg-transparent">
+                            <TableHead>Event</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Time</TableHead>
+                            <TableHead>Amount (Net)</TableHead>
+                            <TableHead className="text-right">Transaction</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {onChainEvents.map((event) => (
+                            <TableRow key={event.signature}>
+                              <TableCell className="font-medium text-xs">
+                                <Badge
+                                  variant={
+                                    event.kind === "settled"
+                                      ? "success"
+                                      : event.kind === "subscribed"
+                                        ? "outline"
+                                        : "neutral"
+                                  }
+                                >
+                                  {event.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={event.err ? "warning" : "success"}>
+                                  {event.err ? "Failed" : "Confirmed"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{event.timeFormatted}</TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {event.amountNetUsdc ? (
+                                  <div className="flex flex-col items-start gap-0.5">
+                                    <span className="font-semibold text-primary">
+                                      {event.amountNetUsdc} USDC <span className="text-[10px] text-muted-foreground font-normal">net</span>
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground font-normal">
+                                      {event.amountGrossUsdc} billed · -{event.keeperFeeUsdc} crank
+                                    </span>
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <a
+                                  href={explorerUrl("tx", event.signature)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                                >
+                                  {event.signature.slice(0, 6)}...{event.signature.slice(-4)}
+                                  <ArrowUpRight className="size-3" />
+                                </a>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     ) : (
                       <Table>
                         <TableHeader>
@@ -361,7 +532,4 @@ export function PlanDetailView({ planId }: PlanDetailViewProps) {
             </div>
           </div>
         );
-      }}
-    </MerchantGate>
-  );
 }

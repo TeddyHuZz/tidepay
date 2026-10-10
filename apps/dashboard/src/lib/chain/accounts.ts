@@ -133,3 +133,92 @@ export function parseAddress(value: string): PublicKey | null {
     return null;
   }
 }
+
+export interface PlanOnChainEvent {
+  signature: string;
+  kind: "settled" | "subscribed" | "cancelled" | "created" | "transaction";
+  label: string;
+  timestamp: number;
+  timeFormatted: string;
+  err: boolean;
+  amountUsdc?: string;
+  amountGrossUsdc?: string;
+  amountNetUsdc?: string;
+  keeperFeeUsdc?: string;
+  subscriber?: string;
+}
+
+const parsedTxCache = new Map<string, { kind: PlanOnChainEvent["kind"]; label: string; subscriber?: string }>();
+
+export async function fetchPlanActivity(
+  connection: Connection,
+  planPubkey: PublicKey,
+  priceUsdc: string,
+  keeperFeeUsdc = "0.05",
+  limit = 10,
+): Promise<PlanOnChainEvent[]> {
+  try {
+    const sigs = await connection.getSignaturesForAddress(planPubkey, { limit });
+    if (sigs.length === 0) return [];
+
+    const priceNum = parseFloat(priceUsdc) || 0;
+    const feeNum = parseFloat(keeperFeeUsdc) || 0;
+    const netNum = Math.max(0, priceNum - feeNum).toFixed(2);
+
+    // Only inspect the newest un-cached signature (at most 1 light request per refresh) to prevent 429 RPC rate limits
+    const newestUncached = sigs.find((s) => !parsedTxCache.has(s.signature));
+    if (newestUncached) {
+      try {
+        const tx = await connection.getParsedTransaction(newestUncached.signature, { maxSupportedTransactionVersion: 0 });
+        const logs = tx?.meta?.logMessages ?? [];
+        const accountKeys = tx?.transaction.message.accountKeys ?? [];
+        const signerKey = accountKeys.find((k: any) => k.signer)?.pubkey.toBase58();
+
+        if (logs.some((l) => l.includes("Instruction: CancelSubscription"))) {
+          parsedTxCache.set(newestUncached.signature, { kind: "cancelled", label: "Subscription Cancelled", subscriber: signerKey });
+        } else if (logs.some((l) => l.includes("Instruction: Subscribe"))) {
+          parsedTxCache.set(newestUncached.signature, { kind: "subscribed", label: "New Subscription", subscriber: signerKey });
+        } else if (logs.some((l) => l.includes("Instruction: ProcessEpoch"))) {
+          parsedTxCache.set(newestUncached.signature, { kind: "settled", label: "On-chain Settlement" });
+        } else if (logs.some((l) => l.includes("Instruction: InitializePlan"))) {
+          parsedTxCache.set(newestUncached.signature, { kind: "created", label: "Plan Initialized" });
+        }
+      } catch {
+        // Silently skip if RPC rate limits or delays; heuristic fallback applies cleanly
+      }
+    }
+
+    return sigs.map((sig, idx) => {
+      const isInitial = idx === sigs.length - 1;
+      const blockTime = sig.blockTime ? sig.blockTime * 1000 : Date.now();
+      const isFailed = Boolean(sig.err);
+
+      const cached = parsedTxCache.get(sig.signature);
+      const kind: PlanOnChainEvent["kind"] = cached?.kind ?? (isInitial ? "created" : "settled");
+      const label = cached?.label ?? (isInitial ? "Plan Initialized" : "On-chain Settlement");
+
+      const isTransfer = kind === "settled" || kind === "subscribed";
+
+      return {
+        signature: sig.signature,
+        kind,
+        label,
+        timestamp: blockTime,
+        timeFormatted: new Date(blockTime).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        amountUsdc: isTransfer ? `+${netNum}` : undefined,
+        amountNetUsdc: isTransfer ? `+${netNum}` : undefined,
+        amountGrossUsdc: isTransfer ? priceUsdc : undefined,
+        keeperFeeUsdc: isTransfer ? keeperFeeUsdc : undefined,
+        subscriber: cached?.subscriber,
+        err: isFailed,
+      };
+    });
+  } catch (error) {
+    console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
+    return [];
+  }
+}

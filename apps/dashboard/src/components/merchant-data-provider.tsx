@@ -15,10 +15,14 @@ export type MerchantDataState =
   | { status: "error"; message: string }
   | { status: "ready"; data: MerchantData; isSample: boolean };
 
-interface MerchantDataContextValue {
+export interface MerchantDataContextValue {
   state: MerchantDataState;
   refresh: () => void;
+  isRefreshing: boolean;
+  lastRefreshedAt: number | null;
 }
+
+const AUTO_POLL_INTERVAL_MS = 20_000;
 
 const MerchantDataContext = createContext<MerchantDataContextValue | null>(null);
 
@@ -43,6 +47,8 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const { publicKey } = useWallet();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
 
   const merchant = publicKey?.toBase58() ?? null;
   const requestKey = merchant ? `${merchant}:${version}` : null;
@@ -50,19 +56,53 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (USE_SAMPLE_DATA || !merchant || !requestKey) return;
     let cancelled = false;
-    loadMerchantData(connection, new PublicKey(merchant)).then(
-      (data) => {
-        if (!cancelled) setResult({ key: requestKey, data });
-      },
-      (error: unknown) => {
-        console.error("[TidePay] Failed to load merchant data:", error);
-        if (!cancelled) setResult({ key: requestKey, error: "Could not load data from Solana Devnet." });
-      },
-    );
+    setIsRefreshing(true);
+    loadMerchantData(connection, new PublicKey(merchant))
+      .then(
+        (data) => {
+          if (!cancelled) {
+            setResult({ key: requestKey, data });
+            setLastRefreshedAt(Date.now());
+          }
+        },
+        (error: unknown) => {
+          console.error("[TidePay] Failed to load merchant data:", error);
+          if (!cancelled) setResult({ key: requestKey, error: "Could not load data from Solana Devnet." });
+        },
+      )
+      .finally(() => {
+        if (!cancelled) setIsRefreshing(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [connection, merchant, requestKey]);
+
+  // Visibility-aware auto-polling: polls every 20s while active; pauses when tab is hidden
+  useEffect(() => {
+    if (USE_SAMPLE_DATA || !merchant) return;
+
+    let lastTick = Date.now();
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        setVersion((v) => v + 1);
+        lastTick = Date.now();
+      }
+    }, AUTO_POLL_INTERVAL_MS);
+
+    const onVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible" && Date.now() - lastTick >= 10_000) {
+        setVersion((v) => v + 1);
+        lastTick = Date.now();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [merchant]);
 
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
@@ -81,7 +121,11 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     state = { status: "loading" };
   }
 
-  return <MerchantDataContext.Provider value={{ state, refresh }}>{children}</MerchantDataContext.Provider>;
+  return (
+    <MerchantDataContext.Provider value={{ state, refresh, isRefreshing, lastRefreshedAt }}>
+      {children}
+    </MerchantDataContext.Provider>
+  );
 }
 
 export function useMerchantData() {

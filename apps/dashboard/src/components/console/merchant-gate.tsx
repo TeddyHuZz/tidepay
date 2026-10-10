@@ -7,9 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { MerchantData } from "@/lib/types";
 
+export interface MerchantGateMeta {
+  refresh: () => void;
+  isRefreshing: boolean;
+  lastRefreshedAt: number | null;
+}
+
 /** Renders merchant data once loaded; handles disconnected, loading and error states. */
-export function MerchantGate({ children }: { children: (data: MerchantData) => ReactNode }) {
-  const { state, refresh } = useMerchantData();
+export function MerchantGate({
+  children,
+}: {
+  children: (data: MerchantData, meta: MerchantGateMeta) => ReactNode;
+}) {
+  const { state, refresh, isRefreshing, lastRefreshedAt } = useMerchantData();
 
   if (state.status === "disconnected") {
     return (
@@ -28,7 +38,7 @@ export function MerchantGate({ children }: { children: (data: MerchantData) => R
       <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
           {[0, 1, 2, 3].map((key) => (
-            <div key={key} className="h-[110px] animate-pulse rounded-lg border bg-card" />
+            <div key={key} className="h-27.5 animate-pulse rounded-lg border bg-card" />
           ))}
         </div>
         <div className="h-64 animate-pulse rounded-lg border bg-card" />
@@ -53,7 +63,7 @@ export function MerchantGate({ children }: { children: (data: MerchantData) => R
           Showing sample data. Unset NEXT_PUBLIC_USE_SAMPLE_DATA to read from Devnet.
         </p>
       )}
-      {children(state.data)}
+      {children(state.data, { refresh, isRefreshing, lastRefreshedAt })}
     </div>
   );
 }
