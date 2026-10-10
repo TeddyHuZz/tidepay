@@ -81,9 +81,17 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
                   Next renewal {formatDateTimeUtc(new Date(Number(lookup.record.nextEpochTimestamp) * 1000).toISOString())}
                 </span>
               </div>
-              <Button variant="outline" disabled={pending} onClick={() => void cancel()}>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => void cancel()}
+                className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30 transition-colors"
+              >
                 {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
               </Button>
+              <p className="text-[11px] text-muted-foreground text-center">
+                Instant on-chain revocation · Returns ~0.0015 SOL rent to your wallet
+              </p>
             </div>
           ) : (
             <SubscribeButton

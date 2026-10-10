@@ -126,6 +126,30 @@ export async function fetchSubscription(
   };
 }
 
+/** All active subscriptions belonging to a subscriber wallet across any plan. */
+export async function fetchSubscriberSubscriptions(
+  client: TidePayClient,
+  subscriber: PublicKey,
+): Promise<SubscriptionAccount[]> {
+  const coder = client.program.coder.accounts;
+  // In SubscriptionRecord: discriminator is 8 bytes, plan is 32 bytes, subscriber starts at offset 40
+  const SUBSCRIBER_FIELD_OFFSET = 40;
+  try {
+    const results = await client.connection.getProgramAccounts(client.programId, {
+      filters: [
+        { memcmp: coder.memcmp("subscriptionRecord") },
+        { memcmp: { offset: SUBSCRIBER_FIELD_OFFSET, bytes: subscriber.toBase58() } },
+      ],
+    });
+    return results.map(({ pubkey, account: info }) =>
+      toSubscription(pubkey, coder.decode<RawSubscription>("subscriptionRecord", info.data)),
+    );
+  } catch (err) {
+    console.error("[TidePay] fetchSubscriberSubscriptions error:", err);
+    return [];
+  }
+}
+
 export function parseAddress(value: string): PublicKey | null {
   try {
     return new PublicKey(value);

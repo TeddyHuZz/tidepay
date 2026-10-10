@@ -905,6 +905,38 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
 }`}
                   />
                 </section>
+
+                <section id="part-3" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                    3. Cancel Subscription (In-App or Server-Side)
+                  </h2>
+                  <p>
+                    Call <code className="text-emerald-400 font-mono">POST /api/v1/subscriptions/cancel</code> when a user clicks &quot;Cancel Subscription&quot; inside your app&apos;s billing settings. It builds the revocation transaction, stops recurring pulls, and refunds ~0.0015 SOL rent lamports to the user&apos;s wallet.
+                  </p>
+                  <CodeBlock
+                    filename="cURL"
+                    singleCode={`curl -X POST https://api.tidepay.xyz/api/v1/subscriptions/cancel \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "planAddress": "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+    "subscriber": "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio"
+  }'`}
+                  />
+                  <div className="text-xs text-[#8b949e]">Response JSON (HTTP 200 OK):</div>
+                  <CodeBlock
+                    filename="response.json"
+                    singleCode={`{
+  "status": "prepared",
+  "plan": "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+  "subscriber": "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
+  "subscriptionPda": "6H3z...9kL",
+  "rentRefundLamports": 1497960,
+  "rentRefundSol": "0.00149796",
+  "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...",
+  "message": "Cancellation transaction prepared. Have subscriber sign to revoke billing and receive rent refund."
+}`}
+                  />
+                </section>
               </>
             )}
           </div>

@@ -15,6 +15,7 @@ import {
   Check,
   Copy,
   SlidersHorizontal,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";

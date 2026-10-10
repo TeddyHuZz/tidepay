@@ -93,6 +93,12 @@ function WebhooksContent({
       url: `${API_URL}/api/v1/subscriptions/WALLET_ADDRESS?plan=PLAN_ADDRESS`,
       desc: "Queries real-time on-chain subscription and active entitlement status",
     },
+    {
+      method: "POST",
+      path: "/api/v1/subscriptions/cancel",
+      url: `${API_URL}/api/v1/subscriptions/cancel`,
+      desc: "Prepares cancellation transaction and refunds ~0.0015 SOL rent lamports to subscriber",
+    },
   ];
 
   return (
