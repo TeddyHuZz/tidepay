@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DEFAULT_CRANK_BOUNTY_USDC, explorerUrl } from "@/lib/chain/config";
+import { DEFAULT_CRANK_BOUNTY_USDC, checkoutUrl, explorerUrl } from "@/lib/chain/config";
 import {
   fetchAllMerchantPlansActivity,
   type PlanOnChainEvent,
@@ -337,49 +337,69 @@ function SubscribersContent({
                   <TableHead>Status</TableHead>
                   <TableHead>Last Billed</TableHead>
                   <TableHead>Next Renewal</TableHead>
-                  <TableHead className="text-right">Explorer</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubscribers.map((row) => (
-                  <TableRow key={row.wallet}>
-                    <TableCell className="font-mono text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{shortAddress(row.wallet)}</span>
-                        <CopyButton value={row.wallet} label="Copy wallet" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-foreground/80 font-mono text-xs font-medium">
-                      <Link href={`/plans/${encodeURIComponent(row.plan)}`} className="hover:text-primary hover:underline">
-                        {row.plan}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <SubscriptionStatusBadge status={row.status} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDateTimeUtc(row.lastBilledAt)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {row.nextDueAt === "—" ? (
-                        <span className="text-muted-foreground/60">— (Cancelled)</span>
-                      ) : (
-                        formatDateTimeUtc(row.nextDueAt)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <a
-                        href={explorerUrl("address", row.wallet)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                      >
-                        Account
-                        <ExternalLink className="size-3" />
-                      </a>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredSubscribers.map((row) => {
+                  const matchedPlan = plans.find((p) => p.name === row.plan || p.id === row.plan);
+                  const planAddress = matchedPlan?.id || (row.plan.length > 20 ? row.plan : "");
+                  const portalLink = planAddress ? checkoutUrl(planAddress) : "";
+
+                  return (
+                    <TableRow key={row.wallet}>
+                      <TableCell className="font-mono text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-foreground">{shortAddress(row.wallet)}</span>
+                          <CopyButton value={row.wallet} label="Copy wallet" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-foreground/80 font-mono text-xs font-medium">
+                        <Link href={`/plans/${encodeURIComponent(row.plan)}`} className="hover:text-primary hover:underline">
+                          {row.plan}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <SubscriptionStatusBadge status={row.status} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDateTimeUtc(row.lastBilledAt)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {row.nextDueAt === "—" ? (
+                          <span className="text-muted-foreground/60">— (Cancelled)</span>
+                        ) : (
+                          formatDateTimeUtc(row.nextDueAt)
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2.5">
+                          {portalLink && (
+                            <a
+                              href={portalLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+                              title="Open customer checkout/management portal"
+                            >
+                              Portal
+                              <ExternalLink className="size-3" />
+                            </a>
+                          )}
+                          <a
+                            href={explorerUrl("address", row.wallet)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                          >
+                            Account
+                            <ExternalLink className="size-3" />
+                          </a>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

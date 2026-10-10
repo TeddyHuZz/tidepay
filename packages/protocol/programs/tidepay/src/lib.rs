@@ -44,4 +44,8 @@ pub mod tidepay {
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         crate::instructions::cancel_subscription::handle_cancel_subscription(ctx)
     }
+
+    pub fn toggle_plan_status(ctx: Context<TogglePlanStatus>, is_active: bool) -> Result<()> {
+        crate::instructions::toggle_plan_status::handle_toggle_plan_status(ctx, is_active)
+    }
 }

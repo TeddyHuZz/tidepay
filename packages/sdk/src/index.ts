@@ -188,6 +188,22 @@ export class TidePayClient {
     return { instruction, subscriptionPda };
   }
 
+  public async buildTogglePlanStatusInstruction(params: {
+    merchant: PublicKey;
+    plan: PublicKey;
+    isActive: boolean;
+  }): Promise<{ instruction: TransactionInstruction }> {
+    const instruction = await (this.program.methods as any)
+      .togglePlanStatus(params.isActive)
+      .accounts({
+        merchant: params.merchant,
+        plan: params.plan,
+      })
+      .instruction();
+
+    return { instruction };
+  }
+
   // --- Account Fetchers ---
 
   public async getMerchantPlan(planPda: PublicKey): Promise<MerchantPlan | null> {
@@ -228,4 +244,49 @@ export class TidePayClient {
       return null;
     }
   }
+
+  public async listSubscribersByPlan(
+    planPda: PublicKey
+  ): Promise<{ publicKey: PublicKey; account: SubscriptionRecord }[]> {
+    try {
+      const records = await (this.program.account as any).subscriptionRecord.all([
+        {
+          memcmp: {
+            offset: 8,
+            bytes: planPda.toBase58(),
+          },
+        },
+      ]);
+      return records.map((r: any) => ({
+        publicKey: r.publicKey,
+        account: {
+          plan: r.account.plan.toBase58(),
+          subscriber: r.account.subscriber.toBase58(),
+          subscriberTokenAccount: r.account.subscriberTokenAccount.toBase58(),
+          startTimestamp: BigInt(r.account.startTimestamp.toString()),
+          lastEpochTimestamp: BigInt(r.account.lastEpochTimestamp.toString()),
+          nextEpochTimestamp: BigInt(r.account.nextEpochTimestamp.toString()),
+          cycleCount: BigInt(r.account.cycleCount.toString()),
+          isActive: r.account.isActive,
+          bump: r.account.bump,
+        },
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  // --- High-Level Namespaces ---
+  public readonly merchant = {
+    createPlan: this.buildInitializePlanInstruction.bind(this),
+    togglePlanStatus: this.buildTogglePlanStatusInstruction.bind(this),
+    getPlan: this.getMerchantPlan.bind(this),
+    listSubscribers: this.listSubscribersByPlan.bind(this),
+  };
+
+  public readonly subscriber = {
+    subscribe: this.buildSubscribeInstruction.bind(this),
+    cancel: this.buildCancelSubscriptionInstruction.bind(this),
+    getSubscription: this.getSubscriptionRecord.bind(this),
+  };
 }

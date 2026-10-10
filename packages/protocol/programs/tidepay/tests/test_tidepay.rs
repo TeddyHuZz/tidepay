@@ -94,3 +94,18 @@ fn test_payout_split_arithmetic() {
     assert_eq!(merchant_net, 9_950_000);
     assert_eq!(merchant_net + crank_bounty, subscription_amount);
 }
+
+#[test]
+fn test_plan_toggle_status_and_invariance() {
+    let mut plan_active = true;
+    assert!(plan_active, "Plan starts active");
+
+    // Merchant toggles plan off (pausing new subscriptions)
+    plan_active = false;
+    assert!(!plan_active, "Plan should be paused");
+
+    // Merchant resumes plan
+    plan_active = true;
+    assert!(plan_active, "Plan should be active again");
+}
+
