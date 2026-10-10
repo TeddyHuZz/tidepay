@@ -17,7 +17,7 @@ if (typeof globalThis.Buffer === "undefined") {
 
 function DynamicConnectionProvider({ children }: { children: ReactNode }) {
   const { activeProject } = useProject();
-  const endpoint = getRpcUrl(activeProject.environment);
+  const endpoint = getRpcUrl(activeProject.environment, activeProject);
 
   return (
     <ConnectionProvider endpoint={endpoint}>

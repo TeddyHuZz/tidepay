@@ -14,6 +14,12 @@ export interface Project {
   publishableKey?: string;
   signingSecret?: string;
   webhookUrl?: string;
+  payoutWallet?: string;
+  customRpcUrl?: string;
+  customDevnetRpcUrl?: string;
+  customMainnetRpcUrl?: string;
+  explorer?: "solana-explorer" | "solscan" | "solanafm";
+  gracePeriodHours?: number;
 }
 
 export function generateRandomHex(length: number): string {
@@ -39,12 +45,14 @@ export function stableHex(seed: string, length: number): string {
   return out;
 }
 
-export function ensureProjectKeys(proj: Project): Project {
+export function ensureProjectKeys(proj: Project & { settings?: Record<string, unknown> }): Project {
   const prefix = proj.environment === "live" ? "live" : "dev";
   const secretKey = proj.secretKey || `tp_${prefix}_sec_${stableHex(proj.id + "_sec", 24)}`;
   const publishableKey = proj.publishableKey || `tp_${prefix}_pub_${stableHex(proj.id + "_pub", 24)}`;
   const signingSecret = proj.signingSecret || `whsec_${stableHex(proj.id + "_wh", 20)}`;
   const webhookUrl = proj.webhookUrl || "https://api.yourdomain.com/webhooks/tidepay";
+
+  const settings = proj.settings || {};
 
   return {
     ...proj,
@@ -52,6 +60,10 @@ export function ensureProjectKeys(proj: Project): Project {
     publishableKey,
     signingSecret,
     webhookUrl,
+    customDevnetRpcUrl: proj.customDevnetRpcUrl || (settings.customDevnetRpcUrl as string) || undefined,
+    customMainnetRpcUrl: proj.customMainnetRpcUrl || (settings.customMainnetRpcUrl as string) || undefined,
+    explorer: proj.explorer || (settings.explorer as Project["explorer"]) || undefined,
+    gracePeriodHours: proj.gracePeriodHours ?? (settings.gracePeriodHours as number) ?? undefined,
   };
 }
 
@@ -68,6 +80,8 @@ export function createDefaultProjectForWallet(walletAddress: string): Project {
   });
 }
 
+export type SettingsTab = "general" | "network" | "billing" | "appearance" | "danger";
+
 interface ProjectContextValue {
   projects: Project[];
   activeProject: Project;
@@ -77,6 +91,11 @@ interface ProjectContextValue {
   toggleEnvironment: () => void;
   resetAllProjects: () => void;
   updateActiveProject: (updates: Partial<Project>) => void;
+  deleteProject: (projectId: string) => void;
+  isSettingsOpen: boolean;
+  settingsInitialTab: SettingsTab;
+  openSettingsModal: (tab?: SettingsTab) => void;
+  closeSettingsModal: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -348,6 +367,45 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     [activeProjectId, walletAddress]
   );
 
+  const deleteProject = useCallback(
+    (projectId: string) => {
+      setProjects((currentProjects) => {
+        if (currentProjects.length <= 1) return currentProjects;
+        const remaining = currentProjects.filter((p) => p.id !== projectId);
+        const nextActive = remaining[0]?.id || "";
+        setActiveProjectId(nextActive);
+
+        if (walletAddress) {
+          try {
+            localStorage.setItem(`tidepay_projects_${walletAddress}`, JSON.stringify(remaining));
+            localStorage.setItem(`tidepay_active_project_${walletAddress}`, nextActive);
+          } catch (e) {
+            console.error("[TidePay] Failed to persist remaining projects:", e);
+          }
+        }
+
+        fetch(`/api/projects/${projectId}`, {
+          method: "DELETE",
+        }).catch((e) => console.error("[TidePay] Failed to delete project from Neon DB:", e));
+
+        return remaining;
+      });
+    },
+    [walletAddress]
+  );
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
+
+  const openSettingsModal = useCallback((tab?: SettingsTab) => {
+    if (tab) setSettingsInitialTab(tab);
+    setIsSettingsOpen(true);
+  }, []);
+
+  const closeSettingsModal = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
+
   const resetAllProjects = useCallback(() => {
     if (typeof window !== "undefined") {
       localStorage.clear();
@@ -384,6 +442,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         toggleEnvironment,
         resetAllProjects,
         updateActiveProject,
+        deleteProject,
+        isSettingsOpen,
+        settingsInitialTab,
+        openSettingsModal,
+        closeSettingsModal,
       }}
     >
       {children}

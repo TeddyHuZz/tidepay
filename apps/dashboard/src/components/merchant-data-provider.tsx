@@ -10,10 +10,22 @@ import { getSampleMerchantData } from "@/lib/data";
 import type { MerchantData } from "@/lib/types";
 import { useProject } from "@/components/project-context";
 
+export interface MerchantDataErrorInfo {
+  title: string;
+  message: string;
+  rpcEndpoint: string;
+  cluster: "Solana Devnet" | "Solana Mainnet";
+  status?: number;
+  isAuthError: boolean;
+  isRateLimit: boolean;
+  isCorsOrNetwork: boolean;
+  hint: string;
+}
+
 export type MerchantDataState =
   | { status: "disconnected" }
   | { status: "loading" }
-  | { status: "error"; message: string }
+  | { status: "error"; message: string; errorInfo?: MerchantDataErrorInfo }
   | { status: "ready"; data: MerchantData; isSample: boolean };
 
 export interface MerchantDataContextValue {
@@ -41,11 +53,13 @@ interface LoadResult {
   key: string;
   data?: MerchantData;
   error?: string;
+  errorInfo?: MerchantDataErrorInfo;
 }
 
 export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
+  const { activeProject } = useProject();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,8 +83,61 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
         (error: unknown) => {
           console.error("[TidePay] Failed to load merchant data:", error);
           if (!cancelled) {
-            const clusterName = activeProject.environment === "live" ? "Solana Mainnet" : "Solana Devnet";
-            setResult({ key: requestKey, error: `Could not load data from ${clusterName}.` });
+            const rawMsg = error instanceof Error ? error.message : String(error);
+            const cluster = activeProject.environment === "live" ? "Solana Mainnet" : "Solana Devnet";
+            const rpcEndpoint = connection.rpcEndpoint;
+
+            const isAuthError =
+              rawMsg.includes("401") ||
+              rawMsg.toLowerCase().includes("unauthorized") ||
+              rawMsg.includes("403") ||
+              rawMsg.toLowerCase().includes("forbidden");
+
+            const isRateLimit =
+              rawMsg.includes("429") ||
+              rawMsg.toLowerCase().includes("too many requests") ||
+              rawMsg.toLowerCase().includes("rate limit");
+
+            const isCorsOrNetwork =
+              rawMsg.toLowerCase().includes("failed to fetch") ||
+              rawMsg.toLowerCase().includes("networkerror") ||
+              rawMsg.toLowerCase().includes("load failed");
+
+            let title = `Failed to connect to ${cluster}`;
+            let hint = "Unable to read on-chain accounts. Check your RPC node connection.";
+            let status: number | undefined;
+
+            if (isAuthError) {
+              title = "RPC Authentication Failed (401 Unauthorized)";
+              status = 401;
+              hint =
+                "The RPC endpoint rejected the request because it requires an API key. For providers like Helius, QuickNode, or Triton, ensure your URL includes ?api-key=..., or leave the custom RPC blank in Project Settings to use TidePay's default cluster connection.";
+            } else if (isRateLimit) {
+              title = "RPC Rate Limit Exceeded (429)";
+              status = 429;
+              hint =
+                "The RPC node has rate-limited requests from this client. Open Project Settings to connect a dedicated paid RPC endpoint.";
+            } else if (isCorsOrNetwork) {
+              title = "RPC Connection Failed (Network/CORS)";
+              hint =
+                "The browser could not reach the RPC endpoint. Verify that the URL is online and supports browser CORS requests.";
+            }
+
+            setResult({
+              key: requestKey,
+              error: rawMsg,
+              errorInfo: {
+                title,
+                message: rawMsg,
+                rpcEndpoint,
+                cluster,
+                status,
+                isAuthError,
+                isRateLimit,
+                isCorsOrNetwork,
+                hint,
+              },
+            });
           }
         },
       )
@@ -80,7 +147,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [connection, merchant, requestKey]);
+  }, [connection, merchant, requestKey, activeProject.environment]);
 
   // Visibility-aware auto-polling: polls every 20s while active; pauses when tab is hidden
   useEffect(() => {
@@ -108,7 +175,6 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     };
   }, [merchant]);
 
-  const { activeProject } = useProject();
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
   let state: MerchantDataState;
@@ -157,7 +223,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     // Keep existing data visible smoothly during background refetches
     state = { status: "ready", data: scopedData, isSample: false };
   } else if (result?.error) {
-    state = { status: "error", message: result.error };
+    state = { status: "error", message: result.error, errorInfo: result.errorInfo };
   } else {
     // Initial first-time load only
     state = { status: "loading" };

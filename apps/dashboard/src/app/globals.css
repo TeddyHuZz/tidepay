@@ -29,6 +29,36 @@
   color-scheme: dark;
 }
 
+/* Light mode theme */
+html.light,
+:root.light {
+  --background: #f8fafc;
+  --foreground: #091e20;
+  --card: #ffffff;
+  --card-foreground: #091e20;
+  --popover: #ffffff;
+  --popover-foreground: #091e20;
+  --primary: #008f86;
+  --primary-foreground: #ffffff;
+  --secondary: #e6f4f3;
+  --secondary-foreground: #091e20;
+  --muted: #edf4f4;
+  --muted-foreground: #4e7876;
+  --accent: #e6f4f3;
+  --accent-foreground: #008f86;
+  --border: #cfe0de;
+  --input: #e0eceb;
+  --ring: #008f86;
+  --destructive: #ef4444;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --neutral-soft: #e2f0ef;
+  --neutral-soft-foreground: #345c5a;
+  color-scheme: light;
+}
+
 /* Scoped light theme for the mock consumer app at /demo */
 .theme-demo {
   --background: #f6f7f9;

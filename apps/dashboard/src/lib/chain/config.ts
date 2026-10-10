@@ -11,8 +11,14 @@ export const MAINNET_RPC_URL =
     ? process.env.NEXT_PUBLIC_SOLANA_RPC_URL.replace("devnet.helius-rpc.com", "mainnet.helius-rpc.com")
     : clusterApiUrl("mainnet-beta"));
 
-export function getRpcUrl(environment: "sandbox" | "live" = "sandbox"): string {
-  return environment === "live" ? MAINNET_RPC_URL : DEVNET_RPC_URL;
+export function getRpcUrl(
+  environment: "sandbox" | "live" = "sandbox",
+  project?: { customDevnetRpcUrl?: string; customMainnetRpcUrl?: string; customRpcUrl?: string }
+): string {
+  if (environment === "live") {
+    return project?.customMainnetRpcUrl?.trim() || project?.customRpcUrl?.trim() || MAINNET_RPC_URL;
+  }
+  return project?.customDevnetRpcUrl?.trim() || DEVNET_RPC_URL;
 }
 
 export function getCluster(environment: "sandbox" | "live" = "sandbox"): "mainnet-beta" | "devnet" {

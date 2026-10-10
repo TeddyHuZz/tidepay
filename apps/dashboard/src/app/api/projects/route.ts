@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     }
 
     const rows = await sql`
-      SELECT id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", webhook_url as "webhookUrl", secret_key as "secretKey", publishable_key as "publishableKey", signing_secret as "signingSecret", created_at as "createdAt", updated_at as "updatedAt"
+      SELECT id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", payout_wallet as "payoutWallet", webhook_url as "webhookUrl", secret_key as "secretKey", publishable_key as "publishableKey", signing_secret as "signingSecret", settings, created_at as "createdAt", updated_at as "updatedAt"
       FROM projects
       WHERE merchant_wallet = ${wallet}
       ORDER BY created_at ASC

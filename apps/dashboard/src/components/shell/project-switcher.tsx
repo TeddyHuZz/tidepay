@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { shortAddress } from "@/lib/format";
 import { useProject } from "@/components/project-context";
+import { ProjectSettingsModal } from "./project-settings-modal";
 
 export function ProjectSwitcher() {
   const { publicKey, disconnect, connected } = useWallet();
@@ -28,6 +29,10 @@ export function ProjectSwitcher() {
     switchProject,
     createProject,
     toggleEnvironment,
+    isSettingsOpen,
+    settingsInitialTab,
+    openSettingsModal,
+    closeSettingsModal,
   } = useProject();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -190,16 +195,19 @@ export function ProjectSwitcher() {
 
               {/* Main Actions */}
               <div className="flex flex-col gap-0.5 border-t border-border/50 pt-2">
-                <Link
-                  href="/webhooks"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    openSettingsModal("general");
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer text-left"
                 >
                   <div className="flex items-center gap-2.5">
                     <Settings className="size-4 text-muted-foreground" />
                     <span>Settings</span>
                   </div>
-                </Link>
+                </button>
 
                 <button
                   type="button"
@@ -345,6 +353,13 @@ export function ProjectSwitcher() {
           )}
         </div>
       )}
+
+      {/* Project Settings Modal */}
+      <ProjectSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={closeSettingsModal}
+        initialTab={settingsInitialTab}
+      />
     </div>
   );
 }
