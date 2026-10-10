@@ -16,16 +16,26 @@ interface CheckoutCardProps {
   intervalSeconds: number;
   active: boolean;
   isSample: boolean;
+  merchant?: string;
 }
 
-export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, active, isSample }: CheckoutCardProps) {
-  const { connected } = useWallet();
+export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, active, isSample, merchant }: CheckoutCardProps) {
+  const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const { lookup, action, subscribe, cancel } = useSubscription(isSample ? null : planAddress);
 
   const unit = intervalUnit(intervalSeconds);
   const pending = action.status === "pending";
   const subscribed = lookup.status === "active" || lookup.status === "past_due";
+  const isOwner = Boolean(connected && publicKey && merchant && publicKey.toBase58() === merchant);
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+    } catch (err) {
+      console.error("[TidePay] Disconnect error:", err);
+    }
+  };
 
   const rows = [
     { label: "Billed every", value: unit },
@@ -54,9 +64,9 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
           ))}
         </dl>
 
-        {intervalSeconds === 60 && (
+        {isOwner && (
           <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
-            Demo plan: renews every 60 seconds on Devnet.
+            You are currently connected as the merchant of this plan. To test subscribing, please switch to a separate subscriber wallet in your wallet extension.
           </p>
         )}
 
@@ -80,14 +90,16 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
               connected={connected}
               isSample={isSample}
               active={active}
+              isOwner={isOwner}
               checking={lookup.status === "loading"}
               pending={pending}
               onConnect={() => setVisible(true)}
+              onDisconnect={handleDisconnect}
               onSubscribe={() => void subscribe()}
             />
           )}
 
-          <p className="text-xs leading-[18px] text-muted-foreground">
+          <p className="text-xs leading-4.5 text-muted-foreground">
             You approve a recurring allowance once. Each renewal is pulled from your wallet; no funds are held in
             escrow, and you can cancel any time.
           </p>
@@ -103,10 +115,15 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
             </p>
           )}
           {action.status === "done" && (
-            <p role="status" className="text-[13px] text-muted-foreground">
-              {action.kind === "subscribe" ? "Subscription confirmed." : "Subscription cancelled; rent refunded to your wallet."}{" "}
-              <a href={explorerUrl("tx", action.signature)} target="_blank" rel="noreferrer" className="text-primary underline">
-                View transaction
+            <p role="status" className="text-xs text-muted-foreground">
+              {action.kind === "cancel" && "Subscription cancelled; rent refunded to your wallet. "}
+              <a
+                href={explorerUrl("tx", action.signature)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+              >
+                View transaction ↗
               </a>
             </p>
           )}
@@ -120,9 +137,11 @@ function SubscribeButton(props: {
   connected: boolean;
   isSample: boolean;
   active: boolean;
+  isOwner: boolean;
   checking: boolean;
   pending: boolean;
   onConnect: () => void;
+  onDisconnect: () => void;
   onSubscribe: () => void;
 }) {
   if (!props.connected) {
@@ -136,6 +155,18 @@ function SubscribeButton(props: {
     return (
       <Button size="lg" disabled>
         This plan is not accepting subscribers
+      </Button>
+    );
+  }
+  if (props.isOwner) {
+    return (
+      <Button
+        size="lg"
+        variant="secondary"
+        className="w-full font-medium border border-border/80 bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground shadow-xs"
+        onClick={props.onDisconnect}
+      >
+        Disconnect wallet to switch
       </Button>
     );
   }

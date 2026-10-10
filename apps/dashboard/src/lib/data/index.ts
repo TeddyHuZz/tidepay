@@ -21,6 +21,7 @@ export interface CheckoutPlan {
   intervalSeconds: number;
   active: boolean;
   isSample: boolean;
+  merchant?: string;
 }
 
 /** Plan shown on /checkout/[planId]; planId is the on-chain plan address. */
@@ -38,6 +39,7 @@ export async function getCheckoutPlan(planId: string): Promise<CheckoutPlan | nu
 
   return {
     id: plan.address,
+    merchant: plan.merchant,
     name: plan.planId,
     priceUsdc: formatUsdc(plan.amount),
     intervalSeconds: Number(plan.intervalSeconds),

@@ -114,6 +114,10 @@ export async function POST(request: NextRequest, context: Context) {
     const plan = await client.getMerchantPlan(planPubkey);
     if (!plan || !plan.isActive) return actionError("Subscription plan not active or not found", 404);
 
+    if (plan.merchant === subscriber.toBase58()) {
+      return actionError("You cannot subscribe to your own plan. Please switch to a different wallet.", 400);
+    }
+
     const { transaction, sponsored } = await buildSubscribeTransaction({
       connection,
       client,
