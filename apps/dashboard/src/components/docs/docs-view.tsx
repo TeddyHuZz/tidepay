@@ -25,12 +25,15 @@ import {
   Menu,
   X,
   Share2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
+import { useTheme } from "@/components/theme-provider";
 import { CodeBlock } from "@/components/developers/code-block";
 import { ApiKeyWebhookManager } from "@/components/developers/api-key-webhook-manager";
 import { BlinkTester } from "@/components/developers/blink-tester";
@@ -212,13 +215,14 @@ const DOC_TREE: DocGroup[] = [
 
 export function DocsView() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#070d10]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <DocsContent />
     </Suspense>
   );
 }
 
 function DocsContent() {
+  const { theme, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const topicParam = searchParams.get("topic") as DocTopicId | null;
 
@@ -315,15 +319,15 @@ function DocsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070d10] text-[#e6edf3] font-sans antialiased flex flex-col selection:bg-primary/30 selection:text-white">
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased flex flex-col selection:bg-primary/30 selection:text-primary-foreground">
       {/* Top GitHub Docs Style Header */}
-      <header className="sticky top-0 z-50 border-b border-[#21262d] bg-[#0d1117]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4 lg:px-8 gap-4">
           {/* Left: Brand + Plan Selector */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-md border border-[#30363d]"
+              className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-md border border-border bg-background"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
@@ -331,7 +335,7 @@ function DocsContent() {
 
             <Link href="/" className="flex items-center gap-2 outline-none">
               <Logo />
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#161b22] border border-[#30363d] text-[#7ee787] font-mono">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted border border-border text-emerald-600 dark:text-[#7ee787] font-mono">
                 Docs
               </span>
             </Link>
@@ -341,32 +345,42 @@ function DocsContent() {
           {/* Center: Global Search Bar */}
           <div className="flex-1 max-w-xl mx-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#8b949e]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 id="docs-search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search docs, SDK methods, webhooks, or error codes..."
-                className="h-9 pl-9 pr-9 text-xs bg-[#161b22] border-[#30363d] text-[#c9d1d9] placeholder:text-[#6e7681] focus-visible:ring-1 focus-visible:ring-emerald-500 rounded-md font-mono"
+                className="h-9 pl-9 pr-9 text-xs bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary rounded-md font-mono"
               />
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-[#8b949e] bg-[#21262d] border border-[#30363d] rounded">
+                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border border-border rounded">
                   /
                 </kbd>
               </div>
             </div>
           </div>
 
-          {/* Right: Console Jump & GitHub Link */}
+          {/* Right: Console Jump, Theme Toggle & GitHub Link */}
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 text-xs bg-[#161b22] border-[#30363d] hover:bg-[#21262d] text-[#c9d1d9] hover:text-white">
+            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 text-xs bg-muted/40 border-border hover:bg-muted text-foreground hover:text-foreground">
               <Link href="/">
                 <ArrowLeft className="size-3.5" />
                 <span className="hidden sm:inline">Back to</span> Console
               </Link>
             </Button>
 
-            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-[#8b949e] hover:text-[#c9d1d9]">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle theme"
+              className="flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </button>
+
+            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-foreground">
               <a href="https://github.com/TeddyHuZz/tidepay" target="_blank" rel="noreferrer" aria-label="GitHub Repository">
                 <svg className="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                   <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -377,12 +391,12 @@ function DocsContent() {
         </div>
 
         {/* GitHub Docs Breadcrumbs bar */}
-        <div className="hidden md:flex items-center gap-2 px-8 py-2 text-xs text-[#8b949e] border-t border-[#21262d] bg-[#0d1117]/50 font-mono">
-          <Link href="/" className="hover:text-emerald-400 transition-colors">Home</Link>
+        <div className="hidden md:flex items-center gap-2 px-8 py-2 text-xs text-muted-foreground border-t border-border bg-muted/20 font-mono">
+          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
           <span>/</span>
-          <span className="text-[#c9d1d9]">{currentItem.groupName}</span>
+          <span className="text-foreground/80">{currentItem.groupName}</span>
           <span>/</span>
-          <span className="text-emerald-400 font-medium">{currentItem.title}</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{currentItem.title}</span>
         </div>
       </header>
 
@@ -391,13 +405,13 @@ function DocsContent() {
         {/* LEFT SIDEBAR: Topic Tree */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 w-72 bg-[#0d1117] border-r border-[#21262d] p-4 overflow-y-auto pt-20 lg:pt-6 lg:static lg:block shrink-0 transition-transform",
+            "fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border p-4 overflow-y-auto pt-20 lg:pt-6 lg:static lg:block shrink-0 transition-transform",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}
         >
-          <div className="mb-4 pb-2 border-b border-[#21262d]">
-            <span className="text-xs font-bold text-[#f0f6fc] tracking-tight">TidePay Documentation</span>
-            <div className="text-[11px] text-[#8b949e] mt-0.5 font-mono">v0.1.0 · Anchor 0.30+</div>
+          <div className="mb-4 pb-2 border-b border-border">
+            <span className="text-xs font-bold text-foreground tracking-tight">TidePay Documentation</span>
+            <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">v0.1.0 · Anchor 0.30+</div>
           </div>
 
           <nav className="flex flex-col gap-5 text-xs">
@@ -407,14 +421,14 @@ function DocsContent() {
                 <div key={group.name} className="flex flex-col gap-1">
                   <button
                     onClick={() => toggleGroup(group.name)}
-                    className="flex items-center justify-between text-[11px] font-semibold text-[#8b949e] hover:text-[#c9d1d9] px-2 py-1 uppercase tracking-wider font-mono text-left"
+                    className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground hover:text-foreground px-2 py-1 uppercase tracking-wider font-mono text-left"
                   >
                     <span>{group.name}</span>
                     {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                   </button>
 
                   {!isCollapsed && (
-                    <div className="flex flex-col border-l border-[#21262d] ml-2 pl-2 gap-0.5 mt-0.5">
+                    <div className="flex flex-col border-l border-border ml-2 pl-2 gap-0.5 mt-0.5">
                       {group.items.map((item) => {
                         const isActive = activeTopic === item.id;
                         return (
@@ -424,8 +438,8 @@ function DocsContent() {
                             className={cn(
                               "flex items-center justify-between text-left px-2.5 py-1.5 rounded-md transition-colors leading-snug",
                               isActive
-                                ? "bg-[#161b22] text-emerald-400 font-semibold border-l-2 border-emerald-500 -ml-2.25 pl-3.75"
-                                : "text-[#8b949e] hover:text-[#f0f6fc] hover:bg-[#161b22]/50"
+                                ? "bg-muted text-emerald-600 dark:text-emerald-400 font-semibold border-l-2 border-emerald-500 -ml-2.25 pl-3.75"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                             )}
                           >
                             <span className="truncate">{item.title}</span>
@@ -443,11 +457,11 @@ function DocsContent() {
         {/* CENTER COLUMN: Main Article Content */}
         <main className="flex-1 min-w-0 px-6 py-8 md:px-10 lg:px-12 max-w-4xl">
           {/* Article Header */}
-          <div className="flex flex-col gap-3 pb-8 border-b border-[#21262d]">
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#f0f6fc]">
+          <div className="flex flex-col gap-3 pb-8 border-b border-border">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
               {currentItem.title}
             </h1>
-            <p className="text-sm text-[#8b949e] leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {currentItem.description}
             </p>
 
@@ -456,21 +470,21 @@ function DocsContent() {
                 variant="outline"
                 size="sm"
                 onClick={handleCopyMarkdown}
-                className="h-7 gap-1.5 text-[11px] bg-[#161b22] border-[#30363d] hover:bg-[#21262d] text-[#c9d1d9]"
+                className="h-7 gap-1.5 text-[11px] bg-muted/50 border-border hover:bg-muted text-foreground"
               >
-                {copiedMarkdown ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                {copiedMarkdown ? <Check className="size-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="size-3" />}
                 {copiedMarkdown ? "Copied" : "Copy markdown"}
               </Button>
             </div>
           </div>
 
           {/* Dynamic Article Body */}
-          <div className="py-8 flex flex-col gap-10 text-sm text-[#c9d1d9] leading-relaxed">
+          <div className="py-8 flex flex-col gap-10 text-sm text-foreground/90 leading-relaxed">
             {/* TOPIC: Getting Started */}
             {activeTopic === "getting-started" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
                     Part 1: The Recurring Subscription Engine
                   </h2>
                   <p>
@@ -478,8 +492,8 @@ function DocsContent() {
                     Traditional Web3 billing forces users to either manually sign transactions every 30 days or lock upfront capital into escrow contracts. TidePay introduces a <strong>non-custodial delegated pull mechanism</strong>.
                   </p>
 
-                  <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4 text-xs font-mono text-[#7ee787] flex flex-col gap-1.5">
-                    <span className="text-[#8b949e] uppercase font-bold text-[10px]">On-Chain Invariants:</span>
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 text-xs font-mono text-emerald-600 dark:text-emerald-400 flex flex-col gap-1.5">
+                    <span className="text-muted-foreground uppercase font-bold text-[10px]">On-Chain Invariants:</span>
                     <div>✓ Non-Custodial: Funds flow directly from Subscriber ATA to Merchant ATA</div>
                     <div>✓ Time-Locked: clock.unix_timestamp &gt;= record.next_epoch_timestamp</div>
                     <div>✓ Rent Cleanliness: Cancelling closes account and refunds lamports via close = subscriber</div>
@@ -487,34 +501,34 @@ function DocsContent() {
                 </section>
 
                 <section id="part-2" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Part 2: Core Components Overview
                   </h2>
                   <div className="grid gap-3 sm:grid-cols-2 pt-1">
-                    <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4 flex flex-col gap-1.5">
-                      <span className="font-bold text-[#f0f6fc] text-xs">1. Anchor Protocol</span>
-                      <p className="text-xs text-[#8b949e]">
+                    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1.5">
+                      <span className="font-bold text-foreground text-xs">1. Anchor Protocol</span>
+                      <p className="text-xs text-muted-foreground">
                         The deployed program on Solana Devnet managing plans, deterministic PDAs, and `transfer_checked` pulls.
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4 flex flex-col gap-1.5">
-                      <span className="font-bold text-[#f0f6fc] text-xs">2. TypeScript SDK</span>
-                      <p className="text-xs text-[#8b949e]">
+                    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1.5">
+                      <span className="font-bold text-foreground text-xs">2. TypeScript SDK</span>
+                      <p className="text-xs text-muted-foreground">
                         `@tidepay/sdk` provides `TidePayClient` for building transactions and verifying feature gating.
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4 flex flex-col gap-1.5">
-                      <span className="font-bold text-[#f0f6fc] text-xs">3. Solana Actions &amp; Blinks</span>
-                      <p className="text-xs text-[#8b949e]">
+                    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1.5">
+                      <span className="font-bold text-foreground text-xs">3. Solana Actions &amp; Blinks</span>
+                      <p className="text-xs text-muted-foreground">
                         Unfurl 1-click subscription checkout cards directly in X (Twitter) feeds and Telegram.
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4 flex flex-col gap-1.5">
-                      <span className="font-bold text-[#f0f6fc] text-xs">4. Keeper Crank Network</span>
-                      <p className="text-xs text-[#8b949e]">
+                    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1.5">
+                      <span className="font-bold text-foreground text-xs">4. Keeper Crank Network</span>
+                      <p className="text-xs text-muted-foreground">
                         Decentralized bots continuously scanning for due subscriptions, triggering epoch renewals for a 0.05 USDC bounty.
                       </p>
                     </div>
@@ -522,7 +536,7 @@ function DocsContent() {
                 </section>
 
                 <section id="part-3" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Part 3: Next Steps
                   </h2>
                   <p>
@@ -532,7 +546,7 @@ function DocsContent() {
                     <Button size="sm" onClick={() => selectTopic("sdk-install")} className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white">
                       Install TypeScript SDK
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => selectTopic("webhook-simulator")} className="gap-1.5 text-xs bg-[#161b22] border-[#30363d] text-[#c9d1d9]">
+                    <Button size="sm" variant="outline" onClick={() => selectTopic("webhook-simulator")} className="gap-1.5 text-xs bg-muted/40 border-border text-foreground hover:bg-muted">
                       Open Webhook Tester
                     </Button>
                   </div>
@@ -544,7 +558,7 @@ function DocsContent() {
             {activeTopic === "architecture" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     1. The Delegated Pull Mechanism
                   </h2>
                   <p>
@@ -563,7 +577,7 @@ createApproveInstruction(
                 </section>
 
                 <section id="part-2" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     2. Re-entrancy Protection &amp; State Mutation
                   </h2>
                   <p>
@@ -577,7 +591,7 @@ createApproveInstruction(
             {activeTopic === "quickstart" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Step 1: Install the SDK
                   </h2>
                   <CodeBlock
@@ -590,7 +604,7 @@ createApproveInstruction(
                 </section>
 
                 <section id="part-2" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Step 2: Check Subscription in 3 Lines
                   </h2>
                   <CodeBlock
@@ -612,7 +626,7 @@ const isSubscribed = record?.isActive && (Date.now() / 1000) <= Number(record.ne
             {activeTopic === "sdk-install" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Package Installation
                   </h2>
                   <p>
@@ -625,7 +639,7 @@ const isSubscribed = record?.isActive && (Date.now() / 1000) <= Number(record.ne
                 </section>
 
                 <section id="part-2" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Client Configuration
                   </h2>
                   <CodeBlock
@@ -644,7 +658,7 @@ export const client = new TidePayClient(connection);`}
             {activeTopic === "sdk-subscribe" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Building the Subscribe Instruction
                   </h2>
                   <p>
@@ -683,7 +697,7 @@ export async function createSubscription({ subscriber, planPda, merchantAta, tok
             {activeTopic === "sdk-gating" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Feature Gating Helper
                   </h2>
                   <CodeBlock
@@ -710,7 +724,7 @@ export async function checkAccess(planPda: PublicKey, userWallet: PublicKey): Pr
             {activeTopic === "sdk-plans" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Registering Billing Plans
                   </h2>
                   <CodeBlock
@@ -734,7 +748,7 @@ export async function checkAccess(planPda: PublicKey, userWallet: PublicKey): Pr
             {activeTopic === "sdk-cancel" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Cancelling &amp; Reclaiming Rent Lamports
                   </h2>
                   <p>
@@ -755,7 +769,7 @@ export async function checkAccess(planPda: PublicKey, userWallet: PublicKey): Pr
             {activeTopic === "actions-spec" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Solana Actions HTTP Spec &amp; CORS
                   </h2>
                   <p>
@@ -778,7 +792,7 @@ export async function checkAccess(planPda: PublicKey, userWallet: PublicKey): Pr
             {activeTopic === "actions-blinks" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Unfurling on Twitter (X) &amp; Dial.to
                   </h2>
                   <p>
@@ -797,7 +811,7 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
             {activeTopic === "crank-keeper" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     Running the Decentralized Crank Bot
                   </h2>
                   <p>
@@ -843,11 +857,11 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
             {activeTopic === "api-rest" && (
               <>
                 <section id="part-1" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     1. Create a Checkout Session
                   </h2>
                   <p>
-                    Call <code className="text-emerald-400 font-mono">POST /api/v1/checkout/sessions</code> from your backend to generate a personalized subscription URL or Blink with custom metadata.
+                    Call <code className="text-emerald-600 dark:text-emerald-400 font-mono">POST /api/v1/checkout/sessions</code> from your backend to generate a personalized subscription URL or Blink with custom metadata.
                   </p>
                   <CodeBlock
                     filename="cURL"
@@ -859,7 +873,7 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
     "successUrl": "https://myapp.com/dashboard?upgraded=true"
   }'`}
                   />
-                  <div className="text-xs text-[#8b949e]">Response JSON (HTTP 201 Created):</div>
+                  <div className="text-xs text-muted-foreground">Response JSON (HTTP 201 Created):</div>
                   <CodeBlock
                     filename="response.json"
                     singleCode={`{
@@ -881,17 +895,17 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
                 </section>
 
                 <section id="part-2" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     2. Check Subscriber Status &amp; Entitlements
                   </h2>
                   <p>
-                    Call <code className="text-emerald-400 font-mono">GET /api/v1/subscriptions/:wallet?plan=:planAddress</code> to gate features or check active subscription state in server environments.
+                    Call <code className="text-emerald-600 dark:text-emerald-400 font-mono">GET /api/v1/subscriptions/:wallet?plan=:planAddress</code> to gate features or check active subscription state in server environments.
                   </p>
                   <CodeBlock
                     filename="cURL"
                     singleCode={`curl "https://api.tidepay.xyz/api/v1/subscriptions/BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio?plan=4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P"`}
                   />
-                  <div className="text-xs text-[#8b949e]">Response JSON (Active Subscriber):</div>
+                  <div className="text-xs text-muted-foreground">Response JSON (Active Subscriber):</div>
                   <CodeBlock
                     filename="response.json"
                     singleCode={`{
@@ -907,11 +921,11 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
                 </section>
 
                 <section id="part-3" className="flex flex-col gap-3">
-                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
                     3. Cancel Subscription (In-App or Server-Side)
                   </h2>
                   <p>
-                    Call <code className="text-emerald-400 font-mono">POST /api/v1/subscriptions/cancel</code> when a user clicks &quot;Cancel Subscription&quot; inside your app&apos;s billing settings. It builds the revocation transaction, stops recurring pulls, and refunds ~0.0015 SOL rent lamports to the user&apos;s wallet.
+                    Call <code className="text-emerald-600 dark:text-emerald-400 font-mono">POST /api/v1/subscriptions/cancel</code> when a user clicks &quot;Cancel Subscription&quot; inside your app&apos;s billing settings. It builds the revocation transaction, stops recurring pulls, and refunds ~0.0015 SOL rent lamports to the user&apos;s wallet.
                   </p>
                   <CodeBlock
                     filename="cURL"
@@ -922,7 +936,7 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
     "subscriber": "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio"
   }'`}
                   />
-                  <div className="text-xs text-[#8b949e]">Response JSON (HTTP 200 OK):</div>
+                  <div className="text-xs text-muted-foreground">Response JSON (HTTP 200 OK):</div>
                   <CodeBlock
                     filename="response.json"
                     singleCode={`{
@@ -943,37 +957,37 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
         </main>
 
         {/* RIGHT SIDEBAR: "IN THIS ARTICLE" / Table of Contents */}
-        <aside className="hidden xl:block w-64 p-6 shrink-0 border-l border-[#21262d] text-xs sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
-          <div className="font-semibold text-[#f0f6fc] mb-3 uppercase tracking-wider text-[11px] font-mono">
+        <aside className="hidden xl:block w-64 p-6 shrink-0 border-l border-border text-xs sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <div className="font-semibold text-foreground mb-3 uppercase tracking-wider text-[11px] font-mono">
             In this article
           </div>
-          <div className="flex flex-col gap-2.5 text-[#8b949e]">
-            <a href="#part-1" className="hover:text-emerald-400 transition-colors">
+          <div className="flex flex-col gap-2.5 text-muted-foreground">
+            <a href="#part-1" className="hover:text-primary transition-colors">
               Part 1: Configuring your account
             </a>
-            <a href="#part-2" className="hover:text-emerald-400 transition-colors">
+            <a href="#part-2" className="hover:text-primary transition-colors">
               Part 2: Subscribing a wallet
             </a>
-            <a href="#part-3" className="hover:text-emerald-400 transition-colors">
+            <a href="#part-3" className="hover:text-primary transition-colors">
               Part 3: Verifying active status
             </a>
-            <div className="pt-3 border-t border-[#21262d] mt-2 flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-[#c9d1d9]">Quick tools</span>
+            <div className="pt-3 border-t border-border mt-2 flex flex-col gap-2">
+              <span className="text-[11px] font-semibold text-foreground">Quick tools</span>
               <button
                 onClick={() => selectTopic("webhook-simulator")}
-                className="text-left hover:text-emerald-400 transition-colors"
+                className="text-left hover:text-primary transition-colors"
               >
                 API Keys &amp; Webhooks
               </button>
               <button
                 onClick={() => selectTopic("blink-tester")}
-                className="text-left hover:text-emerald-400 transition-colors"
+                className="text-left hover:text-primary transition-colors"
               >
                 Blink &amp; Dial.to Tester
               </button>
               <button
                 onClick={() => selectTopic("anchor-errors")}
-                className="text-left hover:text-emerald-400 transition-colors"
+                className="text-left hover:text-primary transition-colors"
               >
                 Anchor Errors (6000-6008)
               </button>

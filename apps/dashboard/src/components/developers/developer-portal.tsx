@@ -279,11 +279,11 @@ export function DeveloperPortal() {
               </div>
 
               {/* Architecture Diagram Box */}
-              <Card className="border-border/60 bg-[#0a0f12]/80 p-5 font-mono text-xs">
+              <Card className="border-border/60 bg-muted/40 p-5 font-mono text-xs">
                 <div className="text-muted-foreground text-[11px] mb-2 uppercase tracking-wider font-semibold">
                   Lifecycle Workflow
                 </div>
-                <div className="rounded border border-border/40 bg-background/50 p-4 text-emerald-100/90 leading-loose text-[11px] overflow-x-auto">
+                <div className="rounded border border-border/40 bg-background/50 p-4 text-foreground/90 leading-loose text-[11px] overflow-x-auto">
                   <div>1. Subscriber delegates token allowance to Program Authority PDA (`b&quot;tidepay_auth&quot;`)</div>
                   <div>2. Subscriber calls `subscribe()`, transferring Epoch 0 fee immediately to Merchant</div>
                   <div>3. On-chain `SubscriptionRecord` PDA is initialized with `next_epoch_timestamp`</div>

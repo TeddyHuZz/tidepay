@@ -93,7 +93,7 @@ export function CodeBlock({
         </Button>
       </div>
 
-      <div className="p-4 overflow-x-auto bg-[#0a0f12]/90 text-xs font-mono leading-relaxed text-emerald-50 selection:bg-emerald-500/30">
+      <div className="p-4 overflow-x-auto bg-muted/60 text-foreground text-xs font-mono leading-relaxed selection:bg-primary/20">
         <pre className="overflow-x-auto">
           <code>{currentCode}</code>
         </pre>

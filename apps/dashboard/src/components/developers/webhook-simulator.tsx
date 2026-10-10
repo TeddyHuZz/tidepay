@@ -123,7 +123,7 @@ export function WebhookSimulator() {
         </div>
 
         {/* Code Payload Box */}
-        <div className="relative rounded-lg border border-border/70 bg-[#0a0f12]/90 p-4 text-xs font-mono text-emerald-100">
+        <div className="relative rounded-lg border border-border/70 bg-muted/60 p-4 text-xs font-mono text-foreground">
           <Button
             variant="ghost"
             size="sm"
