@@ -83,7 +83,7 @@ export function DeveloperDockButton() {
             </div>
 
             <Link
-              href="/developers"
+              href="/developers?topic=architecture"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
@@ -92,7 +92,7 @@ export function DeveloperDockButton() {
             </Link>
 
             <Link
-              href="/developers"
+              href="/developers?topic=webhook-simulator"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
@@ -101,7 +101,7 @@ export function DeveloperDockButton() {
             </Link>
 
             <Link
-              href="/developers"
+              href="/developers?topic=blink-tester"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
@@ -117,7 +117,7 @@ export function DeveloperDockButton() {
             </div>
 
             <Link
-              href="/developers"
+              href="/developers?topic=getting-started"
               onClick={() => setIsOpen(false)}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
@@ -129,7 +129,7 @@ export function DeveloperDockButton() {
             </Link>
 
             <Link
-              href="/developers"
+              href="/developers?topic=sdk-install"
               onClick={() => setIsOpen(false)}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
@@ -141,7 +141,7 @@ export function DeveloperDockButton() {
             </Link>
 
             <Link
-              href="/developers"
+              href="/developers?topic=crank-keeper"
               onClick={() => setIsOpen(false)}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >

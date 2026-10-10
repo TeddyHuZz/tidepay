@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   ChevronDown,
@@ -197,7 +198,25 @@ const DOC_TREE: DocGroup[] = [
 ];
 
 export function DocsView() {
-  const [activeTopic, setActiveTopic] = useState<DocTopicId>("getting-started");
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#070d10]" />}>
+      <DocsContent />
+    </Suspense>
+  );
+}
+
+function DocsContent() {
+  const searchParams = useSearchParams();
+  const topicParam = searchParams.get("topic") as DocTopicId | null;
+
+  const [activeTopic, setActiveTopic] = useState<DocTopicId>(() => {
+    if (topicParam) {
+      for (const group of DOC_TREE) {
+        if (group.items.some((i) => i.id === topicParam)) return topicParam;
+      }
+    }
+    return "getting-started";
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
     "Keeper Crank & Relayer": false,
@@ -205,6 +224,29 @@ export function DocsView() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = useState(false);
+
+  // Sync activeTopic when URL query param changes and expand parent group
+  useEffect(() => {
+    if (topicParam) {
+      for (const group of DOC_TREE) {
+        if (group.items.some((i) => i.id === topicParam)) {
+          setActiveTopic(topicParam);
+          setCollapsedGroups((prev) => ({ ...prev, [group.name]: false }));
+          break;
+        }
+      }
+    }
+  }, [topicParam]);
+
+  const selectTopic = (id: DocTopicId) => {
+    setActiveTopic(id);
+    setMobileMenuOpen(false);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("topic", id);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
 
   const toggleGroup = (name: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [name]: !prev[name] }));
@@ -365,10 +407,7 @@ export function DocsView() {
                         return (
                           <button
                             key={item.id}
-                            onClick={() => {
-                              setActiveTopic(item.id);
-                              setMobileMenuOpen(false);
-                            }}
+                            onClick={() => selectTopic(item.id)}
                             className={cn(
                               "flex items-center justify-between text-left px-2.5 py-1.5 rounded-md transition-colors leading-snug",
                               isActive
@@ -477,10 +516,10 @@ export function DocsView() {
                     To start implementing recurring payments into your dApp, proceed to the installation guide or check our interactive workbench tools.
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" onClick={() => setActiveTopic("sdk-install")} className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white">
+                    <Button size="sm" onClick={() => selectTopic("sdk-install")} className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white">
                       Install TypeScript SDK
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setActiveTopic("webhook-simulator")} className="gap-1.5 text-xs bg-[#161b22] border-[#30363d] text-[#c9d1d9]">
+                    <Button size="sm" variant="outline" onClick={() => selectTopic("webhook-simulator")} className="gap-1.5 text-xs bg-[#161b22] border-[#30363d] text-[#c9d1d9]">
                       Open Webhook Tester
                     </Button>
                   </div>
@@ -807,19 +846,19 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
             <div className="pt-3 border-t border-[#21262d] mt-2 flex flex-col gap-2">
               <span className="text-[11px] font-semibold text-[#c9d1d9]">Quick tools</span>
               <button
-                onClick={() => setActiveTopic("webhook-simulator")}
+                onClick={() => selectTopic("webhook-simulator")}
                 className="text-left hover:text-emerald-400 transition-colors"
               >
                 Webhook Simulator
               </button>
               <button
-                onClick={() => setActiveTopic("blink-tester")}
+                onClick={() => selectTopic("blink-tester")}
                 className="text-left hover:text-emerald-400 transition-colors"
               >
                 Blink &amp; Dial.to Tester
               </button>
               <button
-                onClick={() => setActiveTopic("anchor-errors")}
+                onClick={() => selectTopic("anchor-errors")}
                 className="text-left hover:text-emerald-400 transition-colors"
               >
                 Anchor Errors (6000-6008)
