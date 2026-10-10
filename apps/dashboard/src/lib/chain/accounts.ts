@@ -175,6 +175,8 @@ export interface PlanOnChainEvent {
 }
 
 const parsedTxCache = new Map<string, { kind: PlanOnChainEvent["kind"]; label: string; subscriber?: string }>();
+const activityCache = new Map<string, { data: PlanOnChainEvent[]; timestamp: number }>();
+const ACTIVITY_CACHE_TTL_MS = 30_000; // 30 seconds TTL per plan
 
 export async function fetchPlanActivity(
   connection: Connection,
@@ -184,9 +186,18 @@ export async function fetchPlanActivity(
   limit = 20,
   planName?: string,
 ): Promise<PlanOnChainEvent[]> {
+  const cacheKey = `${planPubkey.toBase58()}:${limit}`;
+  const cachedActivity = activityCache.get(cacheKey);
+  if (cachedActivity && Date.now() - cachedActivity.timestamp < ACTIVITY_CACHE_TTL_MS) {
+    return cachedActivity.data;
+  }
+
   try {
     const sigs = await connection.getSignaturesForAddress(planPubkey, { limit });
-    if (sigs.length === 0) return [];
+    if (sigs.length === 0) {
+      activityCache.set(cacheKey, { data: [], timestamp: Date.now() });
+      return [];
+    }
 
     const priceNum = parseFloat(priceUsdc) || 0;
     const feeNum = parseFloat(keeperFeeUsdc) || 0;
@@ -224,7 +235,7 @@ export async function fetchPlanActivity(
       }
     }
 
-    return sigs.map((sig, idx) => {
+    const events: PlanOnChainEvent[] = sigs.map((sig, idx) => {
       const isInitial = idx === sigs.length - 1;
       const blockTime = sig.blockTime ? sig.blockTime * 1000 : Date.now();
       const isFailed = Boolean(sig.err);
@@ -255,9 +266,12 @@ export async function fetchPlanActivity(
         err: isFailed,
       };
     });
+
+    activityCache.set(cacheKey, { data: events, timestamp: Date.now() });
+    return events;
   } catch (error) {
     console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
-    return [];
+    return cachedActivity?.data ?? [];
   }
 }
 

@@ -23,7 +23,7 @@ export interface MerchantDataContextValue {
   lastRefreshedAt: number | null;
 }
 
-const AUTO_POLL_INTERVAL_MS = 20_000;
+const AUTO_POLL_INTERVAL_MS = 45_000;
 
 const MerchantDataContext = createContext<MerchantDataContextValue | null>(null);
 
