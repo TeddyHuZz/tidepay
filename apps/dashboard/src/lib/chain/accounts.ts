@@ -146,6 +146,8 @@ export interface PlanOnChainEvent {
   amountNetUsdc?: string;
   keeperFeeUsdc?: string;
   subscriber?: string;
+  planName?: string;
+  planAddress?: string;
 }
 
 const parsedTxCache = new Map<string, { kind: PlanOnChainEvent["kind"]; label: string; subscriber?: string }>();
@@ -156,6 +158,7 @@ export async function fetchPlanActivity(
   priceUsdc: string,
   keeperFeeUsdc = "0.05",
   limit = 10,
+  planName?: string,
 ): Promise<PlanOnChainEvent[]> {
   try {
     const sigs = await connection.getSignaturesForAddress(planPubkey, { limit });
@@ -214,11 +217,34 @@ export async function fetchPlanActivity(
         amountGrossUsdc: isTransfer ? priceUsdc : undefined,
         keeperFeeUsdc: isTransfer ? keeperFeeUsdc : undefined,
         subscriber: cached?.subscriber,
+        planName,
+        planAddress: planPubkey.toBase58(),
         err: isFailed,
       };
     });
   } catch (error) {
     console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
+    return [];
+  }
+}
+
+export async function fetchAllMerchantPlansActivity(
+  connection: Connection,
+  plans: { id: string; name: string; priceUsdc: string }[],
+  keeperFeeUsdc = "0.05",
+  limitPerPlan = 10,
+): Promise<PlanOnChainEvent[]> {
+  try {
+    const eventsPerPlan = await Promise.all(
+      plans.map(async (plan) => {
+        const pubkey = parseAddress(plan.id);
+        if (!pubkey) return [];
+        return fetchPlanActivity(connection, pubkey, plan.priceUsdc, keeperFeeUsdc, limitPerPlan, plan.name);
+      }),
+    );
+    return eventsPerPlan.flat().sort((a, b) => b.timestamp - a.timestamp);
+  } catch (error) {
+    console.warn("[TidePay] RPC fetchAllMerchantPlansActivity notice:", error);
     return [];
   }
 }
