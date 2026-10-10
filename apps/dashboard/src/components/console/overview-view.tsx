@@ -147,16 +147,11 @@ function OverviewContent({
       {/* Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Real-time subscriber and billing analytics across all your TidePay plans.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] text-muted-foreground font-mono">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Auto-sync 20s
-          </div>
           <Button
             variant="outline"
             size="sm"
