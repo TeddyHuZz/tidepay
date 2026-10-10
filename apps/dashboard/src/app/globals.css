@@ -21,6 +21,7 @@ html.dark,
   --input: #063133;
   --ring: #00bfb3;
   --destructive: #f87171;
+  --destructive-foreground: #ffffff;
   --success: #03b5aa;
   --success-soft: #043330;
   --warning: #f59e0b;
@@ -57,7 +58,8 @@ body[data-theme="light"],
   --border: #cfe0de !important;
   --input: #e0eceb !important;
   --ring: #008f86 !important;
-  --destructive: #ef4444 !important;
+  --destructive: #dc2626 !important;
+  --destructive-foreground: #ffffff !important;
   --success: #059669 !important;
   --success-soft: #ecfdf5 !important;
   --warning: #d97706 !important;
@@ -111,6 +113,7 @@ body[data-theme="light"],
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);

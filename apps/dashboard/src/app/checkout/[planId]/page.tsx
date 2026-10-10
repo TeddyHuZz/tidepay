@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckoutCard } from "@/components/checkout/checkout-card";
 import { Logo } from "@/components/logo";
 import { WalletButton } from "@/components/wallet-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getCheckoutPlan } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Checkout" };
@@ -16,7 +17,8 @@ export default function CheckoutPage({ params }: PageProps<"/checkout/[planId]">
         <Link href="/" className="transition-opacity hover:opacity-80">
           <Logo />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <ThemeToggle className="size-10" />
           <WalletButton />
         </div>
       </header>

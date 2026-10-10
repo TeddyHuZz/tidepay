@@ -85,7 +85,7 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
                 variant="outline"
                 disabled={pending}
                 onClick={() => void cancel()}
-                className="text-destructive hover:bg-destructive hover:text-destructive-foreground border-destructive/30 transition-colors"
+                className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white dark:hover:text-white transition-colors font-medium"
               >
                 {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
               </Button>
