@@ -55,7 +55,7 @@ export function PlansView() {
                     <TableCell className="text-foreground/80">{intervalLabel(plan.intervalSeconds)}</TableCell>
                     <TableCell className="tabular-nums font-mono">{plan.subscribers}</TableCell>
                     <TableCell>
-                      <Badge variant={plan.active ? "success" : "neutral"}>{plan.active ? "Active" : "Inactive"}</Badge>
+                      <Badge variant={plan.active ? "success" : "neutral"}>{plan.active ? "Active" : "Paused"}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-3">

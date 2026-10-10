@@ -341,6 +341,36 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "toggle_plan_status",
+      "discriminator": [
+        81,
+        216,
+        198,
+        207,
+        213,
+        31,
+        163,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "plan",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "is_active",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [

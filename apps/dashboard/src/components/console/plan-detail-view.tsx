@@ -2,16 +2,31 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Zap, Users, ShieldCheck, DollarSign, ArrowUpRight, RefreshCw, Wallet } from "lucide-react";
-import { useConnection } from "@solana/wallet-adapter-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Zap,
+  Users,
+  ShieldCheck,
+  DollarSign,
+  ArrowUpRight,
+  RefreshCw,
+  Wallet,
+  PauseCircle,
+  PlayCircle,
+  Loader2,
+} from "lucide-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { CopyButton } from "@/components/copy-button";
+import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
-import { fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { createClient, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { useSendTransaction } from "@/hooks/use-send-transaction";
 import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +86,50 @@ function PlanDetailContent({
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));
   }, [connection, plan?.id, plan?.priceUsdc, lastRefreshedAt]);
+
+  const { publicKey } = useWallet();
+  const { buildTransaction, send } = useSendTransaction();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [isToggling, setIsToggling] = useState(false);
+
+  const handleTogglePlan = async () => {
+    if (!plan?.id || !publicKey) {
+      toastError("Wallet required", "Connect your merchant wallet to update this plan.");
+      return;
+    }
+    const planPubkey = parseAddress(plan.id);
+    if (!planPubkey) return;
+
+    setIsToggling(true);
+    try {
+      const client = createClient(connection);
+      const targetActive = !plan.active;
+      const { instruction } = await client.buildTogglePlanStatusInstruction({
+        merchant: publicKey,
+        plan: planPubkey,
+        isActive: targetActive,
+      });
+
+      const tx = await buildTransaction(publicKey, [instruction]);
+      await send(tx);
+
+      toastSuccess(
+        targetActive ? "Plan Resumed" : "Plan Paused",
+        targetActive
+          ? `${plan.name} is now active and accepting subscriptions.`
+          : `${plan.name} is paused. New checkouts will be rejected.`
+      );
+
+      setTimeout(() => {
+        onRefresh();
+      }, 1000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toastError("Update failed", message);
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   if (!plan) {
     return (
@@ -168,6 +227,22 @@ function PlanDetailContent({
                   <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
                   {isRefreshing ? "Syncing…" : "Refresh"}
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTogglePlan}
+                  disabled={isToggling || isRefreshing}
+                  className="gap-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  {isToggling ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : plan.active ? (
+                    <PauseCircle className="size-3.5 text-amber-500" />
+                  ) : (
+                    <PlayCircle className="size-3.5 text-emerald-500" />
+                  )}
+                  <span>{isToggling ? "Updating…" : plan.active ? "Pause Plan" : "Resume Plan"}</span>
+                </Button>
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <a href={checkoutLink} target="_blank" rel="noreferrer">
                     Checkout Link
@@ -189,7 +264,7 @@ function PlanDetailContent({
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">{plan.name}</h1>
                   <Badge variant={plan.active ? "success" : "neutral"}>
-                    {plan.active ? "Active" : "Inactive"}
+                    {plan.active ? "Active" : "Paused"}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
