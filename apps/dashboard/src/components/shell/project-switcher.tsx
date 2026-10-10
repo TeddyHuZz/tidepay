@@ -15,10 +15,12 @@ import {
   Copy,
   ChevronRight,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shortAddress } from "@/lib/format";
-import { useProject } from "@/components/project-context";
+import { useProject, type Project } from "@/components/project-context";
+import { useToast } from "@/components/ui/toast";
 import { ProjectSettingsModal } from "./project-settings-modal";
 
 export function ProjectSwitcher() {
@@ -36,10 +38,12 @@ export function ProjectSwitcher() {
   } = useProject();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [switchingTo, setSwitchingTo] = useState<Project | null>(null);
   const [view, setView] = useState<"menu" | "switch" | "create">("menu");
   const [newProjectName, setNewProjectName] = useState("");
   const [copiedWallet, setCopiedWallet] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   // Close when clicking outside
   useEffect(() => {
@@ -79,18 +83,35 @@ export function ProjectSwitcher() {
   };
 
   const handleSelectProject = (projectId: string) => {
-    switchProject(projectId);
-    setView("menu");
+    if (projectId === activeProject.id) {
+      setView("menu");
+      setIsOpen(false);
+      return;
+    }
+
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
     setIsOpen(false);
+    setSwitchingTo(target);
+
+    setTimeout(() => {
+      switchProject(projectId);
+      setSwitchingTo(null);
+      setView("menu");
+      toast.success("Switched workspace", `Active project set to "${target.name}"`);
+    }, 550);
   };
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProjectName.trim()) return;
-    createProject(newProjectName);
+    const name = newProjectName.trim();
+    if (!name) return;
+    createProject(name);
     setNewProjectName("");
     setView("menu");
     setIsOpen(false);
+    toast.success("Project created", `Created and switched to workspace "${name}"`);
   };
 
   const handleCopyWallet = (e: React.MouseEvent) => {
@@ -351,6 +372,25 @@ export function ProjectSwitcher() {
               </button>
             </form>
           )}
+        </div>
+      )}
+
+      {/* Switching Project Loading Modal */}
+      {switchingTo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in-0 duration-200">
+          <div className="flex flex-col items-center gap-3.5 rounded-2xl border border-border/80 bg-card p-6 shadow-2xl text-center max-w-xs w-full animate-in zoom-in-95 duration-150">
+            <div className="relative flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-semibold text-foreground">
+                Switching Workspace
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Connecting to <span className="font-medium text-foreground">{switchingTo.name}</span>...
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

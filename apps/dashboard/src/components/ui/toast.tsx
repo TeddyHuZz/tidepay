@@ -80,10 +80,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={item.id}
             role="status"
             className={cn(
-              "pointer-events-auto flex items-start gap-3 rounded-lg border bg-card p-4 shadow-xl transition-all duration-200 animate-in slide-in-from-bottom-3 fade-in-50",
-              item.variant === "success" && "border-primary/40 bg-[#042728]",
-              item.variant === "error" && "border-destructive/40 bg-card",
-              item.variant === "info" && "border-border bg-card",
+              "pointer-events-auto flex items-start gap-3 rounded-xl border bg-card text-card-foreground p-4 shadow-xl transition-all duration-200 animate-in slide-in-from-bottom-3 fade-in-50",
+              item.variant === "success" && "border-primary/40 shadow-primary/5",
+              item.variant === "error" && "border-destructive/40 shadow-destructive/5",
+              item.variant === "info" && "border-border/80",
             )}
           >
             {item.variant === "success" && (
