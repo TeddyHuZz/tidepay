@@ -65,11 +65,12 @@ export function ProjectSwitcher() {
   }, [isOpen]);
 
   const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
+    const cleaned = name.replace(/[()]/g, "").trim();
+    const parts = cleaned.split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return cleaned.slice(0, 2).toUpperCase() || "TP";
   };
 
   const handleSelectProject = (projectId: string) => {
@@ -112,7 +113,7 @@ export function ProjectSwitcher() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative z-40 w-full">
       {/* Trigger Button (placed below the TidePay logo) */}
       <button
         type="button"
@@ -177,7 +178,10 @@ export function ProjectSwitcher() {
 
                 <button
                   type="button"
-                  onClick={toggleEnvironment}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleEnvironment();
+                  }}
                   className="mt-3 w-full rounded-lg border border-border/70 bg-background/60 py-1.5 px-3 text-xs font-medium text-foreground hover:bg-accent/60 hover:border-border transition-colors shadow-xs cursor-pointer"
                 >
                   {activeProject.environment === "sandbox" ? "Exit sandbox" : "Enter sandbox"}

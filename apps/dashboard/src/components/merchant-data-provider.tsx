@@ -68,7 +68,10 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
         },
         (error: unknown) => {
           console.error("[TidePay] Failed to load merchant data:", error);
-          if (!cancelled) setResult({ key: requestKey, error: "Could not load data from Solana Devnet." });
+          if (!cancelled) {
+            const clusterName = activeProject.environment === "live" ? "Solana Mainnet" : "Solana Devnet";
+            setResult({ key: requestKey, error: `Could not load data from ${clusterName}.` });
+          }
         },
       )
       .finally(() => {

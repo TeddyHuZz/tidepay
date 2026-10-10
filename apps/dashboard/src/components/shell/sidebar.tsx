@@ -13,7 +13,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex shrink-0 flex-col gap-4 border-b px-4 py-4 md:sticky md:top-0 md:h-dvh md:w-60 md:gap-5 md:border-r md:border-b-0 md:py-5">
+    <aside className="relative z-40 flex shrink-0 flex-col gap-4 border-b px-4 py-4 md:sticky md:top-0 md:h-dvh md:w-60 md:gap-5 md:border-r md:border-b-0 md:py-5">
       <Link href="/" className="rounded-md px-2 outline-none focus-visible:outline-2 focus-visible:outline-ring">
         <Logo />
       </Link>

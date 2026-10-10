@@ -7,7 +7,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
   return (
     <MerchantDataProvider>
       <div className="flex min-h-dvh flex-col md:flex-row">
-        <Suspense fallback={<aside className="h-dvh w-60 border-r" />}>
+        <Suspense fallback={<aside className="relative z-40 h-dvh w-60 border-r" />}>
           <Sidebar />
         </Suspense>
         <div className="flex min-w-0 flex-1 flex-col">
