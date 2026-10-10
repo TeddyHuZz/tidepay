@@ -10,7 +10,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/plans", label: "Plans", icon: ListChecks },
   { href: "/subscribers", label: "Subscribers", icon: Users },
-  { href: "/developers", label: "Developers", icon: Code2 },
   { href: "/demo", label: "Demo app", icon: MonitorPlay },
 ];
 

@@ -6,6 +6,8 @@ import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 
+import { DeveloperDockButton } from "./developer-dock-button";
+
 export function Sidebar() {
   const pathname = usePathname();
 
@@ -30,20 +32,15 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
               )}
             >
-              <Icon className="size-[18px]" aria-hidden="true" />
+              <Icon className="size-4.5" aria-hidden="true" />
               {label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto hidden flex-col gap-3 rounded-lg border p-3 md:flex">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
-          Keeper crank online
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">Solana Devnet</div>
-      </div>
+      {/* Floating Stripe-style Developer dock button */}
+      <DeveloperDockButton />
     </aside>
   );
 }
