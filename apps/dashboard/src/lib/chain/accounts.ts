@@ -157,7 +157,7 @@ export async function fetchPlanActivity(
   planPubkey: PublicKey,
   priceUsdc: string,
   keeperFeeUsdc = "0.05",
-  limit = 10,
+  limit = 20,
   planName?: string,
 ): Promise<PlanOnChainEvent[]> {
   try {
@@ -168,23 +168,32 @@ export async function fetchPlanActivity(
     const feeNum = parseFloat(keeperFeeUsdc) || 0;
     const netNum = Math.max(0, priceNum - feeNum).toFixed(2);
 
-    // Only inspect the newest un-cached signature (at most 1 light request per refresh) to prevent 429 RPC rate limits
-    const newestUncached = sigs.find((s) => !parsedTxCache.has(s.signature));
-    if (newestUncached) {
+    // Inspect uncached signatures in a single batch request (up to 20 signatures per batch)
+    const uncached = sigs.filter((s) => !parsedTxCache.has(s.signature)).slice(0, 20);
+    if (uncached.length > 0) {
       try {
-        const tx = await connection.getParsedTransaction(newestUncached.signature, { maxSupportedTransactionVersion: 0 });
-        const logs = tx?.meta?.logMessages ?? [];
-        const accountKeys = tx?.transaction.message.accountKeys ?? [];
-        const signerKey = accountKeys.find((k: any) => k.signer)?.pubkey.toBase58();
+        const txs = await connection.getParsedTransactions(
+          uncached.map((s) => s.signature),
+          { maxSupportedTransactionVersion: 0 },
+        );
+        for (let i = 0; i < uncached.length; i++) {
+          const sig = uncached[i];
+          const tx = txs[i];
+          if (!tx) continue;
 
-        if (logs.some((l) => l.includes("Instruction: CancelSubscription"))) {
-          parsedTxCache.set(newestUncached.signature, { kind: "cancelled", label: "Subscription Cancelled", subscriber: signerKey });
-        } else if (logs.some((l) => l.includes("Instruction: Subscribe"))) {
-          parsedTxCache.set(newestUncached.signature, { kind: "subscribed", label: "New Subscription", subscriber: signerKey });
-        } else if (logs.some((l) => l.includes("Instruction: ProcessEpoch"))) {
-          parsedTxCache.set(newestUncached.signature, { kind: "settled", label: "On-chain Settlement" });
-        } else if (logs.some((l) => l.includes("Instruction: InitializePlan"))) {
-          parsedTxCache.set(newestUncached.signature, { kind: "created", label: "Plan Initialized" });
+          const logs = tx.meta?.logMessages ?? [];
+          const accountKeys = tx.transaction.message.accountKeys ?? [];
+          const signerKey = accountKeys.find((k: any) => k.signer)?.pubkey.toBase58();
+
+          if (logs.some((l) => l.includes("Instruction: CancelSubscription"))) {
+            parsedTxCache.set(sig.signature, { kind: "cancelled", label: "Subscription Cancelled", subscriber: signerKey });
+          } else if (logs.some((l) => l.includes("Instruction: Subscribe"))) {
+            parsedTxCache.set(sig.signature, { kind: "subscribed", label: "New Subscription", subscriber: signerKey });
+          } else if (logs.some((l) => l.includes("Instruction: ProcessEpoch"))) {
+            parsedTxCache.set(sig.signature, { kind: "settled", label: "On-chain Settlement" });
+          } else if (logs.some((l) => l.includes("Instruction: InitializePlan"))) {
+            parsedTxCache.set(sig.signature, { kind: "created", label: "Plan Initialized" });
+          }
         }
       } catch {
         // Silently skip if RPC rate limits or delays; heuristic fallback applies cleanly
@@ -232,7 +241,7 @@ export async function fetchAllMerchantPlansActivity(
   connection: Connection,
   plans: { id: string; name: string; priceUsdc: string }[],
   keeperFeeUsdc = "0.05",
-  limitPerPlan = 10,
+  limitPerPlan = 20,
 ): Promise<PlanOnChainEvent[]> {
   try {
     const eventsPerPlan = await Promise.all(
