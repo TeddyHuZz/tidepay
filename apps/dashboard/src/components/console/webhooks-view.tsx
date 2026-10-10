@@ -105,11 +105,7 @@ function WebhooksContent({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Webhook className="size-5 text-primary" />
-            Webhooks &amp; API Keys
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground">
             Configure server-side credentials and register automated event listeners for recurring renewals.
           </p>
         </div>
@@ -183,18 +179,16 @@ function WebhooksContent({
 
       {/* Recent Deliveries Table */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base font-bold">Recent Webhook Deliveries</CardTitle>
-              <CardDescription className="text-xs">
-                Log of automated events dispatched to your registered server endpoint.
-              </CardDescription>
-            </div>
-            <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-400">
-              100% Delivery Success
-            </Badge>
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <div className="min-w-0">
+            <CardTitle className="text-base font-bold">Recent Webhook Deliveries</CardTitle>
+            <CardDescription className="text-xs">
+              Log of automated events dispatched to your registered server endpoint.
+            </CardDescription>
           </div>
+          <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-400 shrink-0 ml-auto">
+            100% Delivery Success
+          </Badge>
         </CardHeader>
         <CardContent>
           {deliveries.length === 0 ? (

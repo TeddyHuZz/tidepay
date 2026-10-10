@@ -11,6 +11,7 @@ const TITLES: Record<string, string> = {
   "/plans/new": "New plan",
   "/subscribers": "Subscribers",
   "/developers": "Developers",
+  "/webhooks": "Webhooks & API Keys",
 };
 
 export function Topbar() {

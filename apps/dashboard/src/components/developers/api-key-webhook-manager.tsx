@@ -158,30 +158,28 @@ export function ApiKeyWebhookManager() {
     <div className="flex flex-col gap-8">
       {/* 1. API Keys Section */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Key className="size-4" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold">API Secret &amp; Publishable Keys</CardTitle>
-                <CardDescription className="text-xs">
-                  Authenticate REST API requests to create checkout sessions and query subscriber access.
-                </CardDescription>
-              </div>
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Key className="size-4" />
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRollApiKey}
-              className="h-8 gap-1.5 text-xs self-start sm:self-auto"
-            >
-              <RefreshCw className="size-3.5" />
-              Roll Secret Key
-            </Button>
+            <div className="min-w-0">
+              <CardTitle className="text-base font-bold">API Secret &amp; Publishable Keys</CardTitle>
+              <CardDescription className="text-xs">
+                Authenticate REST API requests to create checkout sessions and query subscriber access.
+              </CardDescription>
+            </div>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRollApiKey}
+            className="h-8 shrink-0 gap-1.5 text-xs ml-auto"
+          >
+            <RefreshCw className="size-3.5" />
+            Roll Secret Key
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {/* Secret Key Field */}
@@ -243,30 +241,28 @@ export function ApiKeyWebhookManager() {
 
       {/* 2. Webhook Endpoints & Live Simulator */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                <Radio className="size-4" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold">Webhook Endpoints &amp; Signing Secret</CardTitle>
-                <CardDescription className="text-xs">
-                  Register your server destination URL and test automated subscription settlement webhooks.
-                </CardDescription>
-              </div>
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Radio className="size-4" />
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRollSigningSecret}
-              className="h-8 gap-1.5 text-xs self-start sm:self-auto"
-            >
-              <RefreshCw className="size-3.5" />
-              Roll Signing Secret
-            </Button>
+            <div className="min-w-0">
+              <CardTitle className="text-base font-bold">Webhook Endpoints &amp; Signing Secret</CardTitle>
+              <CardDescription className="text-xs">
+                Register your server destination URL and test automated subscription settlement webhooks.
+              </CardDescription>
+            </div>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRollSigningSecret}
+            className="h-8 shrink-0 gap-1.5 text-xs ml-auto"
+          >
+            <RefreshCw className="size-3.5" />
+            Roll Signing Secret
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {/* Webhook URL Input */}
