@@ -73,6 +73,29 @@ export function ProjectSwitcher() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  // Lock body & document scroll while workspace switching modal is shown
+  useEffect(() => {
+    if (!switchingTo) return;
+
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [switchingTo]);
+
   const getInitials = (name: string) => {
     const cleaned = name.replace(/[()]/g, "").trim();
     const parts = cleaned.split(/\s+/);
@@ -377,7 +400,7 @@ export function ProjectSwitcher() {
 
       {/* Switching Project Loading Modal */}
       {switchingTo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in-0 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in-0 duration-200 overscroll-contain">
           <div className="flex flex-col items-center gap-3.5 rounded-2xl border border-border/80 bg-card p-6 shadow-2xl text-center max-w-xs w-full animate-in zoom-in-95 duration-150">
             <div className="relative flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
               <Loader2 className="size-6 animate-spin" />

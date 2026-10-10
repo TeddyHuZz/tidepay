@@ -71,6 +71,30 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Lock body & document scroll while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    // Prevent layout shift from scrollbar disappearing
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSave = () => {
@@ -112,12 +136,18 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
   ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in-0 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in-0 duration-150 overscroll-contain overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
-        className="flex w-full max-w-2xl flex-col rounded-2xl border border-border/80 bg-card text-card-foreground shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        className="flex w-full max-w-2xl max-h-[90vh] flex-col rounded-2xl border border-border/80 bg-card text-card-foreground shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 overscroll-contain"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
@@ -168,7 +198,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 p-6 overflow-y-auto max-h-115">
+          <div className="flex-1 p-6 overflow-y-auto max-h-115 overscroll-contain">
             {/* GENERAL TAB */}
             {tab === "general" && (
               <div className="flex flex-col gap-5">
