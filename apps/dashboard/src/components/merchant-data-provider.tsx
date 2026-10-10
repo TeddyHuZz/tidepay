@@ -116,14 +116,13 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   } else if (result?.data) {
     // Scope data by active project
     const rawData = result.data;
-    const isAxiom = activeProject.id === "proj_axiom";
     const allowed = activeProject.planIds || [];
 
-    const filteredPlans = isAxiom
-      ? rawData.plans.filter(
-          (p) => allowed.includes(p.id) || allowed.includes(p.name) || p.name === "google-pro" || allowed.length === 0
-        )
-      : rawData.plans.filter((p) => allowed.includes(p.id) || allowed.includes(p.name));
+    // If active project has specific planIds assigned, show only those plans.
+    // If it's a fresh workspace and user creates plans, all newly created plans bind to it.
+    const filteredPlans = allowed.length > 0
+      ? rawData.plans.filter((p) => allowed.includes(p.id) || allowed.includes(p.name))
+      : rawData.plans;
 
     const planNames = new Set(filteredPlans.map((p) => p.name));
     const planIds = new Set(filteredPlans.map((p) => p.id));

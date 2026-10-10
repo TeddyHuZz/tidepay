@@ -97,6 +97,13 @@ export function ProjectSwitcher() {
 
   const handleDisconnect = async () => {
     try {
+      // Clear legacy global keys to prevent ghost projects leaking across sessions
+      try {
+        localStorage.removeItem("tidepay_projects_v2");
+        localStorage.removeItem("tidepay_active_project_v2");
+      } catch {
+        // Ignore local storage error
+      }
       await disconnect();
       setIsOpen(false);
     } catch (err) {
