@@ -1,6 +1,8 @@
 import { PublicKey, clusterApiUrl } from "@solana/web3.js";
 
-export const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
+export const PRIMARY_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() || "";
+export const FALLBACK_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_FALLBACK_RPC_URL?.trim() || clusterApiUrl("devnet");
+export const RPC_URL = PRIMARY_RPC_URL || FALLBACK_RPC_URL;
 
 /** Devnet USDC (Circle). Override for a custom test mint. */
 export const USDC_MINT = new PublicKey(
