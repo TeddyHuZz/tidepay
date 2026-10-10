@@ -163,13 +163,13 @@ export function ProjectSwitcher() {
         <div
           role="menu"
           aria-label="Project Switcher Menu"
-          className="absolute top-full left-0 mt-2 w-72 origin-top-left rounded-2xl border border-border/80 bg-[#0d1316]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 z-50 flex flex-col gap-3 text-xs"
+          className="absolute top-full left-0 mt-2 w-72 origin-top-left rounded-2xl border border-border/80 bg-popover text-popover-foreground p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 z-50 flex flex-col gap-3 text-xs"
         >
           {view === "menu" && (
             <>
               {/* Header Box: Avatar + Project Name + Exit sandbox */}
               <div className="flex flex-col items-center justify-center text-center pb-2 pt-1">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-background/90 border border-border/70 text-primary font-bold text-sm shadow-xs mb-2">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-muted border border-border/70 text-primary font-bold text-sm shadow-xs mb-2">
                   {getInitials(activeProject.name)}
                 </div>
 
@@ -187,7 +187,7 @@ export function ProjectSwitcher() {
                     e.stopPropagation();
                     toggleEnvironment();
                   }}
-                  className="mt-3 w-full rounded-lg border border-border/70 bg-background/60 py-1.5 px-3 text-xs font-medium text-foreground hover:bg-accent/60 hover:border-border transition-colors shadow-xs cursor-pointer"
+                  className="mt-3 w-full rounded-lg border border-border/70 bg-secondary/80 py-1.5 px-3 text-xs font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground hover:border-border transition-colors shadow-xs cursor-pointer"
                 >
                   {activeProject.environment === "sandbox" ? "Exit sandbox" : "Enter sandbox"}
                 </button>

@@ -13,9 +13,9 @@ import {
   ExternalLink,
   ShieldAlert,
   Save,
-  RotateCcw,
 } from "lucide-react";
 import { useProject, type Project } from "@/components/project-context";
+import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,8 @@ interface ProjectSettingsModalProps {
 }
 
 export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }: ProjectSettingsModalProps) {
-  const { activeProject, updateActiveProject, projects, deleteProject, resetAllProjects } = useProject();
+  const { activeProject, updateActiveProject, projects, deleteProject } = useProject();
+  const { theme, setTheme } = useTheme();
   const toast = useToast();
 
   const [tab, setTab] = useState<SettingsTab>(initialTab);
@@ -48,9 +49,6 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
   );
   const [gracePeriodHours, setGracePeriodHours] = useState<number>(activeProject.gracePeriodHours || 24);
 
-  // Appearance State
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
   // Sync state when activeProject changes or modal opens
   useEffect(() => {
     if (isOpen) {
@@ -61,9 +59,6 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
       setCustomMainnetRpcUrl(activeProject.customMainnetRpcUrl || activeProject.customRpcUrl || "");
       setExplorer(activeProject.explorer || "solana-explorer");
       setGracePeriodHours(activeProject.gracePeriodHours || 24);
-
-      const isLight = document.documentElement.classList.contains("light");
-      setTheme(isLight ? "light" : "dark");
     }
   }, [activeProject, isOpen, initialTab]);
 
@@ -77,20 +72,6 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const handleThemeChange = (selected: "dark" | "light") => {
-    setTheme(selected);
-    if (typeof document !== "undefined") {
-      if (selected === "light") {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.classList.add("light");
-      } else {
-        document.documentElement.classList.remove("light");
-        document.documentElement.classList.add("dark");
-      }
-      localStorage.setItem("tidepay_theme", selected);
-    }
-  };
 
   const handleSave = () => {
     updateActiveProject({
@@ -382,7 +363,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => handleThemeChange("dark")}
+                    onClick={() => setTheme("dark")}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all cursor-pointer",
                       theme === "dark"
@@ -401,7 +382,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
 
                   <button
                     type="button"
-                    onClick={() => handleThemeChange("light")}
+                    onClick={() => setTheme("light")}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all cursor-pointer",
                       theme === "light"
@@ -458,25 +439,6 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
                       * You must have at least two projects to delete the current one.
                     </p>
                   )}
-                </div>
-
-                <div className="rounded-xl border border-border/60 bg-background/50 p-4 flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground">Reset Local State</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Clears local cache and reloads initial state from Solana and Neon DB.
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={resetAllProjects}
-                    className="shrink-0 text-xs gap-1.5"
-                  >
-                    <RotateCcw className="size-3.5" />
-                    Reset
-                  </Button>
                 </div>
               </div>
             )}

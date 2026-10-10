@@ -27,14 +27,18 @@ function DynamicConnectionProvider({ children }: { children: ReactNode }) {
 }
 
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <PrivyAppProvider>
-      <ProjectProvider>
-        <DynamicConnectionProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </DynamicConnectionProvider>
-      </ProjectProvider>
-    </PrivyAppProvider>
+    <ThemeProvider>
+      <PrivyAppProvider>
+        <ProjectProvider>
+          <DynamicConnectionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </DynamicConnectionProvider>
+        </ProjectProvider>
+      </PrivyAppProvider>
+    </ThemeProvider>
   );
 }

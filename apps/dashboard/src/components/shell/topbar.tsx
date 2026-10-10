@@ -15,10 +15,13 @@ const TITLES: Record<string, string> = {
 };
 
 import { useProject } from "@/components/project-context";
+import { useTheme } from "@/components/theme-provider";
+import { Moon, Sun } from "lucide-react";
 
 export function Topbar() {
   const pathname = usePathname();
   const { activeProject } = useProject();
+  const { theme, toggleTheme } = useTheme();
   const isNestedPlan = pathname.startsWith("/plans/") && pathname !== "/plans";
   let title = TITLES[pathname];
   if (!title && isNestedPlan) {
@@ -46,6 +49,15 @@ export function Topbar() {
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Toggle theme"
+          className="flex size-8 items-center justify-center rounded-lg border border-border/80 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer"
+        >
+          {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
         <Badge
           variant="outline"
           className={`h-8 items-center px-3 font-medium transition-colors ${

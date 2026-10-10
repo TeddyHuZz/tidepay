@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-:root {
+:root,
+html.dark,
+[data-theme="dark"] {
   --background: #021a1b;
   --foreground: #eaf8f6;
   --card: #042728;
@@ -31,32 +33,38 @@
 
 /* Light mode theme */
 html.light,
-:root.light {
-  --background: #f8fafc;
-  --foreground: #091e20;
-  --card: #ffffff;
-  --card-foreground: #091e20;
-  --popover: #ffffff;
-  --popover-foreground: #091e20;
-  --primary: #008f86;
-  --primary-foreground: #ffffff;
-  --secondary: #e6f4f3;
-  --secondary-foreground: #091e20;
-  --muted: #edf4f4;
-  --muted-foreground: #4e7876;
-  --accent: #e6f4f3;
-  --accent-foreground: #008f86;
-  --border: #cfe0de;
-  --input: #e0eceb;
-  --ring: #008f86;
-  --destructive: #ef4444;
-  --success: #059669;
-  --success-soft: #ecfdf5;
-  --warning: #d97706;
-  --warning-soft: #fffbeb;
-  --neutral-soft: #e2f0ef;
-  --neutral-soft-foreground: #345c5a;
-  color-scheme: light;
+html[data-theme="light"],
+body.light,
+body[data-theme="light"],
+:root.light,
+:root[data-theme="light"],
+.light,
+[data-theme="light"] {
+  --background: #f8fafc !important;
+  --foreground: #091e20 !important;
+  --card: #ffffff !important;
+  --card-foreground: #091e20 !important;
+  --popover: #ffffff !important;
+  --popover-foreground: #091e20 !important;
+  --primary: #008f86 !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: #e6f4f3 !important;
+  --secondary-foreground: #091e20 !important;
+  --muted: #edf4f4 !important;
+  --muted-foreground: #4e7876 !important;
+  --accent: #e6f4f3 !important;
+  --accent-foreground: #008f86 !important;
+  --border: #cfe0de !important;
+  --input: #e0eceb !important;
+  --ring: #008f86 !important;
+  --destructive: #ef4444 !important;
+  --success: #059669 !important;
+  --success-soft: #ecfdf5 !important;
+  --warning: #d97706 !important;
+  --warning-soft: #fffbeb !important;
+  --neutral-soft: #e2f0ef !important;
+  --neutral-soft-foreground: #345c5a !important;
+  color-scheme: light !important;
 }
 
 /* Scoped light theme for the mock consumer app at /demo */

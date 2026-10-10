@@ -63,7 +63,7 @@ export function DeveloperDockButton() {
         <div
           role="menu"
           aria-label="Developer Menu"
-          className="absolute bottom-full left-0 mb-2 w-72 origin-bottom-left rounded-xl border border-border/80 bg-[#0d1316]/95 p-3 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 z-50 flex flex-col gap-3 text-xs"
+          className="absolute bottom-full left-0 mb-2 w-72 origin-bottom-left rounded-xl border border-border/80 bg-popover text-popover-foreground p-3 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 z-50 flex flex-col gap-3 text-xs"
         >
           {/* Header & Cluster Status */}
           <div className="flex items-center justify-between border-b border-border/50 pb-2.5 px-1">
