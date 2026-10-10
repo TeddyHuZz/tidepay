@@ -9,6 +9,9 @@ export interface ProjectRecord {
   planIds: string[];
   merchantWallet?: string | null;
   webhookUrl?: string | null;
+  secretKey?: string | null;
+  publishableKey?: string | null;
+  signingSecret?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -27,7 +30,7 @@ export async function GET(req: Request) {
     }
 
     const rows = await sql`
-      SELECT id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", webhook_url as "webhookUrl", created_at as "createdAt", updated_at as "updatedAt"
+      SELECT id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", webhook_url as "webhookUrl", secret_key as "secretKey", publishable_key as "publishableKey", signing_secret as "signingSecret", created_at as "createdAt", updated_at as "updatedAt"
       FROM projects
       WHERE merchant_wallet = ${wallet}
       ORDER BY created_at ASC
@@ -51,7 +54,18 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, slug, environment = "sandbox", planIds = [], merchantWallet } = body;
+    const {
+      id,
+      name,
+      slug,
+      environment = "sandbox",
+      planIds = [],
+      merchantWallet,
+      webhookUrl,
+      secretKey,
+      publishableKey,
+      signingSecret,
+    } = body;
 
     if (!id || !name || !slug) {
       return NextResponse.json(
@@ -61,15 +75,30 @@ export async function POST(req: Request) {
     }
 
     const rows = await sql`
-      INSERT INTO projects (id, name, slug, environment, plan_ids, merchant_wallet)
-      VALUES (${id}, ${name}, ${slug}, ${environment}, ${JSON.stringify(planIds)}, ${merchantWallet || null})
+      INSERT INTO projects (id, name, slug, environment, plan_ids, merchant_wallet, webhook_url, secret_key, publishable_key, signing_secret)
+      VALUES (
+        ${id},
+        ${name},
+        ${slug},
+        ${environment},
+        ${JSON.stringify(planIds)},
+        ${merchantWallet || null},
+        ${webhookUrl || null},
+        ${secretKey || null},
+        ${publishableKey || null},
+        ${signingSecret || null}
+      )
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         slug = EXCLUDED.slug,
         environment = EXCLUDED.environment,
         merchant_wallet = COALESCE(EXCLUDED.merchant_wallet, projects.merchant_wallet),
+        webhook_url = COALESCE(EXCLUDED.webhook_url, projects.webhook_url),
+        secret_key = COALESCE(EXCLUDED.secret_key, projects.secret_key),
+        publishable_key = COALESCE(EXCLUDED.publishable_key, projects.publishable_key),
+        signing_secret = COALESCE(EXCLUDED.signing_secret, projects.signing_secret),
         updated_at = NOW()
-      RETURNING id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", created_at as "createdAt"
+      RETURNING id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", webhook_url as "webhookUrl", secret_key as "secretKey", publishable_key as "publishableKey", signing_secret as "signingSecret", created_at as "createdAt"
     `;
 
     return NextResponse.json({

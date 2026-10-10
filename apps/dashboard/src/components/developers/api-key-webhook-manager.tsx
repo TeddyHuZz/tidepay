@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./code-block";
+import { useProject, generateRandomHex } from "@/components/project-context";
 
 const SAMPLE_PAYLOADS = {
   "subscription.created": {
@@ -72,44 +73,35 @@ const SAMPLE_PAYLOADS = {
 type EventKey = keyof typeof SAMPLE_PAYLOADS;
 
 export function ApiKeyWebhookManager() {
-  // API Keys state
-  const [secretKey, setSecretKey] = useState("tp_dev_sec_994a8e2b109c4d3fa780182");
-  const [publishableKey, setPublishableKey] = useState("tp_dev_pub_4g6EF4q95h1pbVG3Gv7AspaZQ");
+  const { activeProject, updateActiveProject } = useProject();
+
+  const secretKey = activeProject.secretKey || "";
+  const publishableKey = activeProject.publishableKey || "";
+  const signingSecret = activeProject.signingSecret || "";
+  const webhookUrl = activeProject.webhookUrl || "https://api.yourdomain.com/webhooks/tidepay";
+
+  // UI state
   const [revealSecret, setRevealSecret] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
-  // Webhook state
-  const [webhookUrl, setWebhookUrl] = useState("https://api.yourdomain.com/webhooks/tidepay");
-  const [signingSecret, setSigningSecret] = useState("whsec_5f992a7b12d3081e74f8");
   const [revealSigningSecret, setRevealSigningSecret] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventKey>("subscription.created");
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ status: number; message: string; latencyMs: number } | null>(null);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUrl = localStorage.getItem("tidepay_test_webhook_url");
-      if (savedUrl) setWebhookUrl(savedUrl);
-    }
-  }, []);
-
   const handleUrlChange = (val: string) => {
-    setWebhookUrl(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("tidepay_test_webhook_url", val);
-    }
+    updateActiveProject({ webhookUrl: val });
   };
 
   const handleRollApiKey = () => {
-    const randomHex = Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-    setSecretKey(`tp_dev_sec_${randomHex}`);
+    const randomHex = generateRandomHex(24);
+    const prefix = activeProject.environment === "live" ? "live" : "dev";
+    updateActiveProject({ secretKey: `tp_${prefix}_sec_${randomHex}` });
     setCopiedKey(null);
   };
 
   const handleRollSigningSecret = () => {
-    const randomHex = Array.from({ length: 20 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-    setSigningSecret(`whsec_${randomHex}`);
+    const randomHex = generateRandomHex(20);
+    updateActiveProject({ signingSecret: `whsec_${randomHex}` });
     setCopiedKey(null);
   };
 

@@ -9,43 +9,21 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { planIds, environment, webhookUrl } = body;
+    const { planIds, environment, webhookUrl, secretKey, publishableKey, signingSecret, name } = body;
 
-    let rows;
-    if (planIds !== undefined && environment !== undefined) {
-      rows = await sql`
-        UPDATE projects
-        SET plan_ids = ${JSON.stringify(planIds)},
-            environment = ${environment},
-            updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING id, name, slug, environment, plan_ids as "planIds", updated_at as "updatedAt"
-      `;
-    } else if (planIds !== undefined) {
-      rows = await sql`
-        UPDATE projects
-        SET plan_ids = ${JSON.stringify(planIds)},
-            updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING id, name, slug, environment, plan_ids as "planIds", updated_at as "updatedAt"
-      `;
-    } else if (environment !== undefined) {
-      rows = await sql`
-        UPDATE projects
-        SET environment = ${environment},
-            updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING id, name, slug, environment, plan_ids as "planIds", updated_at as "updatedAt"
-      `;
-    } else if (webhookUrl !== undefined) {
-      rows = await sql`
-        UPDATE projects
-        SET webhook_url = ${webhookUrl},
-            updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING id, name, slug, environment, plan_ids as "planIds", webhook_url as "webhookUrl", updated_at as "updatedAt"
-      `;
-    }
+    const rows = await sql`
+      UPDATE projects
+      SET plan_ids = COALESCE(${planIds !== undefined ? JSON.stringify(planIds) : null}::jsonb, plan_ids),
+          environment = COALESCE(${environment ?? null}, environment),
+          webhook_url = COALESCE(${webhookUrl ?? null}, webhook_url),
+          secret_key = COALESCE(${secretKey ?? null}, secret_key),
+          publishable_key = COALESCE(${publishableKey ?? null}, publishable_key),
+          signing_secret = COALESCE(${signingSecret ?? null}, signing_secret),
+          name = COALESCE(${name ?? null}, name),
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING id, name, slug, environment, plan_ids as "planIds", merchant_wallet as "merchantWallet", webhook_url as "webhookUrl", secret_key as "secretKey", publishable_key as "publishableKey", signing_secret as "signingSecret", updated_at as "updatedAt"
+    `;
 
     return NextResponse.json({
       success: true,
