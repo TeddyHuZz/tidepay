@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { CodeBlock } from "@/components/developers/code-block";
-import { WebhookSimulator } from "@/components/developers/webhook-simulator";
+import { ApiKeyWebhookManager } from "@/components/developers/api-key-webhook-manager";
 import { BlinkTester } from "@/components/developers/blink-tester";
 import { PdaConfigViewer } from "@/components/developers/pda-config-viewer";
 import { ErrorReferenceTable } from "@/components/developers/error-reference-table";
@@ -55,7 +55,8 @@ export type DocTopicId =
   | "webhook-simulator"
   | "blink-tester"
   | "pda-config"
-  | "anchor-errors";
+  | "anchor-errors"
+  | "api-rest";
 
 interface DocGroup {
   name: string;
@@ -160,14 +161,26 @@ const DOC_TREE: DocGroup[] = [
     ],
   },
   {
+    name: "Developer REST API",
+    defaultOpen: true,
+    items: [
+      {
+        id: "api-rest",
+        title: "Checkout Sessions & Status API",
+        description: "Server-to-server endpoints for creating subscription checkout sessions and checking subscriber status.",
+        keywords: ["api", "rest", "checkout", "session", "verify", "curl", "endpoint"],
+      },
+    ],
+  },
+  {
     name: "Interactive Workbench",
     defaultOpen: true,
     items: [
       {
         id: "webhook-simulator",
-        title: "Webhook Simulator",
-        description: "Simulate and test subscription.created, epoch.settled, and cancellation events.",
-        keywords: ["webhook", "simulator", "tester", "events", "payload"],
+        title: "API Keys & Webhooks",
+        description: "Generate secret keys, configure webhook endpoints, and test live event dispatches.",
+        keywords: ["webhook", "simulator", "tester", "events", "payload", "api key", "secret", "whsec"],
       },
       {
         id: "blink-tester",
@@ -798,10 +811,10 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
               </>
             )}
 
-            {/* TOPIC: Webhook Simulator */}
+            {/* TOPIC: API Keys & Webhook Manager */}
             {activeTopic === "webhook-simulator" && (
               <div className="flex flex-col gap-6">
-                <WebhookSimulator />
+                <ApiKeyWebhookManager />
               </div>
             )}
 
@@ -824,6 +837,75 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
               <div className="flex flex-col gap-6">
                 <ErrorReferenceTable />
               </div>
+            )}
+
+            {/* TOPIC: Developer REST API */}
+            {activeTopic === "api-rest" && (
+              <>
+                <section id="part-1" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                    1. Create a Checkout Session
+                  </h2>
+                  <p>
+                    Call <code className="text-emerald-400 font-mono">POST /api/v1/checkout/sessions</code> from your backend to generate a personalized subscription URL or Blink with custom metadata.
+                  </p>
+                  <CodeBlock
+                    filename="cURL"
+                    singleCode={`curl -X POST https://api.tidepay.xyz/api/v1/checkout/sessions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "planAddress": "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+    "clientReferenceId": "usr_99824",
+    "successUrl": "https://myapp.com/dashboard?upgraded=true"
+  }'`}
+                  />
+                  <div className="text-xs text-[#8b949e]">Response JSON (HTTP 201 Created):</div>
+                  <CodeBlock
+                    filename="response.json"
+                    singleCode={`{
+  "id": "cs_tide_1791624206924_qtsx84h",
+  "object": "checkout.session",
+  "plan": {
+    "address": "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+    "planId": "google-pro",
+    "priceUsdc": "0.10",
+    "intervalSeconds": 60,
+    "isActive": true
+  },
+  "clientReferenceId": "usr_99824",
+  "checkoutUrl": "https://app.tidepay.xyz/checkout/4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P?client_ref=usr_99824",
+  "blinkUrl": "https://dial.to/?action=solana-action:https%3A%2F%2Fapi.tidepay.xyz%2Fapi%2Factions%2Fsubscribe%2F4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P&cluster=devnet",
+  "expiresAt": 1791627806
+}`}
+                  />
+                </section>
+
+                <section id="part-2" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-[#f0f6fc] tracking-tight">
+                    2. Check Subscriber Status &amp; Entitlements
+                  </h2>
+                  <p>
+                    Call <code className="text-emerald-400 font-mono">GET /api/v1/subscriptions/:wallet?plan=:planAddress</code> to gate features or check active subscription state in server environments.
+                  </p>
+                  <CodeBlock
+                    filename="cURL"
+                    singleCode={`curl "https://api.tidepay.xyz/api/v1/subscriptions/BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio?plan=4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P"`}
+                  />
+                  <div className="text-xs text-[#8b949e]">Response JSON (Active Subscriber):</div>
+                  <CodeBlock
+                    filename="response.json"
+                    singleCode={`{
+  "isSubscribed": true,
+  "status": "Active",
+  "subscriber": "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
+  "plan": "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+  "cycleCount": 1,
+  "nextBillingDate": "2026-11-10T14:31:00.000Z",
+  "isRenewalDue": false
+}`}
+                  />
+                </section>
+              </>
             )}
           </div>
         </main>
@@ -849,7 +931,7 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
                 onClick={() => selectTopic("webhook-simulator")}
                 className="text-left hover:text-emerald-400 transition-colors"
               >
-                Webhook Simulator
+                API Keys &amp; Webhooks
               </button>
               <button
                 onClick={() => selectTopic("blink-tester")}

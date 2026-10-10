@@ -92,12 +92,12 @@ export function DeveloperDockButton() {
             </Link>
 
             <Link
-              href="/developers?topic=webhook-simulator"
+              href="/webhooks"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
               <Radio className="size-3.5 text-emerald-400/80" />
-              <span>Webhooks & Simulator</span>
+              <span>API Keys &amp; Webhooks</span>
             </Link>
 
             <Link
@@ -117,7 +117,7 @@ export function DeveloperDockButton() {
             </div>
 
             <Link
-              href="/developers?topic=getting-started"
+              href="/developers?topic=api-rest"
               onClick={() => setIsOpen(false)}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
             >
