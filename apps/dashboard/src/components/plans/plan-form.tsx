@@ -9,6 +9,7 @@ import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAd
 import { ArrowLeft, Info } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { useMerchantData } from "@/components/merchant-data-provider";
+import { useProject } from "@/components/project-context";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,7 @@ export function PlanForm() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const { refresh } = useMerchantData();
+  const { addPlanToActiveProject } = useProject();
   const { buildTransaction, send } = useSendTransaction();
   const client = useMemo(() => createClient(connection), [connection]);
 
@@ -134,6 +136,8 @@ export function PlanForm() {
         await new Promise((r) => setTimeout(r, 400));
       }
 
+      addPlanToActiveProject(planId);
+      addPlanToActiveProject(planAddress);
       refresh();
       toastSuccess(`Plan "${planId}" created successfully!`, "Redirecting to plan analytics...");
 

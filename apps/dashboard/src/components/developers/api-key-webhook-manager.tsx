@@ -132,6 +132,23 @@ export function ApiKeyWebhookManager() {
         latencyMs: latency,
         message: `HTTP 200 OK — Successfully dispatched ${selectedEvent} with HMAC signature`,
       });
+
+      try {
+        const newDelivery = {
+          id: `evt_${Date.now().toString(36).toUpperCase()}`,
+          event: selectedEvent,
+          plan: "google-pro",
+          status: 200,
+          statusText: "OK",
+          latency: `${latency}ms`,
+          timeAgo: "Just now",
+        };
+        const stored = JSON.parse(localStorage.getItem("tidepay_recent_deliveries") || "[]");
+        localStorage.setItem("tidepay_recent_deliveries", JSON.stringify([newDelivery, ...stored.slice(0, 9)]));
+        window.dispatchEvent(new Event("tidepay_deliveries_changed"));
+      } catch (err) {
+        console.error("[TidePay] Failed to save delivery:", err);
+      }
     }, 550);
   };
 

@@ -8,6 +8,7 @@ import { USE_SAMPLE_DATA } from "@/lib/chain/config";
 import { deriveMerchantData } from "@/lib/chain/derive";
 import { getSampleMerchantData } from "@/lib/data";
 import type { MerchantData } from "@/lib/types";
+import { useProject } from "@/components/project-context";
 
 export type MerchantDataState =
   | { status: "disconnected" }
@@ -104,6 +105,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     };
   }, [merchant]);
 
+  const { activeProject } = useProject();
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
   let state: MerchantDataState;
@@ -112,8 +114,46 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   } else if (!requestKey) {
     state = { status: "disconnected" };
   } else if (result?.data) {
-    // Keep existing data visible smoothly during background refetches (no flicker or jerking)
-    state = { status: "ready", data: result.data, isSample: false };
+    // Scope data by active project
+    const rawData = result.data;
+    const isAxiom = activeProject.id === "proj_axiom";
+    const allowed = activeProject.planIds || [];
+
+    const filteredPlans = isAxiom
+      ? rawData.plans.filter(
+          (p) => allowed.includes(p.id) || allowed.includes(p.name) || p.name === "google-pro" || allowed.length === 0
+        )
+      : rawData.plans.filter((p) => allowed.includes(p.id) || allowed.includes(p.name));
+
+    const planNames = new Set(filteredPlans.map((p) => p.name));
+    const planIds = new Set(filteredPlans.map((p) => p.id));
+    const filteredSubs = rawData.subscribers.filter((s) => planNames.has(s.plan) || planIds.has(s.plan));
+    const filteredActivity = rawData.activity.filter((a) => !a.plan || planNames.has(a.plan) || planIds.has(a.plan));
+
+    const scopedData: MerchantData =
+      filteredPlans.length === 0
+        ? {
+            plans: [],
+            subscribers: [],
+            metrics: [
+              { label: "Total Earned (Net)", value: "0.00 USDC", note: "Across 0 settlements" },
+              { label: "Monthly Revenue (MRR)", value: "0.00 USDC", note: "Active subscriptions, normalised to 30 days" },
+              { label: "Active Subscribers", value: "0", note: "0 total all-time" },
+              { label: "Renewal Success Rate", value: "100%", note: "100% on-chain settlements" },
+            ],
+            activity: [],
+            crank: rawData.crank,
+          }
+        : {
+            plans: filteredPlans,
+            subscribers: filteredSubs,
+            metrics: rawData.metrics,
+            activity: filteredActivity,
+            crank: rawData.crank,
+          };
+
+    // Keep existing data visible smoothly during background refetches
+    state = { status: "ready", data: scopedData, isSample: false };
   } else if (result?.error) {
     state = { status: "error", message: result.error };
   } else {

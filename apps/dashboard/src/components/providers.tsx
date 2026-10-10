@@ -7,6 +7,8 @@ import { PrivyAppProvider } from "@/components/wallet/privy-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { RPC_URL } from "@/lib/chain/config";
 
+import { ProjectProvider } from "@/components/project-context";
+
 // @tidepay/sdk and Anchor use Node's global Buffer, which browsers lack.
 if (typeof globalThis.Buffer === "undefined") {
   globalThis.Buffer = Buffer;
@@ -16,7 +18,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ConnectionProvider endpoint={RPC_URL}>
       <PrivyAppProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <ProjectProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </ProjectProvider>
       </PrivyAppProvider>
     </ConnectionProvider>
   );

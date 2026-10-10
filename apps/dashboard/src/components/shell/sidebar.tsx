@@ -7,15 +7,20 @@ import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 
 import { DeveloperDockButton } from "./developer-dock-button";
+import { ProjectSwitcher } from "./project-switcher";
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex shrink-0 flex-col gap-4 border-b px-4 py-4 md:sticky md:top-0 md:h-dvh md:w-60 md:gap-7 md:border-r md:border-b-0 md:py-5">
+    <aside className="flex shrink-0 flex-col gap-4 border-b px-4 py-4 md:sticky md:top-0 md:h-dvh md:w-60 md:gap-5 md:border-r md:border-b-0 md:py-5">
       <Link href="/" className="rounded-md px-2 outline-none focus-visible:outline-2 focus-visible:outline-ring">
         <Logo />
       </Link>
+
+      <div className="px-1">
+        <ProjectSwitcher />
+      </div>
 
       <nav aria-label="Main" className="-mx-1 flex gap-1 overflow-x-auto px-1 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {

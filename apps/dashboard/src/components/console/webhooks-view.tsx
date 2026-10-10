@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Webhook,
@@ -25,35 +25,15 @@ import { MerchantGate } from "@/components/console/merchant-gate";
 import { ApiKeyWebhookManager } from "@/components/developers/api-key-webhook-manager";
 import { API_URL } from "@/lib/chain/config";
 
-const RECENT_DELIVERIES = [
-  {
-    id: "evt_sub_01HM98V2W",
-    event: "subscription.created",
-    plan: "google-pro",
-    status: 200,
-    statusText: "OK",
-    latency: "52ms",
-    timeAgo: "10 mins ago",
-  },
-  {
-    id: "evt_epoch_01HM98V9A",
-    event: "epoch.settled",
-    plan: "google-pro",
-    status: 200,
-    statusText: "OK",
-    latency: "61ms",
-    timeAgo: "15 mins ago",
-  },
-  {
-    id: "evt_cancel_01HM98W1F",
-    event: "subscription.cancelled",
-    plan: "google-pro",
-    status: 200,
-    statusText: "OK",
-    latency: "44ms",
-    timeAgo: "2 hours ago",
-  },
-];
+export interface WebhookDelivery {
+  id: string;
+  event: string;
+  plan: string;
+  status: number;
+  statusText: string;
+  latency: string;
+  timeAgo: string;
+}
 
 export function WebhooksView() {
   return (
@@ -73,6 +53,25 @@ function WebhooksContent({
   isRefreshing: boolean;
 }) {
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+
+  useEffect(() => {
+    const loadDeliveries = () => {
+      try {
+        const stored = localStorage.getItem("tidepay_recent_deliveries");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) setDeliveries(parsed);
+        }
+      } catch (err) {
+        console.error("[TidePay] Failed to load deliveries:", err);
+      }
+    };
+
+    loadDeliveries();
+    window.addEventListener("tidepay_deliveries_changed", loadDeliveries);
+    return () => window.removeEventListener("tidepay_deliveries_changed", loadDeliveries);
+  }, []);
 
   const copyUrl = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -198,42 +197,52 @@ function WebhooksContent({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-border/60 overflow-x-auto">
-            <Table className="min-w-160 text-xs">
-              <TableHeader>
-                <TableRow className="border-t-0 bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="w-44">Event ID</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Latency</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {RECENT_DELIVERIES.map((d) => (
-                  <TableRow key={d.id} className="hover:bg-accent/40">
-                    <TableCell className="font-mono text-[11px] text-muted-foreground">
-                      {d.id}
-                    </TableCell>
-                    <TableCell className="font-mono font-medium text-foreground">
-                      <span className="rounded bg-primary/10 border border-primary/20 px-2 py-0.5 text-primary text-[11px]">
-                        {d.event}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{d.plan}</TableCell>
-                    <TableCell>
-                      <Badge variant="success" className="text-[10px]">
-                        {d.status} {d.statusText}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-muted-foreground text-[11px]">{d.latency}</TableCell>
-                    <TableCell className="text-right text-muted-foreground text-[11px]">{d.timeAgo}</TableCell>
+          {deliveries.length === 0 ? (
+            <div className="rounded-lg border border-border/50 bg-background/30 p-8 text-center flex flex-col items-center justify-center gap-2">
+              <Server className="size-8 text-muted-foreground/60" />
+              <div className="font-semibold text-xs text-foreground">No Webhook Deliveries Logged Yet</div>
+              <p className="text-[11px] text-muted-foreground max-w-sm">
+                When your server endpoint receives automated events or you click &quot;Send Test Ping&quot; above, real delivery records will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 overflow-x-auto">
+              <Table className="min-w-160 text-xs">
+                <TableHeader>
+                  <TableRow className="border-t-0 bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-44">Event ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Latency</TableHead>
+                    <TableHead className="text-right">Time</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {deliveries.map((d) => (
+                    <TableRow key={d.id} className="hover:bg-accent/40">
+                      <TableCell className="font-mono text-[11px] text-muted-foreground">
+                        {d.id}
+                      </TableCell>
+                      <TableCell className="font-mono font-medium text-foreground">
+                        <span className="rounded bg-primary/10 border border-primary/20 px-2 py-0.5 text-primary text-[11px]">
+                          {d.event}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-muted-foreground">{d.plan}</TableCell>
+                      <TableCell>
+                        <Badge variant="success" className="text-[10px]">
+                          {d.status} {d.statusText}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-muted-foreground text-[11px]">{d.latency}</TableCell>
+                      <TableCell className="text-right text-muted-foreground text-[11px]">{d.timeAgo}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
