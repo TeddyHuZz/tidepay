@@ -33,29 +33,50 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([INITIAL_PROJECT]);
   const [activeProjectId, setActiveProjectId] = useState<string>(INITIAL_PROJECT.id);
 
-  // Load from localStorage on client mount
+  // Load from Neon Postgres API on client mount (with localStorage fallback)
   useEffect(() => {
-    try {
-      const savedProjects = localStorage.getItem("tidepay_projects_v2");
-      const savedActiveId = localStorage.getItem("tidepay_active_project_v2");
-      if (savedProjects) {
-        const parsed = JSON.parse(savedProjects) as Project[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setProjects(parsed);
-          if (savedActiveId && parsed.some((p) => p.id === savedActiveId)) {
-            setActiveProjectId(savedActiveId);
-          } else {
-            setActiveProjectId(parsed[0].id);
+    async function loadProjects() {
+      try {
+        const res = await fetch("/api/projects");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setProjects(json.data);
+            const savedActiveId = localStorage.getItem("tidepay_active_project_v2");
+            if (savedActiveId && json.data.some((p: Project) => p.id === savedActiveId)) {
+              setActiveProjectId(savedActiveId);
+            } else {
+              setActiveProjectId(json.data[0].id);
+            }
+            return;
           }
-          return;
         }
+      } catch (err) {
+        console.warn("[TidePay] Neon DB fetch failed, falling back to local storage:", err);
       }
-      // If no v2 storage exists, initialize with Axiom Collective
-      localStorage.setItem("tidepay_projects_v2", JSON.stringify([INITIAL_PROJECT]));
-      localStorage.setItem("tidepay_active_project_v2", INITIAL_PROJECT.id);
-    } catch (e) {
-      console.error("[TidePay] Failed to load projects from storage:", e);
+
+      // Fallback to local storage
+      try {
+        const savedProjects = localStorage.getItem("tidepay_projects_v2");
+        const savedActiveId = localStorage.getItem("tidepay_active_project_v2");
+        if (savedProjects) {
+          const parsed = JSON.parse(savedProjects) as Project[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProjects(parsed);
+            if (savedActiveId && parsed.some((p) => p.id === savedActiveId)) {
+              setActiveProjectId(savedActiveId);
+            } else {
+              setActiveProjectId(parsed[0].id);
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("[TidePay] Failed to load projects from storage:", e);
+      }
     }
+
+    loadProjects();
   }, []);
 
   const saveProjects = useCallback((newProjects: Project[], newActiveId?: string) => {
@@ -93,6 +114,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       };
       const updated = [...projects, newProj];
       saveProjects(updated, newProj.id);
+
+      // Async sync to Neon DB
+      fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProj),
+      }).catch((e) => console.error("[TidePay] Failed to sync new project to Neon DB:", e));
+
       return newProj;
     },
     [projects, saveProjects]
@@ -101,12 +130,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const addPlanToActiveProject = useCallback(
     (planIdOrAddress: string) => {
       setProjects((currentProjects) => {
+        let updatedPlans: string[] = [];
         const updated = currentProjects.map((proj) => {
           if (proj.id === activeProjectId) {
             const currentPlans = proj.planIds || [];
             if (!currentPlans.includes(planIdOrAddress)) {
-              return { ...proj, planIds: [...currentPlans, planIdOrAddress] };
+              updatedPlans = [...currentPlans, planIdOrAddress];
+              return { ...proj, planIds: updatedPlans };
             }
+            updatedPlans = currentPlans;
           }
           return proj;
         });
@@ -115,6 +147,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("[TidePay] Failed to save plan to project:", e);
         }
+
+        // Async sync to Neon DB
+        if (updatedPlans.length > 0) {
+          fetch(`/api/projects/${activeProjectId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ planIds: updatedPlans }),
+          }).catch((e) => console.error("[TidePay] Failed to sync plan to Neon DB:", e));
+        }
+
         return updated;
       });
     },
@@ -123,9 +165,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const toggleEnvironment = useCallback(() => {
     setProjects((currentProjects) => {
+      let nextEnv = "sandbox";
       const updated = currentProjects.map((p) => {
         if (p.id === activeProjectId) {
-          const nextEnv = p.environment === "sandbox" ? "live" : "sandbox";
+          nextEnv = p.environment === "sandbox" ? "live" : "sandbox";
           return { ...p, environment: nextEnv as "sandbox" | "live" };
         }
         return p;
@@ -135,6 +178,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error("[TidePay] Failed to persist environment toggle:", e);
       }
+
+      // Async sync to Neon DB
+      fetch(`/api/projects/${activeProjectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ environment: nextEnv }),
+      }).catch((e) => console.error("[TidePay] Failed to sync env to Neon DB:", e));
+
       return updated;
     });
   }, [activeProjectId]);
