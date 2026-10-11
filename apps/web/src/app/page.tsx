@@ -6,6 +6,7 @@ import { SubscriberSection } from "@/components/subscriber-section";
 import { DeveloperApiSection } from "@/components/developer-api-section";
 import { DeveloperGuideSection } from "@/components/developer-guide-section";
 import { ChangelogGrid } from "@/components/changelog-grid";
+import { CtaSection } from "@/components/cta-section";
 
 export default function HomePage() {
   return (
@@ -18,6 +19,7 @@ export default function HomePage() {
       <DeveloperApiSection />
       <DeveloperGuideSection />
       <ChangelogGrid />
+      <CtaSection />
     </div>
   );
 }

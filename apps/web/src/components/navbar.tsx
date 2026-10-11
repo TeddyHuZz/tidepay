@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Menu, X, ShieldCheck, Terminal, Zap } from "lucide-react";
+import { ArrowRight, Menu, X, ShieldCheck, Terminal } from "lucide-react";
+import { LogoMark } from "@/components/logo";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
 
@@ -15,11 +16,7 @@ export function Navbar() {
         {/* Brand */}
         <div className="flex items-center gap-6">
           <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-tr from-[#9945FF] to-[#14F195] p-0.5 shadow-sm transition-transform group-hover:scale-105">
-              <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#08090a]">
-                <Zap className="h-4 w-4 text-[#14F195]" />
-              </div>
-            </div>
+            <LogoMark className="h-7 w-7 rounded-md shadow-sm transition-transform group-hover:scale-105" size={28} />
             <div className="flex items-center gap-2">
               <span className="font-semibold text-lg tracking-tight text-white">TidePay</span>
               <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400">
