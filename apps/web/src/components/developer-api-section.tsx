@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, Check, Code2, Key, Radio, ShieldCheck, Terminal, Webhook } from "lucide-react";
-
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
+import { DASHBOARD_URL } from "@/lib/config";
 
 export function DeveloperApiSection() {
   return (

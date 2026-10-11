@@ -11,15 +11,17 @@ const RPC_URL =
 const connection = new Connection(RPC_URL, "confirmed");
 const client = new TidePayClient(connection, undefined, TIDEPAY_PROGRAM_ID);
 
+const IS_PROD = process.env.NODE_ENV === "production";
+
 const DASHBOARD_URL = (
   process.env.NEXT_PUBLIC_DASHBOARD_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
-  "http://localhost:3000"
+  (IS_PROD ? "https://app-tidepay.vercel.app" : "http://localhost:3000")
 ).replace(/\/$/, "");
 
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3001"
+  (IS_PROD ? "https://api-tidepay.vercel.app" : "http://localhost:3001")
 ).replace(/\/$/, "");
 
 const CORS_HEADERS = {

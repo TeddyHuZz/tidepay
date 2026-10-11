@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, ChevronDown, FileCode, Search, Terminal } from "lucide-react";
-
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
+import { DASHBOARD_URL } from "@/lib/config";
 
 interface DiffLine {
   lineNum: string;

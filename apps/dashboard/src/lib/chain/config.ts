@@ -42,8 +42,22 @@ export function getUsdcMint(environment: "sandbox" | "live" = "sandbox"): Public
 export const USDC_MINT = DEVNET_USDC_MINT;
 export const USDC_DECIMALS = 6;
 
-export const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/$/, "");
+const IS_PROD = process.env.NODE_ENV === "production";
+
+export const APP_URL = (
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (IS_PROD ? "https://app-tidepay.vercel.app" : "http://localhost:3000")
+).replace(/\/$/, "");
+
+export const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (IS_PROD ? "https://api-tidepay.vercel.app" : "http://localhost:3001")
+).replace(/\/$/, "");
+
+export const LANDING_URL = (
+  process.env.NEXT_PUBLIC_LANDING_URL ||
+  (IS_PROD ? "https://tidepay.vercel.app" : "http://localhost:3002")
+).replace(/\/$/, "");
 
 /** Serve sample data instead of reading the chain (UI demos before deploy). */
 export const USE_SAMPLE_DATA = process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === "1";

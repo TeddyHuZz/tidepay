@@ -1,4 +1,4 @@
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
+import { DASHBOARD_URL } from "@/lib/config";
 
 export function CtaSection() {
   return (

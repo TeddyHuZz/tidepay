@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, BadgeCheck, Heart, MessageCircle, Repeat2, Zap } from "lucide-react";
-
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
+import { DASHBOARD_URL } from "@/lib/config";
 
 function BlinkPostCard() {
   return (

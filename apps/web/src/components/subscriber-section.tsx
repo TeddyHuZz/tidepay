@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, ShieldCheck, Zap, RefreshCw, CheckCircle2 } from "lucide-react";
-
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000";
+import { DASHBOARD_URL } from "@/lib/config";
 
 // Generates pseudo-random but deterministic scatter points around target epoch bands
 function generateScatterPoints(seed: number, count: number, centerX: number, centerY: number, spreadY: number) {

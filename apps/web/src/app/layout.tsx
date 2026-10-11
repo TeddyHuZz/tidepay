@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { LANDING_URL } from "@/lib/config";
 
 const arrayFont = localFont({
   src: "./fonts/Array/Fonts/WEB/fonts/Array-Regular.woff2",
@@ -19,7 +20,7 @@ const khandFont = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://tidepay.xyz"),
+  metadataBase: new URL(LANDING_URL),
   title: "TidePay | Non-Custodial Recurring Subscriptions on Solana",
   description:
     "Purpose-built recurring billing engine for Solana. Zero custodial escrow risk. Time-locked pull payments via Token-2022 and autonomous keeper cranks. Collect subscriptions in-feed with Solana Blinks.",
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     title: "TidePay | Non-Custodial Recurring Subscriptions on Solana",
     description:
       "Time-locked delegated pull billing and autonomous keeper cranks for Solana.",
-    url: "https://tidepay.xyz",
+    url: LANDING_URL,
     siteName: "TidePay",
     images: [
       {

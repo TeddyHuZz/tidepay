@@ -1,7 +1,12 @@
 import Image from "next/image";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 
-const DASHBOARD_URL = (process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000").replace(/\/$/, "");
+const IS_PROD = process.env.NODE_ENV === "production";
+const DASHBOARD_URL = (
+  process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (IS_PROD ? "https://app-tidepay.vercel.app" : "http://localhost:3000")
+).replace(/\/$/, "");
 
 const ENDPOINTS = [
   { method: "GET", path: "/actions.json", purpose: "Maps TidePay URLs to the Action API for Blink clients" },

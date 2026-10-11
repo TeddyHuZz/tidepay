@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
-const dashboardUrl = (process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000").replace(/\/$/, "");
+const IS_PROD = process.env.NODE_ENV === "production";
+const dashboardUrl = (
+  process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (IS_PROD ? "https://app-tidepay.vercel.app" : "http://localhost:3000")
+).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@tidepay/sdk", "@tidepay/types"],
