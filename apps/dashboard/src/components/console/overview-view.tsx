@@ -14,7 +14,6 @@ import {
   ExternalLink,
   Sparkles,
 } from "lucide-react";
-import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { WalkthroughModal } from "@/components/onboarding/walkthrough-modal";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
@@ -210,14 +209,6 @@ function OverviewContent({
       <WalkthroughModal
         isOpen={isWalkthroughOpen}
         onClose={() => setIsWalkthroughOpen(false)}
-      />
-
-      {/* Progressive Onboarding Milestones Checklist */}
-      <OnboardingChecklist
-        plans={plans}
-        subscribers={subscribers}
-        totalSettlementsCount={totalSettlementsCount}
-        onOpenWalkthrough={() => setIsWalkthroughOpen(true)}
       />
 
       {/* Stripe-grade 4-Card KPI Performance Grid */}

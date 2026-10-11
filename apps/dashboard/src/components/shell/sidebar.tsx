@@ -8,6 +8,7 @@ import { NAV_ITEMS, isActivePath } from "./nav-items";
 
 import { DeveloperDockButton } from "./developer-dock-button";
 import { ProjectSwitcher } from "./project-switcher";
+import { SidebarOnboardingWidget } from "@/components/onboarding/sidebar-onboarding-widget";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -43,6 +44,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Quickstart Onboarding Guide Widget */}
+      <SidebarOnboardingWidget />
 
       {/* Floating Stripe-style Developer dock button */}
       <DeveloperDockButton />
