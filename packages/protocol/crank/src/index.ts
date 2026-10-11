@@ -9,6 +9,7 @@ import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountIdempotentInstruction,
 } from "@solana/spl-token";
+import * as anchor from "@coral-xyz/anchor";
 import { TidePayClient } from "@tidepay/sdk";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 import * as fs from "fs";
@@ -25,6 +26,20 @@ const DEFAULT_KEYPAIR_PATH = path.join(
 );
 
 function loadKeypair(): Keypair {
+  // 1. Direct env variable (ideal for Railway, Render, Fly.io, Docker)
+  if (process.env.CRANK_SECRET_KEY) {
+    try {
+      const raw = process.env.CRANK_SECRET_KEY.trim();
+      if (raw.startsWith("[")) {
+        return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
+      }
+      return Keypair.fromSecretKey(anchor.utils.bytes.bs58.decode(raw));
+    } catch (e) {
+      console.error("[TidePay Crank] Failed to parse CRANK_SECRET_KEY from env:", e);
+    }
+  }
+
+  // 2. Local filesystem path (default: ~/.config/solana/id.json)
   const keypairPath = process.env.CRANK_KEYPAIR_PATH || DEFAULT_KEYPAIR_PATH;
   if (fs.existsSync(keypairPath)) {
     const secret = JSON.parse(fs.readFileSync(keypairPath, "utf-8"));
