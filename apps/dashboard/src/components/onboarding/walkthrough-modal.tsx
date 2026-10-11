@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { WALKTHROUGH_VISUALS } from "./walkthrough-visuals";
 
 interface WalkthroughModalProps {
   isOpen: boolean;
@@ -33,18 +34,9 @@ const SLIDES = [
     icon: ShieldCheck,
     iconColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
     highlights: [
-      {
-        title: "Delegated Pull Authority",
-        description: "Subscribers approve a token allowance. Funds stay in their wallet until the exact second an epoch is settled.",
-      },
-      {
-        title: "Direct Merchant Settlement",
-        description: "Pulls transfer directly from subscriber wallet to merchant wallet via Solana Token-2022 / SPL Token checked transfers.",
-      },
-      {
-        title: "1-Click User Cancellation",
-        description: "Subscribers can revoke authority at any time, instantly closing on-chain accounts and reclaiming rent lamports.",
-      },
+      "Funds stay in the subscriber's wallet until each epoch is settled.",
+      "Pulls go straight from subscriber to merchant, never through a vault.",
+      "Subscribers can cancel any time and reclaim their rent.",
     ],
   },
   {
@@ -56,18 +48,9 @@ const SLIDES = [
     icon: Zap,
     iconColor: "text-primary bg-primary/10 border-primary/20",
     highlights: [
-      {
-        title: "USDC Native Pricing",
-        description: "Denominated in Circle USDC with exact token decimal enforcement on Devnet and Mainnet.",
-      },
-      {
-        title: "60-Second Fast-Forward Testing",
-        description: "Test intervals down to 1 minute on Devnet so you can demo recurring renewals in real-time.",
-      },
-      {
-        title: "On-Chain Plan PDA",
-        description: "Each plan is a verifiable Solana program-derived account containing price, billing cycle, and status.",
-      },
+      "Priced in USDC with exact token decimals enforced on-chain.",
+      "Test billing intervals down to 60 seconds on Devnet.",
+      "Each plan is a verifiable on-chain account.",
     ],
   },
   {
@@ -79,18 +62,9 @@ const SLIDES = [
     icon: Share2,
     iconColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
     highlights: [
-      {
-        title: "Solana Blinks on X (Twitter)",
-        description: "Post your Action link on X — it automatically unfurls into an interactive subscription card for Phantom and Backpack.",
-      },
-      {
-        title: "Hosted Checkout Page",
-        description: "Clean standalone checkout URL (`/checkout/[plan]`) for web merchants and direct customer links.",
-      },
-      {
-        title: "Embeddable Widget",
-        description: "Drop a 1-line iframe or JavaScript snippet into React, Next.js, Webflow, or Shopify storefronts.",
-      },
+      "Post your Blink on X, Telegram or Discord.",
+      "Or send customers to the hosted checkout page.",
+      "Or embed the checkout widget on your own site.",
     ],
   },
   {
@@ -102,18 +76,9 @@ const SLIDES = [
     icon: Cpu,
     iconColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
     highlights: [
-      {
-        title: "Automated Epoch Cranking",
-        description: "Background keeper workers monitor next_epoch_timestamp and submit process_epoch transactions when due.",
-      },
-      {
-        title: "Incentivized Bounties",
-        description: "Each renewal pull rewards the keeper with a small USDC bounty (e.g. 0.05 USDC), subsidizing network gas.",
-      },
-      {
-        title: "Live Status Monitoring",
-        description: "Track keeper heartbeat, last pull timestamps, and pending epochs directly on your dashboard.",
-      },
+      "Keepers submit renewals the moment an epoch is due.",
+      "Each renewal pays the keeper a small USDC bounty.",
+      "Track keeper status live on your dashboard.",
     ],
   },
 ];
@@ -125,6 +90,7 @@ export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
 
   const slide = SLIDES[currentSlide];
   const Icon = slide.icon;
+  const Visual = WALKTHROUGH_VISUALS[currentSlide];
   const isFirst = currentSlide === 0;
   const isLast = currentSlide === SLIDES.length - 1;
 
@@ -145,7 +111,7 @@ export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-2xl rounded-2xl border border-border/80 bg-card p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="walkthrough-title"
@@ -194,18 +160,18 @@ export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
             </div>
           </div>
 
-          {/* Key Highlights Grid */}
-          <div className="grid gap-3 pt-2">
-            {slide.highlights.map((h, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/60 p-3.5 transition-colors">
-                <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-foreground">{h.title}</span>
-                  <span className="text-xs text-muted-foreground leading-relaxed">{h.description}</span>
-                </div>
-              </div>
+          {/* Animated slide illustration */}
+          <Visual key={currentSlide} />
+
+          {/* Key Highlights */}
+          <ul className="flex flex-col gap-2">
+            {slide.highlights.map((text, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                <CheckCircle2 className="size-4 text-primary shrink-0" />
+                <span className="leading-relaxed">{text}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
         {/* Footer Navigation Bar */}
