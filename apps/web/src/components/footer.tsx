@@ -104,12 +104,14 @@ export function Footer() {
             <div className="text-white font-normal mb-4 text-xs">Company</div>
             <ul className="space-y-3">
               <li>
-                <a href="https://colosseum.org" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   About
-                </a>
+                </Link>
               </li>
               <li>
-                <span className="text-zinc-500">Brand</span>
+                <Link href="/brand" className="hover:text-white transition-colors">
+                  Brand
+                </Link>
               </li>
             </ul>
           </div>
@@ -129,13 +131,19 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <span className="text-zinc-500 font-mono text-[11px]">@tidepay/sdk</span>
+                <Link href="/sdk" className="hover:text-white transition-colors font-mono text-[11px]">
+                  @tidepay/sdk
+                </Link>
               </li>
               <li>
-                <span className="text-zinc-500 font-mono text-[11px]">@tidepay/types</span>
+                <Link href="/types" className="hover:text-white transition-colors font-mono text-[11px]">
+                  @tidepay/types
+                </Link>
               </li>
               <li>
-                <span className="text-zinc-500">Dialect Blinks</span>
+                <a href="https://dialect.to" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  Dialect Blinks
+                </a>
               </li>
             </ul>
           </div>
