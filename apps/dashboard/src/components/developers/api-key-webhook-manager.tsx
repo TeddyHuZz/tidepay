@@ -150,7 +150,7 @@ export function ApiKeyWebhookManager() {
     <div className="flex flex-col gap-8">
       {/* 1. API Keys Section */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-row items-center justify-between gap-4">
+        <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Key className="size-4" />
@@ -158,7 +158,7 @@ export function ApiKeyWebhookManager() {
             <div className="min-w-0">
               <CardTitle className="text-base font-bold">API Secret &amp; Publishable Keys</CardTitle>
               <CardDescription className="text-xs">
-                Authenticate REST API requests to create checkout sessions and query subscriber access.
+                Keys for authenticating server and client API requests.
               </CardDescription>
             </div>
           </div>
@@ -167,7 +167,7 @@ export function ApiKeyWebhookManager() {
             variant="outline"
             size="sm"
             onClick={handleRollApiKey}
-            className="h-8 shrink-0 gap-1.5 text-xs ml-auto"
+            className="h-8 shrink-0 gap-1.5 text-xs self-start sm:self-auto sm:ml-auto"
           >
             <RefreshCw className="size-3.5" />
             Roll Secret Key
@@ -233,7 +233,7 @@ export function ApiKeyWebhookManager() {
 
       {/* 2. Webhook Endpoints & Live Simulator */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-row items-center justify-between gap-4">
+        <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
               <Radio className="size-4" />
@@ -241,7 +241,7 @@ export function ApiKeyWebhookManager() {
             <div className="min-w-0">
               <CardTitle className="text-base font-bold">Webhook Endpoints &amp; Signing Secret</CardTitle>
               <CardDescription className="text-xs">
-                Register your server destination URL and test automated subscription settlement webhooks.
+                Receive automated webhooks for subscription renewals and events.
               </CardDescription>
             </div>
           </div>
@@ -250,7 +250,7 @@ export function ApiKeyWebhookManager() {
             variant="outline"
             size="sm"
             onClick={handleRollSigningSecret}
-            className="h-8 shrink-0 gap-1.5 text-xs ml-auto"
+            className="h-8 shrink-0 gap-1.5 text-xs self-start sm:self-auto sm:ml-auto"
           >
             <RefreshCw className="size-3.5" />
             Roll Signing Secret

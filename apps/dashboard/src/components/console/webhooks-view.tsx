@@ -179,14 +179,14 @@ function WebhooksContent({
 
       {/* Recent Deliveries Table */}
       <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-row items-center justify-between gap-4">
+        <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
             <CardTitle className="text-base font-bold">Recent Webhook Deliveries</CardTitle>
             <CardDescription className="text-xs">
               Log of automated events dispatched to your registered server endpoint.
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-400 shrink-0 ml-auto">
+          <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-400 shrink-0 self-start sm:self-auto sm:ml-auto">
             100% Delivery Success
           </Badge>
         </CardHeader>
