@@ -120,8 +120,8 @@ body[data-theme="light"],
   --color-warning-soft: var(--warning-soft);
   --color-neutral-soft: var(--neutral-soft);
   --color-neutral-soft-foreground: var(--neutral-soft-foreground);
-  --font-sans: var(--font-plex-sans);
-  --font-mono: var(--font-plex-mono);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
