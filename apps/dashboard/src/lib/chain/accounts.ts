@@ -67,12 +67,24 @@ function toSubscription(address: PublicKey, raw: RawSubscription): SubscriptionA
   };
 }
 
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 2, delayMs = 300): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return retryWithBackoff(fn, retries - 1, Math.round(delayMs * 1.5));
+  }
+}
+
 async function findAccounts<T>(client: TidePayClient, account: "merchantPlan" | "subscriptionRecord", firstField: PublicKey) {
   const coder = client.program.coder.accounts;
-  const results = await client.connection.getProgramAccounts(client.programId, {
-    filters: [{ memcmp: coder.memcmp(account) }, { memcmp: { offset: FIRST_FIELD_OFFSET, bytes: firstField.toBase58() } }],
+  return retryWithBackoff(async () => {
+    const results = await client.connection.getProgramAccounts(client.programId, {
+      filters: [{ memcmp: coder.memcmp(account) }, { memcmp: { offset: FIRST_FIELD_OFFSET, bytes: firstField.toBase58() } }],
+    });
+    return results.map(({ pubkey, account: info }) => ({ pubkey, raw: coder.decode<T>(account, info.data) }));
   });
-  return results.map(({ pubkey, account: info }) => ({ pubkey, raw: coder.decode<T>(account, info.data) }));
 }
 
 /** All plans created by a merchant wallet. */
@@ -83,10 +95,50 @@ export async function fetchMerchantPlans(client: TidePayClient, merchant: Public
 
 /** All live subscriptions to the given plans (cancelled ones are closed on-chain). */
 export async function fetchSubscriptions(client: TidePayClient, plans: PublicKey[]): Promise<SubscriptionAccount[]> {
-  const perPlan = await Promise.all(
-    plans.map((plan) => findAccounts<RawSubscription>(client, "subscriptionRecord", plan)),
-  );
-  return perPlan.flat().map(({ pubkey, raw }) => toSubscription(pubkey, raw));
+  if (plans.length === 0) return [];
+
+  const coder = client.program.coder.accounts;
+  const planSet = new Set(plans.map((p) => p.toBase58()));
+
+  try {
+    if (plans.length === 1) {
+      const accounts = await findAccounts<RawSubscription>(client, "subscriptionRecord", plans[0]);
+      return accounts.map(({ pubkey, raw }) => toSubscription(pubkey, raw));
+    }
+
+    // For multiple plans: fetch all subscriptions in a single getProgramAccounts call
+    // and filter in-memory, avoiding N concurrent heavy RPC requests
+    const results = await retryWithBackoff(async () => {
+      return client.connection.getProgramAccounts(client.programId, {
+        filters: [{ memcmp: coder.memcmp("subscriptionRecord") }],
+      });
+    });
+
+    return results
+      .map(({ pubkey, account: info }) => {
+        try {
+          return { pubkey, raw: coder.decode<RawSubscription>("subscriptionRecord", info.data) };
+        } catch {
+          return null;
+        }
+      })
+      .filter((item): item is { pubkey: PublicKey; raw: RawSubscription } =>
+        item !== null && planSet.has(item.raw.plan.toBase58())
+      )
+      .map(({ pubkey, raw }) => toSubscription(pubkey, raw));
+  } catch (error) {
+    console.warn("[TidePay] Batch fetchSubscriptions failed, falling back to sequential:", error);
+    const results: SubscriptionAccount[] = [];
+    for (const plan of plans) {
+      try {
+        const accounts = await findAccounts<RawSubscription>(client, "subscriptionRecord", plan);
+        results.push(...accounts.map(({ pubkey, raw }) => toSubscription(pubkey, raw)));
+      } catch (e) {
+        console.warn(`[TidePay] Failed to fetch subscriptions for plan ${plan.toBase58()}:`, e);
+      }
+    }
+    return results;
+  }
 }
 
 export async function fetchPlan(client: TidePayClient, address: PublicKey): Promise<PlanAccount | null> {
