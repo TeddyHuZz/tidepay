@@ -4,9 +4,7 @@ import { FeatureFigures } from "@/components/feature-figures";
 import { DistributionSection } from "@/components/distribution-section";
 import { SubscriberSection } from "@/components/subscriber-section";
 import { DeveloperApiSection } from "@/components/developer-api-section";
-import { MetricsBar } from "@/components/metrics-bar";
-import { ArchitectureFlow } from "@/components/architecture-flow";
-import { FastForwardCallout } from "@/components/fast-forward-callout";
+import { DeveloperGuideSection } from "@/components/developer-guide-section";
 import { ChangelogGrid } from "@/components/changelog-grid";
 
 export default function HomePage() {
@@ -18,9 +16,7 @@ export default function HomePage() {
       <DistributionSection />
       <SubscriberSection />
       <DeveloperApiSection />
-      <MetricsBar />
-      <ArchitectureFlow />
-      <FastForwardCallout />
+      <DeveloperGuideSection />
       <ChangelogGrid />
     </div>
   );
