@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
-import { createClient, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
 import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,14 @@ function PlanDetailContent({
     if (!pubkey) return;
 
     setLoadingEvents(true);
-    fetchPlanActivity(connection, pubkey, plan.priceUsdc, DEFAULT_CRANK_BOUNTY_USDC)
+    fetchPlanActivity(
+      connection,
+      pubkey,
+      plan.priceUsdc,
+      DEFAULT_CRANK_BOUNTY_USDC,
+      DEFAULT_ACTIVITY_LIMIT,
+      plan.name,
+    )
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));
   }, [connection, plan?.id, plan?.priceUsdc, lastRefreshedAt]);

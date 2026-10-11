@@ -26,6 +26,7 @@ import {
   blinkUrl,
 } from "@/lib/chain/config";
 import {
+  DEFAULT_ACTIVITY_LIMIT,
   fetchAllMerchantPlansActivity,
   type PlanOnChainEvent,
 } from "@/lib/chain/accounts";
@@ -81,7 +82,7 @@ function OverviewContent({
       connection,
       plans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
       DEFAULT_CRANK_BOUNTY_USDC,
-      15,
+      DEFAULT_ACTIVITY_LIMIT,
     )
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));

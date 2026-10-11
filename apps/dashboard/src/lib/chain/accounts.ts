@@ -230,12 +230,14 @@ const parsedTxCache = new Map<string, { kind: PlanOnChainEvent["kind"]; label: s
 const activityCache = new Map<string, { data: PlanOnChainEvent[]; timestamp: number }>();
 const ACTIVITY_CACHE_TTL_MS = 30_000; // 30 seconds TTL per plan
 
+export const DEFAULT_ACTIVITY_LIMIT = 50;
+
 export async function fetchPlanActivity(
   connection: Connection,
   planPubkey: PublicKey,
   priceUsdc: string,
   keeperFeeUsdc = "0.05",
-  limit = 20,
+  limit = DEFAULT_ACTIVITY_LIMIT,
   planName?: string,
 ): Promise<PlanOnChainEvent[]> {
   const cacheKey = `${planPubkey.toBase58()}:${limit}`;
@@ -331,7 +333,7 @@ export async function fetchAllMerchantPlansActivity(
   connection: Connection,
   plans: { id: string; name: string; priceUsdc: string }[],
   keeperFeeUsdc = "0.05",
-  limitPerPlan = 20,
+  limitPerPlan = DEFAULT_ACTIVITY_LIMIT,
 ): Promise<PlanOnChainEvent[]> {
   try {
     const eventsPerPlan = await Promise.all(

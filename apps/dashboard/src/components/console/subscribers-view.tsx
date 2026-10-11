@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DEFAULT_CRANK_BOUNTY_USDC, checkoutUrl, explorerUrl } from "@/lib/chain/config";
 import {
+  DEFAULT_ACTIVITY_LIMIT,
   fetchAllMerchantPlansActivity,
   type PlanOnChainEvent,
 } from "@/lib/chain/accounts";
@@ -74,7 +75,7 @@ function SubscribersContent({
       connection,
       plans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
       DEFAULT_CRANK_BOUNTY_USDC,
-      20,
+      DEFAULT_ACTIVITY_LIMIT,
     )
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));
