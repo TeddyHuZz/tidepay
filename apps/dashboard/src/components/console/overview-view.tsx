@@ -143,7 +143,7 @@ function OverviewContent({
     : "—";
 
   return (
-    <div className="flex w-full min-w-0 max-w-full flex-col gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 pb-16 sm:pb-0">
       {/* Top Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -157,12 +157,12 @@ function OverviewContent({
             size="sm"
             onClick={() => onRefresh()}
             disabled={isRefreshing}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground flex-1 sm:flex-initial"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
             {isRefreshing ? "Syncing…" : "Refresh"}
           </Button>
-          <Button asChild size="sm" className="gap-1.5 flex-1 sm:flex-initial">
+          <Button asChild size="sm" className="hidden sm:inline-flex gap-1.5">
             <Link href="/plans/new">
               <Plus className="size-3.5" />
               Create Plan
@@ -489,6 +489,16 @@ function OverviewContent({
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Mobile Floating Action Button (FAB) */}
+      <div className="fixed bottom-6 right-6 z-40 sm:hidden">
+        <Button asChild size="lg" className="h-12 rounded-full px-4.5 shadow-xl shadow-primary/25 gap-2 font-medium transition-transform active:scale-95">
+          <Link href="/plans/new">
+            <Plus className="size-5" />
+            <span>Create Plan</span>
+          </Link>
+        </Button>
       </div>
     </div>
   );

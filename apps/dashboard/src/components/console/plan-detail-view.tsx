@@ -207,22 +207,22 @@ function PlanDetailContent({
         const embedSnippet = `<iframe src="${checkoutLink}" width="420" height="520" frameborder="0"></iframe>`;
 
         return (
-          <div className="flex flex-col gap-6">
+          <div className="flex w-full min-w-0 max-w-full flex-col gap-6">
             {/* Top Navigation */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
+            <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2 self-start">
                 <Link href="/plans">
                   <ArrowLeft className="size-4" />
                   Back to plans
                 </Link>
               </Button>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onRefresh()}
                   disabled={isRefreshing}
-                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground flex-1 sm:flex-initial"
                 >
                   <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
                   {isRefreshing ? "Syncing…" : "Refresh"}
@@ -232,7 +232,7 @@ function PlanDetailContent({
                   size="sm"
                   onClick={handleTogglePlan}
                   disabled={isToggling || isRefreshing}
-                  className="gap-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="gap-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex-1 sm:flex-initial"
                 >
                   {isToggling ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -243,56 +243,56 @@ function PlanDetailContent({
                   )}
                   <span>{isToggling ? "Updating…" : plan.active ? "Pause Plan" : "Resume Plan"}</span>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Button asChild variant="outline" size="sm" className="gap-1.5 flex-1 sm:flex-initial">
                   <a href={checkoutLink} target="_blank" rel="noreferrer">
                     Checkout Link
                     <ExternalLink className="size-3.5" />
                   </a>
                 </Button>
-                <Button asChild size="sm" className="gap-1.5">
-                  <a href={actionBlink} target="_blank" rel="noreferrer">
+                <Button asChild size="sm" className="gap-1.5 w-full sm:w-auto justify-center bg-primary text-primary-foreground font-medium">
+                  <a href={`https://dial.to/?action=solana-action:${encodeURIComponent(actionBlink)}`} target="_blank" rel="noreferrer">
                     Open Blink on Dial.to
-                    <Zap className="size-3.5" />
+                    <Zap className="size-3.5 fill-current" />
                   </a>
                 </Button>
               </div>
             </div>
 
             {/* Plan Header */}
-            <div className="flex flex-col gap-1 rounded-xl border bg-card p-6 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">{plan.name}</h1>
-                  <Badge variant={plan.active ? "success" : "neutral"}>
+            <div className="flex w-full min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 sm:p-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono truncate">{plan.name}</h1>
+                  <Badge variant={plan.active ? "success" : "neutral"} className="shrink-0">
                     {plan.active ? "Active" : "Paused"}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>Plan PDA:</span>
-                  <code className="font-mono text-foreground/80">{plan.id.slice(0, 8)}...{plan.id.slice(-6)}</code>
+                  <code className="font-mono text-foreground/80 break-all">{plan.id.slice(0, 8)}...{plan.id.slice(-6)}</code>
                   <CopyButton value={plan.id} label="Copy plan address" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-6 border-t pt-4 md:mt-0 md:border-t-0 md:pt-0">
-                <div className="text-right">
+              <div className="mt-2 flex items-center justify-between sm:justify-end gap-4 sm:gap-6 border-t pt-3 sm:mt-0 sm:border-t-0 sm:pt-0">
+                <div className="text-left sm:text-right">
                   <div className="text-xs text-muted-foreground">Total Earned (Net)</div>
-                  <div className="text-xl font-bold text-primary tabular-nums">
+                  <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
                     +{totalSettledUsdc} USDC
                   </div>
                 </div>
                 <div className="h-8 w-px bg-border/60" />
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground">Terms</div>
-                  <div className="text-xl font-bold text-foreground tabular-nums">
+                  <div className="text-lg sm:text-xl font-bold text-foreground tabular-nums">
                     {plan.priceUsdc} USDC
-                    <span className="text-sm font-normal text-muted-foreground"> / {intervalUnit(plan.intervalSeconds)}</span>
+                    <span className="text-xs sm:text-sm font-normal text-muted-foreground"> / {intervalUnit(plan.intervalSeconds)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Stripe-like KPI Performance Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid w-full min-w-0 gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <Card className="p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span className="text-xs font-medium">Monthly Revenue (MRR)</span>
@@ -359,37 +359,37 @@ function PlanDetailContent({
             </div>
 
             {/* Two-Column Layout: Details + Integrations & Subscribers */}
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid w-full min-w-0 gap-6 lg:grid-cols-3">
               {/* Left Column: Plan Specifications & Integration */}
-              <div className="flex flex-col gap-6 lg:col-span-1">
+              <div className="flex w-full min-w-0 flex-col gap-6 lg:col-span-1">
                 {/* Specifications Card */}
-                <Card>
-                  <CardHeader className="pb-3">
+                <Card className="w-full min-w-0">
+                  <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <CardTitle className="text-base">Plan Specifications</CardTitle>
-                    <CardDescription>On-chain parameters settled on Solana Devnet.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">On-chain parameters settled on Solana Devnet.</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-col divide-y text-sm">
-                    <div className="flex justify-between py-2.5">
+                  <CardContent className="flex flex-col divide-y text-sm px-4 sm:px-6">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Price</span>
                       <span className="font-semibold text-foreground">{plan.priceUsdc} USDC</span>
                     </div>
-                    <div className="flex justify-between py-2.5">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Interval</span>
                       <span className="font-semibold text-foreground">{intervalLabel(plan.intervalSeconds)}</span>
                     </div>
-                    <div className="flex justify-between py-2.5">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Keeper Reward</span>
                       <span className="font-mono text-muted-foreground">{DEFAULT_CRANK_BOUNTY_USDC} USDC</span>
                     </div>
-                    <div className="flex justify-between py-2.5">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Net to Merchant</span>
                       <span className="font-mono font-semibold text-primary">{netPerCycle} USDC</span>
                     </div>
-                    <div className="flex justify-between py-2.5">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Accepted Mint</span>
                       <span className="font-mono text-xs text-muted-foreground">USDC (Devnet)</span>
                     </div>
-                    <div className="flex justify-between py-2.5">
+                    <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Settlement Protocol</span>
                       <span className="text-foreground">TidePay v1 (Anchor)</span>
                     </div>
@@ -397,38 +397,38 @@ function PlanDetailContent({
                 </Card>
 
                 {/* Integration Hub Card */}
-                <Card>
-                  <CardHeader className="pb-3">
+                <Card className="w-full min-w-0">
+                  <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <CardTitle className="text-base">Share & Integrations</CardTitle>
-                    <CardDescription>Distribute this plan via Blinks, direct link, or embed.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Distribute this plan via Blinks, direct link, or embed.</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
+                  <CardContent className="flex flex-col gap-4 px-4 sm:px-6">
+                    <div className="flex w-full min-w-0 flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs font-medium text-foreground">
                         <span>Solana Action (Blink)</span>
                         <CopyButton value={actionBlink} label="Copy Blink URL" />
                       </div>
-                      <code className="break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
+                      <code className="w-full min-w-0 break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
                         {actionBlink}
                       </code>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex w-full min-w-0 flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs font-medium text-foreground">
                         <span>Hosted Checkout Link</span>
                         <CopyButton value={checkoutLink} label="Copy checkout link" />
                       </div>
-                      <code className="break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
+                      <code className="w-full min-w-0 break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
                         {checkoutLink}
                       </code>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex w-full min-w-0 flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs font-medium text-foreground">
                         <span>Website Embed Code</span>
                         <CopyButton value={embedSnippet} label="Copy embed code" />
                       </div>
-                      <code className="break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
+                      <code className="w-full min-w-0 break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
                         {embedSnippet}
                       </code>
                     </div>
@@ -437,28 +437,28 @@ function PlanDetailContent({
               </div>
 
               {/* Right Column: Subscribers List & Activity */}
-              <div className="flex flex-col gap-6 lg:col-span-2">
+              <div className="flex w-full min-w-0 flex-col gap-6 lg:col-span-2">
                 {/* Subscribers Table */}
-                <Card>
-                  <CardHeader className="pb-3">
+                <Card className="w-full min-w-0 overflow-hidden">
+                  <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <div className="flex items-center gap-2.5">
                       <CardTitle className="text-base">Active Subscribers</CardTitle>
                       <Badge variant="outline" className="tabular-nums">
                         {allTimeCount > 0 ? `${activeCount} active · ${allTimeCount} all-time` : `${activeCount} active`}
                       </Badge>
                     </div>
-                    <CardDescription>Wallets subscribed with delegated token allowances.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Wallets subscribed with delegated token allowances.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
                     {planSubscribers.length === 0 ? (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
+                      <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                         <Users className="mx-auto mb-2 size-8 text-muted-foreground/50" />
                         {allTimeCount > 0
                           ? `No active subscribers currently (${allTimeCount} past subscriber${allTimeCount === 1 ? "" : "s"}). Share your Blink URL on X or send your checkout link to start collecting subscriptions!`
                           : "No active subscribers yet. Share your Blink URL on X or send your checkout link to start collecting subscriptions!"}
                       </div>
                     ) : (
-                      <Table>
+                      <Table className="min-w-130 md:min-w-full">
                         <TableHeader>
                           <TableRow className="border-t-0 hover:bg-transparent">
                             <TableHead>Subscriber Wallet</TableHead>
@@ -492,8 +492,8 @@ function PlanDetailContent({
                 </Card>
 
                 {/* Plan Settlement Activity */}
-                <Card>
-                  <CardHeader className="pb-3">
+                <Card className="w-full min-w-0 overflow-hidden">
+                  <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <div className="flex items-center gap-2.5">
                       <CardTitle className="text-base">Recent Settlements & Events</CardTitle>
                       {onChainEvents.length > 0 && (
@@ -502,17 +502,17 @@ function PlanDetailContent({
                         </Badge>
                       )}
                     </div>
-                    <CardDescription>On-chain renewal transactions executed by Keeper Cranks.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">On-chain renewal transactions executed by Keeper Cranks.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
                     {onChainEvents.length === 0 && planActivity.length === 0 ? (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
+                      <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                         {loadingEvents
                           ? "Loading on-chain events from Solana Devnet..."
                           : "No transactions recorded for this plan yet. Renewals will log here automatically once subscribers are billed."}
                       </div>
                     ) : onChainEvents.length > 0 ? (
-                      <Table>
+                      <Table className="min-w-145 md:min-w-full">
                         <TableHeader>
                           <TableRow className="border-t-0 hover:bg-transparent">
                             <TableHead>Event</TableHead>
@@ -574,7 +574,7 @@ function PlanDetailContent({
                         </TableBody>
                       </Table>
                     ) : (
-                      <Table>
+                      <Table className="min-w-130 md:min-w-full">
                         <TableHeader>
                           <TableRow className="border-t-0 hover:bg-transparent">
                             <TableHead>Event</TableHead>
