@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ShareBlinkButton } from "@/components/console/share-blink-button";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
   explorerUrl,
@@ -346,12 +347,14 @@ function OverviewContent({
                               <ExternalLink className="size-3" />
                             </a>
                           </Button>
-                          <Button asChild variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
-                            <a href={blinkUrl(p.id)} target="_blank" rel="noreferrer">
-                              Blink
-                              <Zap className="size-3" />
-                            </a>
-                          </Button>
+                          <ShareBlinkButton
+                            planId={p.id}
+                            planName={p.name}
+                            priceUsdc={p.priceUsdc}
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            align="right"
+                          />
                           <Button asChild size="sm" className="h-7 px-2.5 text-xs">
                             <Link href={`/plans/${encodeURIComponent(p.name || p.id)}`}>
                               Details

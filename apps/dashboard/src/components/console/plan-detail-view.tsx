@@ -19,6 +19,7 @@ import {
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { CopyButton } from "@/components/copy-button";
+import { ShareBlinkButton } from "@/components/console/share-blink-button";
 import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -268,12 +269,12 @@ function PlanDetailContent({
                     <ExternalLink className="size-3.5" />
                   </a>
                 </Button>
-                <Button asChild size="sm" className="gap-1.5 w-full sm:w-auto justify-center bg-primary text-primary-foreground font-medium">
-                  <a href={actionBlink} target="_blank" rel="noreferrer">
-                    Open Blink on Dial.to
-                    <Zap className="size-3.5 fill-current" />
-                  </a>
-                </Button>
+                <ShareBlinkButton
+                  planId={plan.id}
+                  planName={plan.name}
+                  priceUsdc={plan.priceUsdc}
+                  align="right"
+                />
               </div>
             </div>
 
