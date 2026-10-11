@@ -1,7 +1,22 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+
+const arrayFont = localFont({
+  src: "./fonts/Array/Fonts/WEB/fonts/Array-Regular.woff2",
+  variable: "--font-array",
+  display: "swap",
+  weight: "100 900",
+});
+
+const khandFont = localFont({
+  src: "./fonts/Khand/Fonts/WEB/fonts/Khand-Regular.woff2",
+  variable: "--font-khand",
+  display: "swap",
+  weight: "100 900",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://tidepay.xyz"),
@@ -38,8 +53,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
-      <body className="min-h-screen bg-[#08090a] text-zinc-100 antialiased selection:bg-[#14F195]/30 selection:text-white">
+    <html lang="en" className={`dark scroll-smooth ${arrayFont.variable} ${khandFont.variable}`}>
+      <body className="min-h-screen bg-[#08090a] text-zinc-100 antialiased font-sans selection:bg-[#14F195]/30 selection:text-white">
         <div className="relative flex min-h-screen flex-col linear-glow-bg">
           <Navbar />
           <main className="flex-1">{children}</main>
