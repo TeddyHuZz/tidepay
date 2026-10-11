@@ -46,6 +46,13 @@ export const metadata: Metadata = {
     title: "TidePay | Recurring Subscriptions on Solana",
     description: "Zero escrow. 1-click in-feed Blinks. Autonomous keeper cranks.",
   },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
