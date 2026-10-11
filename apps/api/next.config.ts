@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const dashboardUrl = (process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@tidepay/sdk", "@tidepay/types"],
   cacheComponents: true,
   partialPrefetching: true,
   // Shareable slug from actions.json. Blink clients resolve it to the Action
