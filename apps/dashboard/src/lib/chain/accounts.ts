@@ -322,6 +322,8 @@ export async function fetchPlanActivity(
     });
 
     activityCache.set(cacheKey, { data: events, timestamp: Date.now() });
+    // Non-blocking background sync to Neon Postgres indexer
+    syncSettlementsToDatabase(events);
     return events;
   } catch (error) {
     console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
@@ -349,3 +351,62 @@ export async function fetchAllMerchantPlansActivity(
     return [];
   }
 }
+
+export interface DatabaseSettlementsResult {
+  summary: {
+    totalSettlements: number;
+    totalEarnedNet: string;
+    totalGrossBilled: string;
+  };
+  byPlan: Record<
+    string,
+    {
+      totalSettlements: number;
+      totalEarnedNet: string;
+      totalGrossBilled: string;
+    }
+  >;
+  events: PlanOnChainEvent[];
+}
+
+export async function fetchDatabaseSettlements(
+  planAddresses: string[] = [],
+): Promise<DatabaseSettlementsResult | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const q = planAddresses.length > 0 ? `?planAddresses=${encodeURIComponent(planAddresses.join(","))}` : "";
+    const res = await fetch(`/api/settlements${q}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.success) return null;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
+export async function syncSettlementsToDatabase(events: PlanOnChainEvent[]): Promise<void> {
+  if (typeof window === "undefined" || events.length === 0) return;
+  try {
+    const payload = events.map((e) => ({
+      signature: e.signature,
+      planAddress: e.planAddress,
+      planName: e.planName,
+      subscriber: e.subscriber,
+      kind: e.kind,
+      label: e.label,
+      amountGrossUsdc: e.amountGrossUsdc,
+      amountNetUsdc: e.amountNetUsdc,
+      keeperFeeUsdc: e.keeperFeeUsdc,
+      timestamp: e.timestamp,
+    }));
+    await fetch("/api/settlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ events: payload }),
+    });
+  } catch {
+    // Non-blocking background sync
+  }
+}
+

@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
-import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchDatabaseSettlements, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
 import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,7 @@ function PlanDetailContent({
   const { connection } = useConnection();
   const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [planDbStats, setPlanDbStats] = useState<{ totalSettlements: number; totalEarnedNet: string; totalGrossBilled: string } | null>(null);
 
   const decodedParam = decodeURIComponent(planId);
   const plan = plans.find((p) => p.name === decodedParam || p.id === decodedParam);
@@ -80,6 +81,16 @@ function PlanDetailContent({
     if (!plan?.id) return;
     const pubkey = parseAddress(plan.id);
     if (!pubkey) return;
+
+    // Primary: Instant 5ms query from Neon Postgres indexer
+    fetchDatabaseSettlements([plan.id]).then((res) => {
+      if (res && res.byPlan[plan.id]) {
+        setPlanDbStats(res.byPlan[plan.id]);
+        if (res.events && res.events.length > 0) {
+          setOnChainEvents((prev) => (prev.length === 0 ? res.events : prev));
+        }
+      }
+    });
 
     setLoadingEvents(true);
     fetchPlanActivity(
@@ -189,9 +200,10 @@ function PlanDetailContent({
         // Approximate 30-day normalized MRR
         const cycleSeconds = plan.intervalSeconds || 2_592_000;
         const mrr = ((priceNum * activeCount * 2_592_000) / cycleSeconds).toFixed(2);
-        const paidEventsCount = onChainEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed").length;
-        const totalSettledUsdc = (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
-        const grossSettledUsdc = (paidEventsCount * priceNum).toFixed(2);
+        const rpcPaidCount = onChainEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed").length;
+        const paidEventsCount = planDbStats ? planDbStats.totalSettlements : rpcPaidCount;
+        const totalSettledUsdc = planDbStats ? planDbStats.totalEarnedNet : (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
+        const grossSettledUsdc = planDbStats ? planDbStats.totalGrossBilled : (paidEventsCount * priceNum).toFixed(2);
 
         // Calculate all-time unique subscriber count (active + past/churned)
         const allTimeSubscribers = new Set<string>();

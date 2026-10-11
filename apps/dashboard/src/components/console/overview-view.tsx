@@ -28,6 +28,8 @@ import {
 import {
   DEFAULT_ACTIVITY_LIMIT,
   fetchAllMerchantPlansActivity,
+  fetchDatabaseSettlements,
+  type DatabaseSettlementsResult,
   type PlanOnChainEvent,
 } from "@/lib/chain/accounts";
 import {
@@ -74,10 +76,26 @@ function OverviewContent({
   const { connection } = useConnection();
   const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [dbSummary, setDbSummary] = useState<DatabaseSettlementsResult["summary"] | null>(null);
+  const [dbByPlan, setDbByPlan] = useState<DatabaseSettlementsResult["byPlan"]>({});
 
   useEffect(() => {
     if (plans.length === 0) return;
     setLoadingEvents(true);
+
+    // Primary: Instant 5ms query from Neon Postgres indexer
+    const planAddrs = plans.map((p) => p.id);
+    fetchDatabaseSettlements(planAddrs).then((res) => {
+      if (res) {
+        setDbSummary(res.summary);
+        setDbByPlan(res.byPlan);
+        if (res.events && res.events.length > 0) {
+          setOnChainEvents((prev) => (prev.length === 0 ? res.events : prev));
+        }
+      }
+    });
+
+    // Fallback & continuous background sync with on-chain Solana state
     fetchAllMerchantPlansActivity(
       connection,
       plans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
@@ -116,23 +134,24 @@ function OverviewContent({
     }, 0)
     .toFixed(2);
 
-  // Cumulative Settled Net & Gross Earnings
+  // Cumulative Settled Net & Gross Earnings (Database Indexer with on-chain RPC fallback)
   const paidEvents = onChainEvents.filter(
     (e) => e.kind === "settled" || e.kind === "subscribed",
   );
-  const totalSettlementsCount = paidEvents.length;
+  const rpcSettlementsCount = paidEvents.length;
+  const totalSettlementsCount = dbSummary?.totalSettlements ?? rpcSettlementsCount;
 
-  const totalEarnedNetNum = paidEvents.reduce((sum, e) => {
+  const rpcEarnedNetUsdc = paidEvents.reduce((sum, e) => {
     const netVal = parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0;
     return sum + netVal;
-  }, 0);
-  const totalEarnedNetUsdc = totalEarnedNetNum.toFixed(2);
+  }, 0).toFixed(2);
+  const totalEarnedNetUsdc = dbSummary ? dbSummary.totalEarnedNet : rpcEarnedNetUsdc;
 
-  const totalGrossBilledNum = paidEvents.reduce((sum, e) => {
+  const rpcGrossBilledUsdc = paidEvents.reduce((sum, e) => {
     const grossVal = parseFloat(e.amountGrossUsdc || "0") || 0;
     return sum + grossVal;
-  }, 0);
-  const totalGrossBilledUsdc = totalGrossBilledNum.toFixed(2);
+  }, 0).toFixed(2);
+  const totalGrossBilledUsdc = dbSummary ? dbSummary.totalGrossBilled : rpcGrossBilledUsdc;
 
   // Renewal Success Rate
   const totalEvaluated = activeCount + pastDueSubscribers.length;
@@ -285,9 +304,13 @@ function OverviewContent({
                   const planPaidEvents = planEvents.filter(
                     (e) => e.kind === "settled" || e.kind === "subscribed",
                   );
-                  const planEarnedNet = planPaidEvents
-                    .reduce((sum, e) => sum + (parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0), 0)
-                    .toFixed(2);
+                  const planDb = dbByPlan[p.id];
+                  const planPulls = planDb ? planDb.totalSettlements : planPaidEvents.length;
+                  const planEarnedNet = planDb
+                    ? planDb.totalEarnedNet
+                    : planPaidEvents
+                        .reduce((sum, e) => sum + (parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0), 0)
+                        .toFixed(2);
 
                   return (
                     <TableRow key={p.id}>
@@ -301,9 +324,9 @@ function OverviewContent({
                       </TableCell>
                       <TableCell className="text-xs">
                         <span className="font-semibold text-foreground">{planActiveSubs} active</span>
-                        {planPaidEvents.length > 0 && (
+                        {planPulls > 0 && (
                           <span className="text-muted-foreground text-[11px] ml-1.5">
-                            ({planPaidEvents.length} pull{planPaidEvents.length === 1 ? "" : "s"})
+                            ({planPulls} pull{planPulls === 1 ? "" : "s"})
                           </span>
                         )}
                       </TableCell>
