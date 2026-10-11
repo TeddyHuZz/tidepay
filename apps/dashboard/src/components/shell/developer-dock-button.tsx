@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 
-export function DeveloperDockButton() {
+export function DeveloperDockButton({ className }: { className?: string } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +57,7 @@ export function DeveloperDockButton() {
   };
 
   return (
-    <div ref={containerRef} className="relative mt-auto hidden md:block">
+    <div ref={containerRef} className={cn("relative hidden md:block", className ?? "mt-auto")}>
       {/* Floating Popover Menu (Stripe Developer Menu Style) */}
       {isOpen && (
         <div

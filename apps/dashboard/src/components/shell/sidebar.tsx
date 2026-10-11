@@ -45,11 +45,11 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Quickstart Onboarding Guide Widget */}
-      <SidebarOnboardingWidget />
-
-      {/* Floating Stripe-style Developer dock button */}
-      <DeveloperDockButton />
+      {/* Bottom Docked Panel: Onboarding Guide seated directly on top of Developer Dock */}
+      <div className="mt-auto hidden md:flex md:flex-col md:gap-2">
+        <SidebarOnboardingWidget />
+        <DeveloperDockButton className="mt-0" />
+      </div>
     </aside>
   );
 }

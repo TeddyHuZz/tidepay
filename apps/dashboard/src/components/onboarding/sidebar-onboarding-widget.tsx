@@ -17,6 +17,7 @@ import { useMerchantData } from "@/components/merchant-data-provider";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalkthroughModal } from "./walkthrough-modal";
 import { cn } from "@/lib/utils";
+import { isBlinkSharedLocally, markBlinkShared } from "./onboarding-state";
 
 const STORAGE_COLLAPSED_KEY = "tidepay_sidebar_onboarding_collapsed";
 
@@ -25,12 +26,24 @@ export function SidebarOnboardingWidget() {
   const { state } = useMerchantData();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+  const [isBlinkShared, setIsBlinkShared] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem(STORAGE_COLLAPSED_KEY);
     if (saved === "true") setIsCollapsed(true);
+
+    setIsBlinkShared(isBlinkSharedLocally());
+
+    const handleBlinkShared = () => setIsBlinkShared(true);
+    window.addEventListener("tidepay:blink-shared", handleBlinkShared);
+    window.addEventListener("storage", handleBlinkShared);
+
+    return () => {
+      window.removeEventListener("tidepay:blink-shared", handleBlinkShared);
+      window.removeEventListener("storage", handleBlinkShared);
+    };
   }, []);
 
   if (!mounted) return null;
@@ -41,6 +54,7 @@ export function SidebarOnboardingWidget() {
   const hasConnected = connected;
   const hasCreatedPlan = plans.length > 0;
   const hasSubscribers = subscribers.length > 0;
+  const hasSharedBlink = isBlinkShared || hasSubscribers;
   const hasSettlement = subscribers.some((s) => s.status === "Active") || plans.length > 0;
 
   const steps = [
@@ -66,10 +80,11 @@ export function SidebarOnboardingWidget() {
     {
       id: "blink",
       title: "Share Blink",
-      completed: hasSubscribers,
-      action: hasCreatedPlan && !hasSubscribers ? (
+      completed: hasSharedBlink,
+      action: hasCreatedPlan && !hasSharedBlink ? (
         <Link
           href={plans[0] ? `/plans/${encodeURIComponent(plans[0].name || plans[0].id)}` : "/plans"}
+          onClick={() => markBlinkShared()}
           className="text-[10px] text-primary hover:underline flex items-center gap-0.5 ml-auto shrink-0 font-medium"
         >
           <Share2 className="size-2.5" />
@@ -100,7 +115,7 @@ export function SidebarOnboardingWidget() {
         onClose={() => setIsWalkthroughOpen(false)}
       />
 
-      <div className="hidden md:flex flex-col rounded-xl border border-border/70 bg-card/60 backdrop-blur-sm overflow-hidden text-xs shadow-xs transition-all my-auto">
+      <div className="flex flex-col rounded-xl border border-border/70 bg-card/60 backdrop-blur-sm overflow-hidden text-xs shadow-xs transition-all w-full">
         {/* Header Bar */}
         <div
           onClick={toggleCollapsed}

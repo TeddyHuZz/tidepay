@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { API_URL, blinkUrl } from "@/lib/chain/config";
 import { cn } from "@/lib/utils";
+import { markBlinkShared } from "@/components/onboarding/onboarding-state";
 
 interface ShareBlinkButtonProps {
   planId: string;
@@ -66,6 +67,7 @@ export function ShareBlinkButton({
   const handleCopy = (text: string, key: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
+    markBlinkShared();
     toastSuccess("Copied to clipboard", `${label} copied!`);
     setTimeout(() => setCopiedKey(null), 2000);
   };
@@ -73,6 +75,7 @@ export function ShareBlinkButton({
   const shareToTwitter = () => {
     const text = `Subscribe to ${planName} with 1-click on Solana using @tidepay_xyz Blink:`;
     const tweetUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(actionUrl)}`;
+    markBlinkShared();
     window.open(tweetUrl, "_blank", "noopener,noreferrer");
     setIsOpen(false);
   };
@@ -80,6 +83,7 @@ export function ShareBlinkButton({
   const shareToTelegram = () => {
     const text = `Subscribe to ${planName} with 1-click via TidePay on Solana`;
     const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(actionUrl)}&text=${encodeURIComponent(text)}`;
+    markBlinkShared();
     window.open(tgUrl, "_blank", "noopener,noreferrer");
     setIsOpen(false);
   };
@@ -87,6 +91,7 @@ export function ShareBlinkButton({
   const shareToDiscord = () => {
     const message = `Subscribe to **${planName}**${priceUsdc ? ` (${priceUsdc} USDC)` : ""} with 1-click on Solana: ${actionUrl}`;
     navigator.clipboard.writeText(message);
+    markBlinkShared();
     toastInfo("Discord format copied", "Paste into any Discord channel or DM to share this Blink!");
     setIsOpen(false);
   };

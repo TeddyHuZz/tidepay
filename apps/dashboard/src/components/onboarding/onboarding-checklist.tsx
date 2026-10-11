@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { PlanSummary, SubscriberRow } from "@/lib/types";
+import { isBlinkSharedLocally } from "./onboarding-state";
 
 interface OnboardingChecklistProps {
   plans: PlanSummary[];
@@ -38,6 +39,7 @@ export function OnboardingChecklist({
 }: OnboardingChecklistProps) {
   const [isDismissed, setIsDismissed] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isBlinkShared, setIsBlinkShared] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -46,6 +48,16 @@ export function OnboardingChecklist({
     const collapsed = localStorage.getItem(STORAGE_COLLAPSED_KEY);
     if (dismissed === "true") setIsDismissed(true);
     if (collapsed === "true") setIsCollapsed(true);
+
+    setIsBlinkShared(isBlinkSharedLocally());
+    const handleBlinkShared = () => setIsBlinkShared(true);
+    window.addEventListener("tidepay:blink-shared", handleBlinkShared);
+    window.addEventListener("storage", handleBlinkShared);
+
+    return () => {
+      window.removeEventListener("tidepay:blink-shared", handleBlinkShared);
+      window.removeEventListener("storage", handleBlinkShared);
+    };
   }, []);
 
   if (!mounted || isDismissed) return null;
@@ -53,7 +65,7 @@ export function OnboardingChecklist({
   // Milestone logic
   const hasConnectedWallet = true; // Gate ensures merchant is connected
   const hasCreatedPlan = plans.length > 0;
-  const hasSubscribers = subscribers.length > 0 || totalSettlementsCount > 0;
+  const hasSharedBlink = isBlinkShared || subscribers.length > 0 || totalSettlementsCount > 0;
   const hasCrankSettlement = totalSettlementsCount > 0;
 
   const steps = [
@@ -84,7 +96,7 @@ export function OnboardingChecklist({
       id: "distribution",
       title: "Distribute via Blinks & Checkout Link",
       description: "Share on X (Twitter), Telegram, or embed the checkout widget.",
-      completed: hasSubscribers,
+      completed: hasSharedBlink,
       icon: Share2,
       action: hasCreatedPlan ? (
         <Button asChild variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1">
