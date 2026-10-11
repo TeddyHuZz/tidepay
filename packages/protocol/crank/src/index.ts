@@ -14,6 +14,7 @@ import { TidePayClient } from "@tidepay/sdk";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 import * as fs from "fs";
 import * as path from "path";
+import * as http from "http";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -219,12 +220,31 @@ export class TidePayCrankWorker {
 // Run as standalone worker when executed directly
 if (process.argv[1] && process.argv[1].includes("crank")) {
   const worker = new TidePayCrankWorker();
+
+  // Lightweight HTTP health check server for free tier hosts (Render, Koyeb, etc.)
+  const port = process.env.PORT || 8080;
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        worker: "TidePay Keeper Crank",
+        uptimeSeconds: Math.floor(process.uptime()),
+      })
+    );
+  });
+  server.listen(port, () => {
+    console.log(`🌐 [TidePay Crank] Health check server listening on port ${port}`);
+  });
+
   process.on("SIGINT", () => {
     worker.stop();
+    server.close();
     process.exit(0);
   });
   process.on("SIGTERM", () => {
     worker.stop();
+    server.close();
     process.exit(0);
   });
   worker.start().catch((err) => {
