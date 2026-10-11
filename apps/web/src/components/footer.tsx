@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogoMark } from "@/components/logo";
 import { DASHBOARD_URL } from "@/lib/config";
 
@@ -169,18 +170,18 @@ export function Footer() {
 
         {/* Bottom Legal Sub-links matching Linear */}
         <div className="mt-16 md:mt-24 flex items-center gap-6 text-xs text-zinc-500 font-normal">
-          <a href="#" className="hover:text-zinc-300 transition-colors">
+          <Link href="/privacy" className="hover:text-zinc-300 transition-colors">
             Privacy
-          </a>
-          <a href="#" className="hover:text-zinc-300 transition-colors">
+          </Link>
+          <Link href="/terms" className="hover:text-zinc-300 transition-colors">
             Terms
-          </a>
-          <a href="#" className="hover:text-zinc-300 transition-colors">
+          </Link>
+          <Link href="/dpa" className="hover:text-zinc-300 transition-colors">
             DPA
-          </a>
-          <a href="#" className="hover:text-zinc-300 transition-colors">
+          </Link>
+          <Link href="/security" className="hover:text-zinc-300 transition-colors">
             Security
-          </a>
+          </Link>
         </div>
       </div>
     </footer>
