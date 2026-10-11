@@ -1,5 +1,20 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
+    "NEON_BRANCH",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_ENDPOINT_URL_S3",
+    "AWS_REGION",
+    "SOLANA_RPC_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_DASHBOARD_URL",
+    "NEXT_PUBLIC_SOLANA_RPC_URL",
+    "NEXT_PUBLIC_USDC_MINT"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
