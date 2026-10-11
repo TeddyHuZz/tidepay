@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+  NATIVE_MINT,
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { ArrowLeft, Info } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { useMerchantData } from "@/components/merchant-data-provider";
@@ -20,6 +24,7 @@ import { createClient } from "@/lib/chain/accounts";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
   PROTOCOL_FEE_BPS,
+  USDC_DECIMALS,
   USDC_MINT,
   blinkUrl,
   checkoutUrl,
@@ -31,6 +36,30 @@ import { INTERVALS, getInterval, intervalUnit, type IntervalId } from "@/lib/typ
 import { cn } from "@/lib/utils";
 
 const PLAN_ID_PATTERN = /^[a-z0-9-]{1,32}$/;
+
+/** Mints a plan can bill in. SOL is billed as wrapped SOL (delegation requires an SPL token account). */
+const TOKENS = {
+  USDC: {
+    symbol: "USDC",
+    label: "USDC (Devnet)",
+    mint: USDC_MINT,
+    decimals: USDC_DECIMALS,
+    renewalFee: DEFAULT_CRANK_BOUNTY_USDC,
+    pricePlaceholder: "29.00",
+    displayDecimals: 2,
+  },
+  SOL: {
+    symbol: "SOL",
+    label: "SOL (wrapped)",
+    mint: NATIVE_MINT,
+    decimals: 9,
+    renewalFee: "0.0005",
+    pricePlaceholder: "0.25",
+    displayDecimals: 4,
+  },
+} as const;
+
+type TokenId = keyof typeof TOKENS;
 
 const UNIT_MULTIPLIERS = {
   minutes: 60,
@@ -73,11 +102,13 @@ export function PlanForm() {
   const [customCount, setCustomCount] = useState("1");
   const [customUnit, setCustomUnit] = useState<CustomUnit>("days");
   const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
+  const [tokenId, setTokenId] = useState<TokenId>("USDC");
 
-  const crankBountyAmount = parseUsdc(DEFAULT_CRANK_BOUNTY_USDC) ?? BigInt(50_000);
+  const token = TOKENS[tokenId];
+  const crankBountyAmount = parseUsdc(token.renewalFee, token.decimals) ?? BigInt(0);
   const planIdValid = PLAN_ID_PATTERN.test(planId);
   const planIdError = planId !== "" && !planIdValid;
-  const amount = parseUsdc(price);
+  const amount = parseUsdc(price, token.decimals);
   const priceTooLow = amount !== null && amount <= crankBountyAmount;
   const priceError = price !== "" && (amount === null || priceTooLow);
 
@@ -109,7 +140,7 @@ export function PlanForm() {
         return;
       }
 
-      const merchantTokenAccount = getAssociatedTokenAddressSync(USDC_MINT, publicKey);
+      const merchantTokenAccount = getAssociatedTokenAddressSync(token.mint, publicKey);
       const { instruction } = await client.buildInitializePlanInstruction({
         merchant: publicKey,
         planId,
@@ -117,13 +148,13 @@ export function PlanForm() {
         intervalSeconds: BigInt(intervalSeconds),
         protocolFeeBps: PROTOCOL_FEE_BPS,
         crankBountyAmount,
-        tokenMint: USDC_MINT,
+        tokenMint: token.mint,
         merchantTokenAccount,
       });
 
       const tx = await buildTransaction(publicKey, [
-        // Payments land in the merchant's USDC account; create it if missing.
-        createAssociatedTokenAccountIdempotentInstruction(publicKey, merchantTokenAccount, publicKey, USDC_MINT),
+        // Payments land in the merchant's token account; create it if missing.
+        createAssociatedTokenAccountIdempotentInstruction(publicKey, merchantTokenAccount, publicKey, token.mint),
         instruction,
       ]);
       const signature = await send(tx);
@@ -199,12 +230,12 @@ export function PlanForm() {
 
           <div className="flex flex-wrap gap-4">
             <div className="flex min-w-50 flex-1 flex-col gap-2">
-              <Label htmlFor="plan-price">Price (USDC)</Label>
+              <Label htmlFor="plan-price">Price ({token.symbol})</Label>
               <Input
                 id="plan-price"
                 inputMode="decimal"
                 className="font-mono tabular-nums"
-                placeholder="29.00"
+                placeholder={token.pricePlaceholder}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 aria-invalid={priceError}
@@ -212,15 +243,26 @@ export function PlanForm() {
               />
               <p id="plan-price-hint" className={cn("text-xs", priceError ? "text-destructive" : "text-muted-foreground")}>
                 {priceTooLow
-                  ? `Price must be greater than the ${DEFAULT_CRANK_BOUNTY_USDC} USDC renewal fee.`
+                  ? `Price must be greater than the ${token.renewalFee} ${token.symbol} renewal fee.`
                   : priceError
                     ? "Enter an amount greater than 0."
-                    : "Up to 6 decimal places."}
+                    : `Up to ${token.decimals} decimal places.`}
               </p>
             </div>
             <div className="flex min-w-50 flex-1 flex-col gap-2">
-              <Label htmlFor="plan-mint">Accepted mint</Label>
-              <Input id="plan-mint" value="USDC (Devnet)" readOnly />
+              <Label htmlFor="plan-mint">Accepted token</Label>
+              <select
+                id="plan-mint"
+                value={tokenId}
+                onChange={(e) => setTokenId(e.target.value as TokenId)}
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+              >
+                {(Object.keys(TOKENS) as TokenId[]).map((id) => (
+                  <option key={id} value={id}>
+                    {TOKENS[id].label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -229,10 +271,10 @@ export function PlanForm() {
             <div className="flex items-center gap-2">
               <Info className="size-4 shrink-0 text-primary" aria-hidden="true" />
               <span className="text-sm font-medium text-foreground">Network Renewal Fee</span>
-              <span className="ml-auto font-mono text-xs font-semibold text-primary">{DEFAULT_CRANK_BOUNTY_USDC} USDC</span>
+              <span className="ml-auto font-mono text-xs font-semibold text-primary">{token.renewalFee} {token.symbol}</span>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              A fixed {DEFAULT_CRANK_BOUNTY_USDC} USDC network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain Solana gas fees.
+              A fixed {token.renewalFee} {token.symbol} network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain Solana gas fees.
             </p>
           </div>
 
@@ -358,13 +400,13 @@ export function PlanForm() {
           <div className="flex flex-col gap-2.5 rounded-md border bg-background p-4">
             <div className="text-[13px] text-muted-foreground">Terms</div>
             <div className="text-lg font-semibold leading-6.5 tabular-nums">
-              {amount !== null && !priceError ? price.trim() : "0.00"} USDC every {intervalPhrase}
+              {amount !== null && !priceError ? price.trim() : "0.00"} {token.symbol} every {intervalPhrase}
             </div>
             {amount !== null && !priceError && (
               <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
                 <span>Net payout to merchant</span>
                 <span className="font-mono font-medium text-foreground">
-                  {(Number(price) - Number(DEFAULT_CRANK_BOUNTY_USDC)).toFixed(2)} USDC / cycle
+                  {(Number(price) - Number(token.renewalFee)).toFixed(token.displayDecimals)} {token.symbol} / cycle
                 </span>
               </div>
             )}
