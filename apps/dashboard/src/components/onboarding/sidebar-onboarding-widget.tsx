@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
   CheckCircle2,
   Circle,
   BookOpen,
   ChevronDown,
-  ArrowRight,
   Plus,
   Share2,
 } from "lucide-react";
@@ -17,7 +15,7 @@ import { useMerchantData } from "@/components/merchant-data-provider";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalkthroughModal } from "./walkthrough-modal";
 import { cn } from "@/lib/utils";
-import { isBlinkSharedLocally, markBlinkShared } from "./onboarding-state";
+import { isBlinkSharedLocally } from "./onboarding-state";
 
 const STORAGE_COLLAPSED_KEY = "tidepay_sidebar_onboarding_collapsed";
 const STORAGE_COMPLETED_KEY = "tidepay_onboarding_completed_100";
@@ -36,6 +34,7 @@ export function SidebarOnboardingWidget() {
   });
   const [mounted, setMounted] = useState(false);
 
+  // Hook 1: Component mount and event listeners (always called unconditionally)
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem(STORAGE_COLLAPSED_KEY);
@@ -53,23 +52,9 @@ export function SidebarOnboardingWidget() {
     };
   }, []);
 
-  if (!mounted || isCompletedSaved) {
-    if (isWalkthroughOpen) {
-      return (
-        <WalkthroughModal
-          isOpen={isWalkthroughOpen}
-          onClose={() => setIsWalkthroughOpen(false)}
-        />
-      );
-    }
-    return null;
-  }
-
-  // Prevent flicker during initial load: wait until merchant data status is resolved
-  if (state.status !== "ready") return null;
-
-  const plans = state.data.plans;
-  const subscribers = state.data.subscribers;
+  // Safe data extraction (runs unconditionally on every render)
+  const plans = state.status === "ready" ? state.data.plans : [];
+  const subscribers = state.status === "ready" ? state.data.subscribers : [];
 
   const hasConnected = connected;
   const hasCreatedPlan = plans.length > 0;
@@ -120,23 +105,34 @@ export function SidebarOnboardingWidget() {
 
   const completedCount = steps.filter((s) => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const isAllCompleted = state.status === "ready" && completedCount >= steps.length;
 
+  // Hook 2: Save 100% completion in localStorage (always called unconditionally)
   useEffect(() => {
-    if (completedCount >= steps.length) {
+    if (isAllCompleted && !isCompletedSaved) {
       localStorage.setItem(STORAGE_COMPLETED_KEY, "true");
       setIsCompletedSaved(true);
     }
-  }, [completedCount, steps.length]);
+  }, [isAllCompleted, isCompletedSaved]);
 
+  // Hook 3: Reset completion if wallet has 0 plans (always called unconditionally)
   useEffect(() => {
-    if (plans.length === 0 && isCompletedSaved) {
+    if (state.status === "ready" && plans.length === 0 && isCompletedSaved) {
       localStorage.removeItem(STORAGE_COMPLETED_KEY);
       setIsCompletedSaved(false);
     }
-  }, [plans.length, isCompletedSaved]);
+  }, [state.status, plans.length, isCompletedSaved]);
 
-  // When all onboarding milestones are complete (100%), hide panel to avoid interruption
-  if (completedCount >= steps.length) {
+  const toggleCollapsed = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    localStorage.setItem(STORAGE_COLLAPSED_KEY, String(next));
+  };
+
+  // --- CONDITIONAL RETURNS (Only after all hooks have executed) ---
+
+  // 1. If not mounted, already saved as 100% completed, or currently 100% completed: hide panel
+  if (!mounted || isCompletedSaved || isAllCompleted) {
     if (isWalkthroughOpen) {
       return (
         <WalkthroughModal
@@ -148,11 +144,10 @@ export function SidebarOnboardingWidget() {
     return null;
   }
 
-  const toggleCollapsed = () => {
-    const next = !isCollapsed;
-    setIsCollapsed(next);
-    localStorage.setItem(STORAGE_COLLAPSED_KEY, String(next));
-  };
+  // 2. Prevent flicker during initial data load: wait until merchant data status is resolved
+  if (state.status !== "ready") {
+    return null;
+  }
 
   return (
     <>
