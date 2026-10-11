@@ -16,13 +16,16 @@ import {
   Copy,
   SlidersHorizontal,
   Users,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
+import { WalkthroughModal } from "@/components/onboarding/walkthrough-modal";
 
 export function DeveloperDockButton({ className }: { className?: string } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -152,6 +155,20 @@ export function DeveloperDockButton({ className }: { className?: string } = {}) 
               </div>
               <ExternalLink className="size-3 text-muted-foreground/60" />
             </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setIsWalkthroughOpen(true);
+              }}
+              className="flex items-center justify-between rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors text-left w-full cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-3.5 text-primary/80" />
+                <span>Interactive Platform Tour</span>
+              </div>
+            </button>
           </div>
 
           {/* Section: Quick Config & Program ID */}
@@ -216,6 +233,12 @@ export function DeveloperDockButton({ className }: { className?: string } = {}) 
           )}
         />
       </button>
+
+      {/* Interactive Platform Tour Modal */}
+      <WalkthroughModal
+        isOpen={isWalkthroughOpen}
+        onClose={() => setIsWalkthroughOpen(false)}
+      />
     </div>
   );
 }

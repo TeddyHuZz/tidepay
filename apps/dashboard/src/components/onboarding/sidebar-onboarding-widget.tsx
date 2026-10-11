@@ -84,7 +84,6 @@ export function SidebarOnboardingWidget() {
       action: hasCreatedPlan && !hasSharedBlink ? (
         <Link
           href={plans[0] ? `/plans/${encodeURIComponent(plans[0].name || plans[0].id)}` : "/plans"}
-          onClick={() => markBlinkShared()}
           className="text-[10px] text-primary hover:underline flex items-center gap-0.5 ml-auto shrink-0 font-medium"
         >
           <Share2 className="size-2.5" />
@@ -101,6 +100,19 @@ export function SidebarOnboardingWidget() {
 
   const completedCount = steps.filter((s) => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
+
+  // When all onboarding milestones are complete (100%), hide panel to avoid interruption
+  if (completedCount >= steps.length) {
+    if (isWalkthroughOpen) {
+      return (
+        <WalkthroughModal
+          isOpen={isWalkthroughOpen}
+          onClose={() => setIsWalkthroughOpen(false)}
+        />
+      );
+    }
+    return null;
+  }
 
   const toggleCollapsed = () => {
     const next = !isCollapsed;
@@ -122,9 +134,6 @@ export function SidebarOnboardingWidget() {
           className="flex items-center justify-between p-2.5 cursor-pointer hover:bg-accent/40 transition-colors select-none"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex size-5.5 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0">
-              <Sparkles className="size-3" />
-            </div>
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-foreground text-[11px] leading-tight truncate">Getting Started</span>
               <span className="text-[10px] text-muted-foreground font-mono">

@@ -12,9 +12,7 @@ import {
   ArrowUpRight,
   Zap,
   ExternalLink,
-  Sparkles,
 } from "lucide-react";
-import { WalkthroughModal } from "@/components/onboarding/walkthrough-modal";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +79,6 @@ function OverviewContent({
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [dbSummary, setDbSummary] = useState<DatabaseSettlementsResult["summary"] | null>(null);
   const [dbByPlan, setDbByPlan] = useState<DatabaseSettlementsResult["byPlan"]>({});
-  const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
 
   useEffect(() => {
     if (plans.length === 0) return;
@@ -179,16 +176,6 @@ function OverviewContent({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsWalkthroughOpen(true)}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            <Sparkles className="size-3.5 text-primary" />
-            <span className="hidden sm:inline">Platform Guide</span>
-            <span className="sm:hidden">Guide</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => onRefresh()}
             disabled={isRefreshing}
             className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -204,12 +191,6 @@ function OverviewContent({
           </Button>
         </div>
       </div>
-
-      {/* Interactive Platform Walkthrough Modal */}
-      <WalkthroughModal
-        isOpen={isWalkthroughOpen}
-        onClose={() => setIsWalkthroughOpen(false)}
-      />
 
       {/* Stripe-grade 4-Card KPI Performance Grid */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
