@@ -137,7 +137,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in-0 duration-150 overscroll-contain overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in-0 duration-150 overscroll-contain overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -146,20 +146,20 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
-        className="flex w-full max-w-2xl max-h-[90vh] flex-col rounded-2xl border border-border/80 bg-card text-card-foreground shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 overscroll-contain"
+        className="flex w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex-col rounded-xl sm:rounded-2xl border border-border/80 bg-card text-card-foreground shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6 sm:py-4 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Sliders className="size-4" />
             </div>
-            <div>
-              <h2 id="settings-dialog-title" className="text-sm font-bold text-foreground">
+            <div className="min-w-0">
+              <h2 id="settings-dialog-title" className="text-sm font-bold text-foreground truncate">
                 Project Settings
               </h2>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground truncate">
                 Configure parameters and preferences for {activeProject.name}
               </p>
             </div>
@@ -168,37 +168,37 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer shrink-0"
           >
             <X className="size-4" />
           </button>
         </div>
 
         {/* Body (Tabs + Content) */}
-        <div className="flex min-h-95 flex-col md:flex-row">
+        <div className="flex min-h-0 md:min-h-95 flex-col md:flex-row flex-1 overflow-hidden">
           {/* Navigation Sidebar */}
-          <div className="w-full md:w-48 border-b md:border-b-0 md:border-r border-border/60 p-3 flex md:flex-col gap-1 bg-background/40">
+          <div className="w-full md:w-48 border-b md:border-b-0 md:border-r border-border/60 p-2 sm:p-3 flex md:flex-col gap-1 bg-background/40 overflow-x-auto no-scrollbar shrink-0">
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors text-left w-full cursor-pointer",
+                  "flex items-center gap-2 sm:gap-2.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-medium transition-colors text-left shrink-0 whitespace-nowrap md:w-full cursor-pointer",
                   tab === id
                     ? "bg-primary/15 text-primary font-semibold"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                   id === "danger" && tab === id && "bg-destructive/15 text-destructive font-semibold"
                 )}
               >
-                <Icon className={cn("size-3.5", id === "danger" ? "text-destructive" : "")} />
+                <Icon className={cn("size-3.5 shrink-0", id === "danger" ? "text-destructive" : "")} />
                 <span>{label}</span>
               </button>
             ))}
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 p-6 overflow-y-auto max-h-115 overscroll-contain">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto max-h-[58vh] sm:max-h-115 overscroll-contain">
             {/* GENERAL TAB */}
             {tab === "general" && (
               <div className="flex flex-col gap-5">
@@ -349,7 +349,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-medium text-foreground">Failed Settlement Grace Period</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
                       { hours: 24, label: "24 Hours (Standard)" },
                       { hours: 48, label: "48 Hours" },
@@ -446,7 +446,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
                 </div>
 
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                       <h4 className="text-xs font-bold text-destructive">Delete Project</h4>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -459,7 +459,7 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
                       size="sm"
                       onClick={handleDelete}
                       disabled={projects.length <= 1}
-                      className="shrink-0 text-xs"
+                      className="shrink-0 text-xs self-start sm:self-auto"
                     >
                       Delete Project
                     </Button>
@@ -476,20 +476,20 @@ export function ProjectSettingsModal({ isOpen, onClose, initialTab = "general" }
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-border/60 px-6 py-3.5 bg-background/50">
-          <div className="text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between border-t border-border/60 px-4 py-3 sm:px-6 sm:py-3.5 bg-background/50 gap-2">
+          <div className="hidden sm:block text-[11px] text-muted-foreground truncate">
             {tab === "danger" ? "Caution: changes may be permanent" : "Click Save to apply changes"}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-xs flex-1 sm:flex-initial">
               Cancel
             </Button>
             <Button
               variant="default"
               size="sm"
               onClick={handleSave}
-              className="gap-1.5 text-xs font-semibold"
+              className="gap-1.5 text-xs font-semibold flex-1 sm:flex-initial"
             >
               <Save className="size-3.5" />
               Save Changes
