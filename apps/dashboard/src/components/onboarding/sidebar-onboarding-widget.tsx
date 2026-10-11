@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { isBlinkSharedLocally, markBlinkShared } from "./onboarding-state";
 
 const STORAGE_COLLAPSED_KEY = "tidepay_sidebar_onboarding_collapsed";
+const STORAGE_COMPLETED_KEY = "tidepay_onboarding_completed_100";
 
 export function SidebarOnboardingWidget() {
   const { connected } = useWallet();
@@ -27,6 +28,12 @@ export function SidebarOnboardingWidget() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
   const [isBlinkShared, setIsBlinkShared] = useState(false);
+  const [isCompletedSaved, setIsCompletedSaved] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORAGE_COMPLETED_KEY) === "true";
+    }
+    return false;
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -46,10 +53,23 @@ export function SidebarOnboardingWidget() {
     };
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || isCompletedSaved) {
+    if (isWalkthroughOpen) {
+      return (
+        <WalkthroughModal
+          isOpen={isWalkthroughOpen}
+          onClose={() => setIsWalkthroughOpen(false)}
+        />
+      );
+    }
+    return null;
+  }
 
-  const plans = state.status === "ready" ? state.data.plans : [];
-  const subscribers = state.status === "ready" ? state.data.subscribers : [];
+  // Prevent flicker during initial load: wait until merchant data status is resolved
+  if (state.status !== "ready") return null;
+
+  const plans = state.data.plans;
+  const subscribers = state.data.subscribers;
 
   const hasConnected = connected;
   const hasCreatedPlan = plans.length > 0;
@@ -100,6 +120,20 @@ export function SidebarOnboardingWidget() {
 
   const completedCount = steps.filter((s) => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
+
+  useEffect(() => {
+    if (completedCount >= steps.length) {
+      localStorage.setItem(STORAGE_COMPLETED_KEY, "true");
+      setIsCompletedSaved(true);
+    }
+  }, [completedCount, steps.length]);
+
+  useEffect(() => {
+    if (plans.length === 0 && isCompletedSaved) {
+      localStorage.removeItem(STORAGE_COMPLETED_KEY);
+      setIsCompletedSaved(false);
+    }
+  }, [plans.length, isCompletedSaved]);
 
   // When all onboarding milestones are complete (100%), hide panel to avoid interruption
   if (completedCount >= steps.length) {
