@@ -14,16 +14,20 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-white/8 bg-[#08090a]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <div className="flex items-center gap-6">
-          <Link href="/" className="group flex items-center gap-2.5">
+        <div className="flex items-center gap-8">
+          <Link
+            href="/"
+            onClick={(e) => {
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="group flex items-center gap-2.5"
+            aria-label="TidePay Home"
+          >
             <LogoMark className="h-7 w-7 rounded-md shadow-sm transition-transform group-hover:scale-105" size={28} />
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg tracking-tight text-white">TidePay</span>
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Devnet
-              </span>
-            </div>
+            <span className="font-semibold text-lg tracking-tight text-white">TidePay</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -31,22 +35,20 @@ export function Navbar() {
             <a href="#features" className="transition hover:text-white">
               Features
             </a>
-            <a href="#architecture" className="transition hover:text-white">
-              Architecture
+            <a href="#plans" className="transition hover:text-white">
+              Plans
             </a>
-            <a href="#blinks" className="transition hover:text-white">
-              Solana Blinks
+            <a href="#subscribers" className="transition hover:text-white">
+              Subscribers
             </a>
-            <a href="#fast-forward" className="transition hover:text-white">
-              Judge Mode
+            <a href="#developer-apis" className="transition hover:text-white">
+              Developers
             </a>
-            <a
-              href={`${DASHBOARD_URL}/demo`}
-              className="transition hover:text-white"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Live Demo
+            <a href="#developer-guide" className="transition hover:text-white">
+              Docs
+            </a>
+            <a href="#changelog" className="transition hover:text-white">
+              Changelog
             </a>
           </nav>
         </div>
@@ -102,37 +104,49 @@ export function Navbar() {
               Features
             </a>
             <a
-              href="#architecture"
+              href="#plans"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
-              Architecture
+              Plans
             </a>
             <a
-              href="#blinks"
+              href="#subscribers"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
-              Solana Blinks
+              Subscribers
             </a>
             <a
-              href="#fast-forward"
+              href="#developer-apis"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
-              Judge Fast-Forward
+              Developers
             </a>
             <a
-              href={`${DASHBOARD_URL}/demo`}
+              href="#developer-guide"
               onClick={() => setMobileMenuOpen(false)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-1 text-[#14F195] hover:underline"
+              className="py-1 hover:text-white"
             >
-              Live Demo SaaS →
+              Docs
+            </a>
+            <a
+              href="#changelog"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1 hover:text-white"
+            >
+              Changelog
             </a>
             <div className="pt-2 border-t border-white/8 flex items-center justify-between">
-              <span className="text-xs text-zinc-500 font-mono">Devnet Cluster</span>
+              <a
+                href="https://github.com/TeddyHuZz/tidepay"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-zinc-400 font-mono hover:text-white"
+              >
+                GitHub ↗
+              </a>
               <a
                 href={DASHBOARD_URL}
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black"

@@ -71,7 +71,7 @@ function BlinkPostCard() {
 
 export function DistributionSection() {
   return (
-    <section id="blinks" className="overflow-hidden py-24 md:py-32">
+    <section id="plans" className="overflow-hidden py-24 md:py-32">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-12">
