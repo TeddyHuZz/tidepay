@@ -22,7 +22,7 @@ export function Sidebar() {
         <ProjectSwitcher />
       </div>
 
-      <nav aria-label="Main" className="-mx-1 flex gap-1 overflow-x-auto px-1 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0">
+      <nav aria-label="Main" className="-mx-1 flex gap-1 overflow-x-auto no-scrollbar scroll-smooth px-1 py-0.5 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0 md:py-0">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActivePath(pathname, href);
           return (
@@ -31,13 +31,13 @@ export function Sidebar() {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-11 shrink-0 items-center gap-3 rounded-md px-3 text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                "flex h-9 sm:h-10 md:h-11 shrink-0 items-center gap-2 sm:gap-2.5 md:gap-3 rounded-md px-2.5 sm:px-3 text-xs sm:text-sm outline-none transition-colors focus-visible:outline-2 focus-visible:outline-ring",
                 active
                   ? "bg-accent font-medium text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
               )}
             >
-              <Icon className="size-4.5" aria-hidden="true" />
+              <Icon className="size-4 md:size-4.5" aria-hidden="true" />
               {label}
             </Link>
           );

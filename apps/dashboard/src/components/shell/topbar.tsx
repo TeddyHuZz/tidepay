@@ -34,33 +34,33 @@ export function Topbar() {
   const isLive = activeProject.environment === "live";
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-8">
-      <div className="flex items-center gap-2 text-xl leading-7">
+    <header className="flex items-center justify-between gap-2 border-b px-4 py-2.5 sm:py-3 md:px-8">
+      <div className="flex items-center gap-2 min-w-0">
         {isNestedPlan && (
           <>
-            <Link href="/plans" className="text-muted-foreground hover:text-foreground">
+            <Link href="/plans" className="text-muted-foreground hover:text-foreground text-sm sm:text-base shrink-0">
               Plans
             </Link>
-            <span className="text-muted-foreground/60" aria-hidden="true">
+            <span className="text-muted-foreground/60 text-sm sm:text-base shrink-0" aria-hidden="true">
               /
             </span>
           </>
         )}
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-lg sm:text-xl font-semibold tracking-tight truncate">{title}</h1>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <button
           type="button"
           onClick={toggleTheme}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           aria-label="Toggle theme"
-          className="flex size-8 items-center justify-center rounded-lg border border-border/80 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer"
+          className="flex size-8 items-center justify-center rounded-lg border border-border/80 text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors cursor-pointer shrink-0"
         >
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </button>
         <Badge
           variant="outline"
-          className={`h-8 items-center px-3 font-medium transition-colors ${
+          className={`h-8 items-center px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
             isLive
               ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
               : "border-border/80 text-muted-foreground"
@@ -68,7 +68,7 @@ export function Topbar() {
         >
           {isLive ? "Mainnet" : "Devnet"}
         </Badge>
-        <WalletButton />
+        <WalletButton size="sm" />
       </div>
     </header>
   );

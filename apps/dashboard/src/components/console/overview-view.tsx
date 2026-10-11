@@ -143,11 +143,11 @@ function OverviewContent({
     : "—";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6">
       {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Real-time subscriber and billing analytics across all your TidePay plans.
           </p>
         </div>
@@ -157,12 +157,12 @@ function OverviewContent({
             size="sm"
             onClick={() => onRefresh()}
             disabled={isRefreshing}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground flex-1 sm:flex-initial"
           >
             <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
             {isRefreshing ? "Syncing…" : "Refresh"}
           </Button>
-          <Button asChild size="sm" className="gap-1.5">
+          <Button asChild size="sm" className="gap-1.5 flex-1 sm:flex-initial">
             <Link href="/plans/new">
               <Plus className="size-3.5" />
               Create Plan
@@ -172,13 +172,13 @@ function OverviewContent({
       </div>
 
       {/* Stripe-grade 4-Card KPI Performance Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-5">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Total Earned (Net)</span>
             <Wallet className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             +{totalEarnedNetUsdc} USDC
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -188,12 +188,12 @@ function OverviewContent({
           </p>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Monthly Revenue (MRR)</span>
             <DollarSign className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {totalMrr} USDC
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -205,12 +205,12 @@ function OverviewContent({
           </p>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Active Subscribers</span>
             <Users className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {activeCount}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -220,12 +220,12 @@ function OverviewContent({
           </p>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Renewal Success Rate</span>
             <ShieldCheck className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {renewalSuccessRate}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -239,28 +239,30 @@ function OverviewContent({
       </div>
 
       {/* Plans Performance Breakdown Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+      <Card className="w-full min-w-0 overflow-hidden">
+        <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2.5">
               <CardTitle className="text-base">Plans Performance</CardTitle>
               <Badge variant="outline" className="tabular-nums">
                 {plans.length} plan{plans.length === 1 ? "" : "s"}
               </Badge>
             </div>
-            <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:underline -mr-2">
+            <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:underline -ml-2 sm:-mr-2 sm:ml-0 self-start sm:self-auto">
               <Link href="/plans">Manage all plans →</Link>
             </Button>
           </div>
-          <CardDescription>All recurring subscription plans deployed from this merchant wallet.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
+            All recurring subscription plans deployed from this merchant wallet.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {plans.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
+            <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
               No plans created yet. Click &quot;Create Plan&quot; above to launch your first recurring billing plan!
             </div>
           ) : (
-            <Table>
+            <Table className="min-w-155 md:min-w-full">
               <TableHeader>
                 <TableRow className="border-t-0 hover:bg-transparent">
                   <TableHead>Plan</TableHead>
@@ -343,33 +345,33 @@ function OverviewContent({
       </Card>
 
       {/* Two-Column Layout: Cross-Plan Activity + Keeper Crank Info */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid w-full min-w-0 gap-6 lg:grid-cols-3">
         {/* Left Column: Recent Billing Settlements across All Plans */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+        <div className="w-full min-w-0 lg:col-span-2">
+          <Card className="w-full min-w-0 overflow-hidden">
+            <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2.5">
                   <CardTitle className="text-base">Recent Settlements & Activity</CardTitle>
                   <Badge variant="outline" className="tabular-nums">
                     {onChainEvents.length} on-chain
                   </Badge>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:underline -mr-2">
+                <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:underline -ml-2 sm:-mr-2 sm:ml-0 self-start sm:self-auto">
                   <Link href="/subscribers">View subscribers →</Link>
                 </Button>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Live on-chain subscription events and keeper crank renewals across all plans.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {onChainEvents.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
+                <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                   {loadingEvents ? "Loading on-chain events from Solana Devnet…" : "No on-chain activity yet."}
                 </div>
               ) : (
-                <Table>
+                <Table className="min-w-145 md:min-w-full">
                   <TableHeader>
                     <TableRow className="border-t-0 hover:bg-transparent">
                       <TableHead>Event</TableHead>
@@ -440,13 +442,13 @@ function OverviewContent({
         </div>
 
         {/* Right Column: Keeper Crank Status & Quick Info */}
-        <div className="flex flex-col gap-6 lg:col-span-1">
-          <Card>
-            <CardHeader className="pb-3">
+        <div className="flex w-full min-w-0 flex-col gap-6 lg:col-span-1">
+          <Card className="w-full min-w-0">
+            <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
               <CardTitle className="text-base">Keeper Crank Status</CardTitle>
-              <CardDescription>Decentralized crank workers settling renewals.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Decentralized crank workers settling renewals.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col divide-y text-sm">
+            <CardContent className="flex flex-col divide-y text-sm px-4 sm:px-6">
               {crank.map((row) => (
                 <div key={row.label} className="flex items-center justify-between py-2.5">
                   <span className="text-xs text-muted-foreground">{row.label}</span>
@@ -460,12 +462,12 @@ function OverviewContent({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="w-full min-w-0">
+            <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
               <CardTitle className="text-base">Quick Actions</CardTitle>
-              <CardDescription>Distribute subscriptions and integrate TidePay.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Distribute subscriptions and integrate TidePay.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2.5 text-sm">
+            <CardContent className="flex flex-col gap-2.5 text-sm px-4 sm:px-6">
               <Button asChild variant="outline" className="justify-start gap-2">
                 <Link href="/plans/new">
                   <Plus className="size-4" />
