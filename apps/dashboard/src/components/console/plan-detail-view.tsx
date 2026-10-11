@@ -250,7 +250,7 @@ function PlanDetailContent({
                   </a>
                 </Button>
                 <Button asChild size="sm" className="gap-1.5 w-full sm:w-auto justify-center bg-primary text-primary-foreground font-medium">
-                  <a href={`https://dial.to/?action=solana-action:${encodeURIComponent(actionBlink)}`} target="_blank" rel="noreferrer">
+                  <a href={actionBlink} target="_blank" rel="noreferrer">
                     Open Blink on Dial.to
                     <Zap className="size-3.5 fill-current" />
                   </a>
