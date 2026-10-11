@@ -118,7 +118,10 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
     disconnecting: false,
     select: () => {},
     connect: async () => {
-      connectWallet();
+      connectWallet({
+        walletList: ["phantom", "solflare", "backpack"],
+        walletChainType: "solana-only",
+      });
     },
     disconnect,
     sendTransaction,
@@ -132,7 +135,10 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
     visible: false,
     setVisible: (visible: boolean) => {
       if (visible) {
-        connectWallet();
+        connectWallet({
+          walletList: ["phantom", "solflare", "backpack"],
+          walletChainType: "solana-only",
+        });
       }
     },
   };
@@ -155,7 +161,7 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
           theme: "dark",
           accentColor: "#00BFB3",
           walletChainType: "solana-only",
-          walletList: ["detected_solana_wallets"],
+          walletList: ["phantom", "solflare", "backpack"],
           showWalletLoginFirst: true,
         },
         externalWallets: {
