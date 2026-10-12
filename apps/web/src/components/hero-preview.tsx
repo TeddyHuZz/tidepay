@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import { DASHBOARD_URL } from "@/lib/config";
 
 export function HeroPreview() {
   return (
@@ -17,11 +18,10 @@ export function HeroPreview() {
             Non-custodial subscriptions with delegated pull billing. Designed for Solana Blinks.
           </p>
           <a
-            href="#blinks"
-            className="group inline-flex shrink-0 items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
+            href={DASHBOARD_URL}
+            className="group inline-flex shrink-0 items-center gap-2 rounded-full border border-[#00bfb3]/30 bg-[#00bfb3]/10 px-4 py-2 text-sm font-medium text-[#00bfb3] transition hover:border-[#00bfb3]/60 hover:bg-[#00bfb3]/20 hover:text-white"
           >
-            <span className="font-medium text-white">New</span>
-            <span>Solana Blinks</span>
+            <span>Get Started</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </a>
         </div>
