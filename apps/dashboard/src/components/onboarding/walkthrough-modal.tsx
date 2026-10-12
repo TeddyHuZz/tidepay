@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -85,8 +86,27 @@ const SLIDES = [
 
 export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const slide = SLIDES[currentSlide];
   const Icon = slide.icon;
@@ -108,33 +128,42 @@ export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="relative w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-2xl max-h-[92dvh] overflow-x-hidden overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="walkthrough-title"
       >
-        {/* Background glow decoration */}
-        <div className="absolute -top-24 -right-24 size-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 size-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        {/* Background glow decoration safely enclosed inside overflow-hidden */}
+        <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+          <div className="absolute -top-24 -right-24 size-64 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 size-64 rounded-full bg-emerald-500/10 blur-3xl" />
+        </div>
 
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="relative flex items-center justify-between pb-4 border-b border-border/50">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Sparkles className="size-4" />
             </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">TidePay Platform Guide</p>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider truncate">
+                TidePay Platform Guide
+              </p>
               <p className="text-[11px] text-muted-foreground">Step {currentSlide + 1} of {SLIDES.length}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer shrink-0 ml-2"
             aria-label="Close walkthrough"
           >
             <X className="size-5" />
@@ -221,6 +250,7 @@ export function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
