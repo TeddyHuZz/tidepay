@@ -14,7 +14,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
           <Suspense fallback={<header className="h-14 border-b px-8 py-3" />}>
             <Topbar />
           </Suspense>
-          <main id="main-content" className="min-w-0 max-w-full flex-1 px-3.5 sm:px-4 py-4 sm:py-6 md:px-8 md:py-8">
+          <main id="main-content" className="min-w-0 max-w-full flex-1 px-3.5 sm:px-4 pt-4 pb-24 sm:py-6 md:px-8 md:py-8">
             {children}
           </main>
         </div>

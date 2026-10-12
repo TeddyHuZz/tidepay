@@ -50,6 +50,9 @@ export function Sidebar() {
         <SidebarOnboardingWidget />
         <DeveloperDockButton className="mt-0" />
       </div>
+
+      {/* Mobile Floating Developer Hub */}
+      <DeveloperDockButton variant="mobile" />
     </aside>
   );
 }

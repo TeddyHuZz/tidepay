@@ -17,12 +17,21 @@ import {
   SlidersHorizontal,
   Users,
   Sparkles,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 import { WalkthroughModal } from "@/components/onboarding/walkthrough-modal";
 
-export function DeveloperDockButton({ className }: { className?: string } = {}) {
+interface DeveloperDockButtonProps {
+  className?: string;
+  variant?: "desktop" | "mobile";
+}
+
+export function DeveloperDockButton({
+  className,
+  variant = "desktop",
+}: DeveloperDockButtonProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
@@ -59,26 +68,63 @@ export function DeveloperDockButton({ className }: { className?: string } = {}) 
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  const isMobile = variant === "mobile";
+
   return (
-    <div ref={containerRef} className={cn("relative hidden md:block", className ?? "mt-auto")}>
-      {/* Floating Popover Menu (Stripe Developer Menu Style) */}
-      {isOpen && (
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isMobile && isOpen && (
         <div
-          role="menu"
-          aria-label="Developer Menu"
-          className="absolute bottom-full left-0 mb-2 w-72 origin-bottom-left rounded-xl border border-border/80 bg-popover text-popover-foreground p-3 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 z-50 flex flex-col gap-3 text-xs"
-        >
-          {/* Header & Cluster Status */}
-          <div className="flex items-center justify-between border-b border-border/50 pb-2.5 px-1">
-            <div className="flex items-center gap-1.5 font-semibold text-foreground">
-              <Terminal className="size-3.5 text-primary" />
-              <span>Developers</span>
+          className="fixed inset-0 z-40 bg-background/60 backdrop-blur-xs md:hidden animate-in fade-in-0 duration-150"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        ref={containerRef}
+        className={cn(
+          isMobile
+            ? "fixed bottom-6 left-4 z-40 md:hidden"
+            : "relative hidden md:block",
+          className ?? (isMobile ? "" : "mt-auto")
+        )}
+      >
+        {/* Floating Popover Menu (Stripe Developer Menu Style) */}
+        {isOpen && (
+          <div
+            role="menu"
+            aria-label="Developer Menu"
+            className={cn(
+              "z-50 flex flex-col gap-3 text-xs shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 border border-border/80 bg-popover/95 text-popover-foreground",
+              isMobile
+                ? "fixed bottom-20 left-4 right-4 sm:left-6 sm:right-auto sm:w-80 max-h-[75vh] overflow-y-auto rounded-2xl p-3.5"
+                : "absolute bottom-full left-0 mb-2 w-72 origin-bottom-left rounded-xl p-3"
+            )}
+          >
+            {/* Header & Cluster Status */}
+            <div className="flex items-center justify-between border-b border-border/50 pb-2.5 px-1">
+              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                <Terminal className="size-3.5 text-primary" />
+                <span>Developers</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Devnet
+                </div>
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    aria-label="Close developer menu"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Devnet
-            </div>
-          </div>
 
           {/* Section: Workbench */}
           <div className="flex flex-col gap-0.5">
@@ -204,35 +250,57 @@ export function DeveloperDockButton({ className }: { className?: string } = {}) 
         </div>
       )}
 
-      {/* Main Bottom Dock Button (Matching Stripe [>_ Developers]) */}
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex w-full items-center justify-between rounded-xl border p-3 text-left transition-all outline-none",
-          isOpen
-            ? "border-primary/50 bg-primary/10 text-foreground shadow-md ring-1 ring-primary/30"
-            : "border-border/60 bg-card/60 text-muted-foreground hover:border-border hover:bg-accent/50 hover:text-foreground"
-        )}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-background/80 border border-border/60 text-primary">
+      {/* Trigger Button: Desktop Dock vs Mobile Floating FAB */}
+      {isMobile ? (
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Developer Menu"
+          className={cn(
+            "flex h-12 items-center gap-2 rounded-full border px-3.5 shadow-xl backdrop-blur-md transition-all active:scale-95 cursor-pointer",
+            isOpen
+              ? "border-primary/50 bg-primary/20 text-foreground ring-1 ring-primary/40 shadow-primary/10"
+              : "border-border/80 bg-card/95 text-foreground hover:bg-card hover:border-primary/40"
+          )}
+        >
+          <div className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
             <Terminal className="size-3.5" />
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-semibold text-foreground truncate">Developers</span>
-          </div>
-        </div>
-
-        <ChevronUp
+          <span className="text-xs font-semibold">Dev</span>
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
-            isOpen && "rotate-180 text-primary"
+            "flex w-full items-center justify-between rounded-xl border p-3 text-left transition-all outline-none",
+            isOpen
+              ? "border-primary/50 bg-primary/10 text-foreground shadow-md ring-1 ring-primary/30"
+              : "border-border/60 bg-card/60 text-muted-foreground hover:border-border hover:bg-accent/50 hover:text-foreground"
           )}
-        />
-      </button>
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-background/80 border border-border/60 text-primary">
+              <Terminal className="size-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate">Developers</span>
+            </div>
+          </div>
+
+          <ChevronUp
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180 text-primary"
+            )}
+          />
+        </button>
+      )}
 
       {/* Interactive Platform Tour Modal */}
       <WalkthroughModal
@@ -240,5 +308,6 @@ export function DeveloperDockButton({ className }: { className?: string } = {}) 
         onClose={() => setIsWalkthroughOpen(false)}
       />
     </div>
-  );
+  </>
+);
 }
