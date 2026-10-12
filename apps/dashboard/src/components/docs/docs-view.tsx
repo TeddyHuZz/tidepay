@@ -240,7 +240,19 @@ function DocsContent() {
     "Smart Contract Reference": false,
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = useState(false);
+
+  // Lock body scroll when mobile menu drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [mobileMenuOpen]);
 
   // Sync activeTopic when URL query param changes and expand parent group
   useEffect(() => {
@@ -300,6 +312,25 @@ function DocsContent() {
     }).filter((group) => group.items.length > 0);
   }, [searchQuery]);
 
+  // Quick search results list for instant dropdown jumping
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const results: { id: DocTopicId; title: string; groupName: string }[] = [];
+    for (const group of DOC_TREE) {
+      for (const item of group.items) {
+        if (
+          item.title.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q) ||
+          item.keywords.some((k) => k.includes(q))
+        ) {
+          results.push({ id: item.id, title: item.title, groupName: group.name });
+        }
+      }
+    }
+    return results;
+  }, [searchQuery]);
+
   // Handle keyboard shortcut for search (/)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -322,36 +353,35 @@ function DocsContent() {
     <div className="min-h-screen bg-background text-foreground font-sans antialiased flex flex-col selection:bg-primary/30 selection:text-primary-foreground">
       {/* Top GitHub Docs Style Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
-        <div className="flex h-14 items-center justify-between px-4 lg:px-8 gap-4">
+        <div className="flex h-14 items-center justify-between px-3 sm:px-4 lg:px-8 gap-2 sm:gap-4">
           {/* Left: Brand + Plan Selector */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-md border border-border bg-background"
+              className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-md border border-border bg-background shrink-0 cursor-pointer"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
             </button>
 
-            <Link href="/" className="flex items-center gap-2 outline-none">
+            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 outline-none shrink-0">
               <Logo />
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted border border-border text-emerald-600 dark:text-[#7ee787] font-mono">
+              <span className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-muted border border-border text-emerald-600 dark:text-[#7ee787] font-mono">
                 Docs
               </span>
             </Link>
-
           </div>
 
-          {/* Center: Global Search Bar */}
-          <div className="flex-1 max-w-xl mx-2">
-            <div className="relative">
+          {/* Center: Global Search Bar (Desktop / Tablet) */}
+          <div className="hidden md:flex flex-1 max-w-md lg:max-w-xl mx-2 relative">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 id="docs-search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search docs, SDK methods, webhooks, or error codes..."
-                className="h-9 pl-9 pr-9 text-xs bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary rounded-md font-mono"
+                className="h-9 pl-9 pr-9 text-xs bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary rounded-md font-mono w-full"
               />
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
                 <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border border-border rounded">
@@ -359,28 +389,69 @@ function DocsContent() {
                 </kbd>
               </div>
             </div>
+
+            {/* Desktop Instant Search Results Dropdown */}
+            {searchQuery.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl p-2 z-50 max-h-72 overflow-y-auto">
+                {searchResults.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">No matching documentation topics found.</div>
+                ) : (
+                  searchResults.map((res) => (
+                    <button
+                      key={res.id}
+                      onClick={() => {
+                        selectTopic(res.id);
+                        setSearchQuery("");
+                      }}
+                      className="flex flex-col text-left w-full px-3 py-1.5 rounded-md hover:bg-accent text-xs transition-colors cursor-pointer"
+                    >
+                      <span className="font-semibold text-foreground">{res.title}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{res.groupName}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right: Console Jump, Theme Toggle & GitHub Link */}
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 text-xs bg-muted/40 border-border hover:bg-muted text-foreground hover:text-foreground">
-              <Link href="/">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Mobile Search Toggle */}
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              aria-label="Search documentation"
+              className="flex size-8 md:hidden items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Search className="size-4" />
+            </button>
+
+            {/* Back to Console Button */}
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 sm:px-2.5 gap-1.5 text-xs bg-muted/40 border-border hover:bg-muted text-foreground hover:text-foreground shrink-0"
+            >
+              <Link href="/" title="Back to Console">
                 <ArrowLeft className="size-3.5" />
-                <span className="hidden sm:inline">Back to</span> Console
+                <span className="hidden sm:inline">Console</span>
               </Link>
             </Button>
 
+            {/* Theme Toggle */}
             <button
               type="button"
               onClick={toggleTheme}
               title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               aria-label="Toggle theme"
-              className="flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              className="flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0"
             >
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
 
-            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-foreground">
+            {/* GitHub Link */}
+            <Button asChild size="sm" variant="ghost" className="hidden sm:flex size-8 p-0 text-muted-foreground hover:text-foreground shrink-0">
               <a href="https://github.com/TeddyHuZz/tidepay" target="_blank" rel="noreferrer" aria-label="GitHub Repository">
                 <svg className="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                   <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -390,26 +461,103 @@ function DocsContent() {
           </div>
         </div>
 
+        {/* Mobile Search Bar Drawer */}
+        {mobileSearchOpen && (
+          <div className="md:hidden border-t border-border px-3 py-2 bg-muted/30 animate-in slide-in-from-top-2 duration-150">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search topics, SDK methods, errors..."
+                className="h-8 pl-8 pr-7 text-xs bg-background border-border text-foreground"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Search Results */}
+            {searchQuery.trim() && (
+              <div className="mt-2 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-1.5 max-h-56 overflow-y-auto">
+                {searchResults.length === 0 ? (
+                  <div className="px-2.5 py-1.5 text-xs text-muted-foreground">No matches found.</div>
+                ) : (
+                  searchResults.map((res) => (
+                    <button
+                      key={res.id}
+                      onClick={() => {
+                        selectTopic(res.id);
+                        setSearchQuery("");
+                        setMobileSearchOpen(false);
+                      }}
+                      className="flex flex-col text-left w-full px-2.5 py-1.5 rounded-md hover:bg-accent text-xs transition-colors"
+                    >
+                      <span className="font-semibold text-foreground">{res.title}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{res.groupName}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* GitHub Docs Breadcrumbs bar */}
-        <div className="hidden md:flex items-center gap-2 px-8 py-2 text-xs text-muted-foreground border-t border-border bg-muted/20 font-mono">
-          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
-          <span>/</span>
-          <span className="text-foreground/80">{currentItem.groupName}</span>
-          <span>/</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{currentItem.title}</span>
+        <div className="flex items-center justify-between px-4 lg:px-8 py-1.5 md:py-2 text-[11px] md:text-xs text-muted-foreground border-t border-border bg-muted/20 font-mono">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+            <Link href="/" className="hover:text-primary transition-colors shrink-0">Home</Link>
+            <span>/</span>
+            <span className="text-foreground/80 truncate hidden sm:inline">{currentItem.groupName}</span>
+            <span className="hidden sm:inline">/</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium truncate">{currentItem.title}</span>
+          </div>
         </div>
       </header>
 
       {/* Main 3-Column Docs Layout */}
-      <div className="flex-1 flex max-w-380 w-full mx-auto">
+      <div className="flex-1 flex max-w-380 w-full mx-auto min-w-0">
+        {/* Mobile Backdrop Overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden animate-in fade-in duration-200"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* LEFT SIDEBAR: Topic Tree */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border p-4 overflow-y-auto pt-20 lg:pt-6 lg:static lg:block shrink-0 transition-transform",
+            "fixed inset-y-0 left-0 z-50 w-72 sm:w-80 bg-card border-r border-border p-4 overflow-y-auto lg:static lg:block shrink-0 transition-transform duration-200 shadow-2xl lg:shadow-none",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           )}
         >
-          <div className="mb-4 pb-2 border-b border-border">
+          {/* Mobile Drawer Header */}
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-border lg:hidden">
+            <div className="flex items-center gap-2">
+              <Logo />
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted border border-border text-emerald-600 dark:text-[#7ee787] font-mono">
+                Docs
+              </span>
+            </div>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1 text-muted-foreground hover:text-foreground rounded-md border border-border cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="hidden lg:block mb-4 pb-2 border-b border-border">
             <span className="text-xs font-bold text-foreground tracking-tight">TidePay Documentation</span>
             <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">v0.1.0 · Anchor 0.30+</div>
           </div>
@@ -455,13 +603,13 @@ function DocsContent() {
         </aside>
 
         {/* CENTER COLUMN: Main Article Content */}
-        <main className="flex-1 min-w-0 px-6 py-8 md:px-10 lg:px-12 max-w-4xl">
+        <main className="flex-1 min-w-0 px-4 py-6 sm:px-8 md:px-10 lg:px-12 max-w-4xl w-full">
           {/* Article Header */}
-          <div className="flex flex-col gap-3 pb-8 border-b border-border">
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+          <div className="flex flex-col gap-2.5 sm:gap-3 pb-6 sm:pb-8 border-b border-border">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               {currentItem.title}
             </h1>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               {currentItem.description}
             </p>
 

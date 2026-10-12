@@ -79,7 +79,7 @@ export function ErrorReferenceTable() {
       </CardHeader>
       <CardContent>
         <div className="rounded-lg border border-border/60 overflow-x-auto">
-          <Table className="min-w-160 text-xs">
+          <Table className="min-w-145 text-xs">
             <TableHeader>
               <TableRow className="border-t-0 bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-28">Code</TableHead>

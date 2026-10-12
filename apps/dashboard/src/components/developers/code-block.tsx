@@ -44,22 +44,22 @@ export function CodeBlock({
 
   return (
     <div className={cn("overflow-hidden rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm shadow-sm", className)}>
-      <div className="flex items-center justify-between border-b border-border/50 bg-muted/40 px-3 py-2 text-xs">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-border/50 bg-muted/40 px-3 py-2 text-xs gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
           {filename && (
-            <span className="font-mono text-[11px] font-medium text-foreground/80 px-2 py-0.5 rounded bg-background/50 border border-border/40">
+            <span className="font-mono text-[10px] sm:text-[11px] font-medium text-foreground/80 px-2 py-0.5 rounded bg-background/50 border border-border/40 shrink-0">
               {filename}
             </span>
           )}
           {activeTabs.length > 1 && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {activeTabs.map((tab, idx) => (
                 <button
                   key={tab.label}
                   type="button"
                   onClick={() => setActiveTabIdx(idx)}
                   className={cn(
-                    "rounded px-2.5 py-1 font-mono text-[11px] transition-colors",
+                    "rounded px-2 sm:px-2.5 py-1 font-mono text-[10px] sm:text-[11px] transition-colors shrink-0",
                     activeTabIdx === idx
                       ? "bg-background text-foreground font-semibold shadow-xs border border-border/50"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -76,7 +76,7 @@ export function CodeBlock({
           variant="ghost"
           size="sm"
           onClick={handleCopy}
-          className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+          className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
           aria-label="Copy code snippet"
         >
           {copied ? (
@@ -93,7 +93,7 @@ export function CodeBlock({
         </Button>
       </div>
 
-      <div className="p-4 overflow-x-auto bg-muted/60 text-foreground text-xs font-mono leading-relaxed selection:bg-primary/20">
+      <div className="p-3 sm:p-4 overflow-x-auto bg-muted/60 text-foreground text-[11px] sm:text-xs font-mono leading-relaxed selection:bg-primary/20">
         <pre className="overflow-x-auto">
           <code>{currentCode}</code>
         </pre>
