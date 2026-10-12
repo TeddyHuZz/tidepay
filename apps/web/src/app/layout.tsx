@@ -45,6 +45,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "TidePay | Recurring Subscriptions on Solana",
     description: "Zero escrow. 1-click in-feed Blinks. Autonomous keeper cranks.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: [

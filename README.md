@@ -1,41 +1,70 @@
-# TidePay 🌊
+<div align="center">
 
-**Non-Custodial Recurring Subscription & Billing Engine for Solana**  
-*Built for the Colosseum Solana Hackathon 2026*
+<img src="./assets/tidepay-logo.png" alt="TidePay Logo" width="160" style="border-radius: 24px;" />
 
-[![Solana Devnet](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat&logo=solana&logoColor=black)](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet)
-[![Anchor 0.30+](https://img.shields.io/badge/Anchor-0.30+-blue?style=flat)](https://www.anchor-lang.com/)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15%20App%20Router-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+# TidePay
+
+**The Non-Custodial Recurring Subscription & Billing Engine for Solana**  
+*Built natively for the Colosseum Solana Hackathon 2026*
+
+[![Solana Devnet](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat-square&logo=solana&logoColor=black)](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet)
+[![Anchor 0.30+](https://img.shields.io/badge/Anchor-0.30+-blue?style=flat-square)](https://www.anchor-lang.com/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15%20App%20Router-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Vitest](https://img.shields.io/badge/Vitest-39%2B%20Passing-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+
+[🌐 Live Landing](https://tidepay.vercel.app) • [📊 Merchant Console](https://app-tidepay.vercel.app) • [⚡ Actions API](https://api-tidepay.vercel.app) • [📑 Architecture & PRD](./docs/ARCHITECTURE_AND_PRD.md)
+
+</div>
 
 ---
 
-## ⚡ The Problem & The TidePay Solution
+## ⚡ The Problem & The TidePay Paradigm
 
 Traditional Web3 subscription implementations force users to lock upfront capital in custodial escrow vaults or manually sign monthly approval popups. 
 
-**TidePay replaces escrow contracts with a deterministic delegated pull engine:**
-1. **Zero Lockups & Non-Custodial:** Subscribers authorize a token delegation (`approve`) to the Program Authority PDA (`b"tidepay_auth"`). Capital remains in the subscriber's personal wallet earning staking/yield until billing is due.
+* **Custodial Escrows:** Freeze user liquidity, forfeit DeFi staking/yield, and create tempting smart contract hack honeypots.
+* **Monthly Signatures:** Asking users for monthly wallet popups causes catastrophic drop-off (up to 80% churn).
+
+### The TidePay Solution: Non-Custodial Delegated Pull
+TidePay replaces custodial escrow vaults with deterministic, on-chain time-locked pull delegation:
+
+1. **Zero Vault Lockups & Non-Custodial:** Subscribers authorize an SPL Token delegation (`approve`) to the Program Authority PDA (`b"tidepay_auth"`). Capital remains in the subscriber's personal wallet earning staking/yield until billing is due.
 2. **Deterministic Time-Locks:** Settlements enforce `clock.unix_timestamp >= record.next_epoch_timestamp` directly on-chain before executing `transfer_checked`.
-3. **Re-Entrancy Immune:** Timestamp and cycle count states mutate **before** external CPI token transfers.
+3. **Re-Entrancy Immune:** State mutations (`cycle_count`, `next_epoch_timestamp`) occur **before** external CPI token transfers (Checks-Effects-Interactions pattern).
 4. **1-Click Solana Blinks:** Merchants can turn any plan into an interactive Twitter/X or Dial.to checkout card via Solana Actions.
 5. **Decentralized Keeper Network:** Autonomous bots continuously scan for due epochs and trigger settlement transactions for a 0.05 USDC keeper bounty paid directly from merchant revenue.
 6. **Rent Cleanliness:** Cancelling a subscription deletes the `SubscriptionRecord` PDA on-chain and refunds all ~0.0015 SOL rent lamports straight back to the user (`close = subscriber`).
 
 ---
 
-## 🛰️ Live On-Chain Deployments (Solana Devnet)
+## 📊 Paradigm Comparison
 
-| Component | Identifier / Address | Explorer Link |
-| :--- | :--- | :--- |
-| **Program ID** | `DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ` | [View on Solana Explorer](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet) |
-| **Program Authority PDA** | Derived from `[b"tidepay_auth"]` | Non-custodial pull delegate for `transfer_checked` |
-| **Devnet USDC Mint** | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` | Circle Official Devnet Mint (6 Decimals) |
-| **RPC Cluster** | `https://api.devnet.solana.com` | High-performance Solana Devnet RPC |
+| Feature | Traditional Web2 (Stripe) | Custodial Web3 Escrow | TidePay (Solana) |
+| :--- | :--- | :--- | :--- |
+| **Custody of Funds** | Centralized Merchant/Bank | Smart Contract Vault | **Non-Custodial (User Wallet)** |
+| **Transaction Fees** | 2.9% + $0.30 per charge | Variable Gas + Slippage | **Sub-cent Solana Gas + 0.5% fee** |
+| **Chargeback Risk** | High (Fraud/Disputes) | None | **Zero (Irreversible on-chain)** |
+| **User Drop-off** | Low | High (Upfront Lockup) | **Zero (1-Click Blink Approval)** |
+| **Staking/DeFi Yield** | Lost | Lost in Vault | **Retained by User until Settlement** |
+| **Account Rent** | N/A | Trapped in Protocol | **100% Refunded on Cancellation** |
 
 ---
 
-## 🏗️ Architecture Flow
+## 🛰️ Live On-Chain Deployments (Solana Devnet)
+
+| Component | Identifier / Address | Details |
+| :--- | :--- | :--- |
+| **Program ID** | [`DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ`](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet) | Anchor 0.30+ program deployed on Solana Devnet |
+| **Program Authority PDA** | Derived from `[b"tidepay_auth"]` | Non-custodial pull delegate for CPI `transfer_checked` |
+| **Devnet USDC Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) | Official Circle Devnet Mint (6 Decimals) |
+| **RPC Cluster** | `https://api.devnet.solana.com` | High-performance Solana Devnet RPC |
+| **Actions API** | `https://api-tidepay.vercel.app` | Dial.to & Twitter/X Solana Actions specification |
+
+---
+
+## 🏗️ Architecture & Settlement Lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -54,7 +83,7 @@ sequenceDiagram
     Anchor-->>Customer: Initializes SubscriptionRecord PDA (next_epoch = now + interval)
 
     Note over Anchor,Keeper: 2. Autonomous Epoch Settlements
-    loop Every Billing Epoch (T >= T_next)
+    loop Every Billing Epoch (clock >= next_epoch)
         Keeper->>Anchor: process_epoch()
         Anchor->>Anchor: Verify clock.unix_timestamp >= next_epoch_timestamp
         Anchor->>Anchor: Advance next_epoch & increment cycle_count
@@ -69,30 +98,46 @@ sequenceDiagram
 
 ---
 
+## 🧪 Judge & Evaluator Quickstart (2-Minute Test)
+
+Judges can test the entire lifecycle in under two minutes without waiting 30 days:
+
+1. **Connect on Devnet:** Open [app-tidepay.vercel.app](https://app-tidepay.vercel.app) with your wallet set to **Solana Devnet** (with test SOL and test USDC).
+2. **Create Fast-Forward Plan:** Click **Create Plan** and select the **60s Demo** interval slider.
+3. **Subscribe via Blink or Hosted Checkout:** Click **Share Blink** to open on [dial.to](https://dial.to) or open the hosted checkout page. Confirm the transaction.
+4. **Observe Autonomous Renewal:** After 60 seconds, our off-chain keeper crank settles the epoch, triggering automated renewal on-chain.
+5. **Verify Rent Refund:** Cancel the subscription in the console: the `SubscriptionRecord` PDA is instantly closed, and all ~0.0015 SOL rent lamports are returned to your wallet.
+
+---
+
 ## 📦 Monorepo Structure
 
 ```
+tidepay/
 ├── apps/
-│   ├── dashboard/       # Next.js 15 App Router merchant console & checkout (app.tidepay.xyz)
-│   └── api/             # Next.js Solana Actions / Blinks & developer REST API (api.tidepay.xyz)
+│   ├── dashboard/       # Next.js 15 App Router merchant console & checkout (app-tidepay.vercel.app)
+│   ├── api/             # Next.js Solana Actions / Blinks & developer REST API (api-tidepay.vercel.app)
+│   └── web/             # Marketing landing page, docs portal & brand assets (tidepay.vercel.app)
 ├── packages/
-│   ├── protocol/        # Anchor 0.30+ Rust program & Crank keeper daemon
+│   ├── protocol/        # Anchor 0.30+ Rust program & automated keeper crank daemon
 │   ├── types/           # Shared IDL, TypeScript interfaces, and PDA seed constants
 │   └── sdk/             # @tidepay/sdk integration client library
+└── docs/
+    └── ARCHITECTURE_AND_PRD.md  # Detailed technical specifications & PRD
 ```
 
 > **Decoupled Architecture Guarantee:** Apps in `apps/*` interact strictly via `@tidepay/sdk` and `@tidepay/types`. They never import directly from `packages/protocol`.
 
 ---
 
-## 💻 30-Second SDK Quickstart
+## 💻 Developer SDK Quickstart
 
 ### 1. Installation
 ```bash
 pnpm add @tidepay/sdk @solana/web3.js @coral-xyz/anchor @solana/spl-token
 ```
 
-### 2. Feature Gating in API or Middleware
+### 2. Feature Gating in Middleware
 ```typescript
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TidePayClient } from "@tidepay/sdk";
@@ -122,13 +167,14 @@ pnpm install
 # 2. Run all applications concurrently via Turborepo
 pnpm dev
 
-# Dashboard runs on http://localhost:3000
-# Actions API runs on http://localhost:3001
+# Dashboard: http://localhost:3000
+# Actions API: http://localhost:3001
+# Web / Docs: http://localhost:3002
 ```
 
-### Running Tests
+### Running Test Suites
 ```bash
-# Run Vitest test suites (39+ passing tests)
+# Run Vitest test suites (39+ passing unit & integration tests)
 pnpm --filter dashboard test
 
 # Run Rust Protocol unit tests
@@ -146,3 +192,10 @@ cargo test --manifest-path packages/protocol/Cargo.toml
 - [x] Solana Actions & Blinks spec compliant (`actions.json`, Dial.to preview, CORS headers)
 - [x] Light & Dark theme support across merchant console, docs portal, and hosted checkout
 - [x] Zero custodial escrow vaults invariant enforced on-chain
+- [x] Comprehensive PRD & Technical Architecture specification (`docs/ARCHITECTURE_AND_PRD.md`)
+
+---
+
+## 📄 License
+
+This repository is licensed under the [MIT License](LICENSE).
