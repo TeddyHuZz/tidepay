@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { API_URL, blinkUrl } from "@/lib/chain/config";
+import { blinkUrl, getActionUrl } from "@/lib/chain/config";
 import { cn } from "@/lib/utils";
 import { markBlinkShared } from "@/components/onboarding/onboarding-state";
 
@@ -41,7 +41,7 @@ export function ShareBlinkButton({
   const menuRef = useRef<HTMLDivElement>(null);
   const { success: toastSuccess, info: toastInfo } = useToast();
 
-  const actionUrl = `${API_URL}/api/actions/subscribe/${planId}`;
+  const actionUrl = getActionUrl(planId);
   const dialUrl = blinkUrl(planId);
 
   // Close menu when clicking outside or pressing Escape

@@ -74,6 +74,14 @@ export const DEFAULT_CRANK_BOUNTY_USDC = "0.05";
 /** process_epoch does not charge a protocol fee yet; keep plans at 0 bps. */
 export const PROTOCOL_FEE_BPS = 0;
 
+export const PUBLIC_API_URL = "https://api-tidepay.vercel.app";
+
+export function getActionUrl(planAddress: string): string {
+  const isLocal = API_URL.includes("localhost") || API_URL.includes("127.0.0.1");
+  const base = isLocal ? PUBLIC_API_URL : API_URL;
+  return `${base}/api/actions/subscribe/${planAddress}`;
+}
+
 export function explorerUrl(kind: "address" | "tx", value: string, environment: "sandbox" | "live" = "sandbox") {
   const cluster = getCluster(environment);
   return cluster === "mainnet-beta"
@@ -83,7 +91,7 @@ export function explorerUrl(kind: "address" | "tx", value: string, environment: 
 
 export function blinkUrl(planAddress: string, environment: "sandbox" | "live" = "sandbox") {
   const cluster = getCluster(environment);
-  const actionUrl = `${API_URL}/api/actions/subscribe/${planAddress}`;
+  const actionUrl = getActionUrl(planAddress);
   return cluster === "mainnet-beta"
     ? `https://dial.to/?action=solana-action:${encodeURIComponent(actionUrl)}`
     : `https://dial.to/?action=solana-action:${encodeURIComponent(actionUrl)}&cluster=devnet`;

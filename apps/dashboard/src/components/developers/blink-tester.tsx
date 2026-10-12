@@ -5,7 +5,7 @@ import { ExternalLink, Zap, Copy, Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { API_URL, blinkUrl } from "@/lib/chain/config";
+import { blinkUrl, getActionUrl } from "@/lib/chain/config";
 
 const SAMPLE_PLANS = [
   { id: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P", label: "google-pro (Devnet)" },
@@ -17,7 +17,7 @@ export function BlinkTester() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   const cleanPlan = planInput.trim() || SAMPLE_PLANS[0].id;
-  const actionEndpoint = `${API_URL}/api/actions/subscribe/${cleanPlan}`;
+  const actionEndpoint = getActionUrl(cleanPlan);
   const dialToUrl = blinkUrl(cleanPlan);
 
   const handleCopy = (text: string, key: string) => {
