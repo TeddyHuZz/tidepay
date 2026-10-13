@@ -4,6 +4,9 @@
 
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TidePayClient } from "@tidepay/sdk";
+import { createPublicClient, http } from "viem";
+import { sepolia, baseSepolia } from "viem/chains";
+import { TIDEPAY_EVM_ABI, EVM_DEPLOYMENTS } from "@tidepay/types";
 import type { PlanAccount, SubscriptionAccount } from "./derive";
 
 /** Byte offset of the first field after the 8-byte Anchor discriminator. */
@@ -409,4 +412,118 @@ export async function syncSettlementsToDatabase(events: PlanOnChainEvent[]): Pro
     // Non-blocking background sync
   }
 }
+
+export async function fetchEvmMerchantPlans(
+  merchantAddress: `0x${string}`,
+  chainId = 11155111,
+  customContractAddress?: `0x${string}`
+): Promise<{ plans: PlanAccount[]; subscriptions: SubscriptionAccount[] }> {
+  const contractAddress =
+    customContractAddress ||
+    (process.env.NEXT_PUBLIC_EVM_CONTRACT_ADDRESS as `0x${string}`) ||
+    EVM_DEPLOYMENTS[chainId as 11155111 | 84532]?.contractAddress;
+
+  if (
+    !contractAddress ||
+    contractAddress === "0x0000000000000000000000000000000000000000"
+  ) {
+    return { plans: [], subscriptions: [] };
+  }
+
+  const chain = chainId === 84532 ? baseSepolia : sepolia;
+  const client = createPublicClient({
+    chain,
+    transport: http(),
+  });
+
+  try {
+    const planKeys = (await client.readContract({
+      address: contractAddress as `0x${string}`,
+      abi: TIDEPAY_EVM_ABI,
+      functionName: "getMerchantPlanKeys",
+      args: [merchantAddress],
+    })) as `0x${string}`[];
+
+    if (!planKeys || planKeys.length === 0) {
+      return { plans: [], subscriptions: [] };
+    }
+
+    const planAccounts: PlanAccount[] = [];
+    const subscriptionAccounts: SubscriptionAccount[] = [];
+
+    for (const planKey of planKeys) {
+      try {
+        const planData = (await client.readContract({
+          address: contractAddress as `0x${string}`,
+          abi: TIDEPAY_EVM_ABI,
+          functionName: "plans",
+          args: [planKey],
+        })) as [string, string, bigint, bigint, bigint, string, boolean];
+
+        const [merchant, token, amount, intervalSeconds, crankBountyAmount, planId, isActive] = planData;
+
+        planAccounts.push({
+          address: planKey,
+          merchant,
+          tokenMint: token,
+          merchantTokenAccount: merchant,
+          amount,
+          intervalSeconds,
+          planId,
+          protocolFeeBps: 50,
+          crankBountyAmount,
+          isActive,
+        });
+
+        const subscribers = (await client.readContract({
+          address: contractAddress as `0x${string}`,
+          abi: TIDEPAY_EVM_ABI,
+          functionName: "getPlanSubscribers",
+          args: [planKey],
+        })) as `0x${string}`[];
+
+        for (const subscriber of subscribers) {
+          try {
+            const subKey = (await client.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: TIDEPAY_EVM_ABI,
+              functionName: "getSubKey",
+              args: [planKey, subscriber],
+            })) as `0x${string}`;
+
+            const subData = (await client.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: TIDEPAY_EVM_ABI,
+              functionName: "subscriptions",
+              args: [subKey],
+            })) as [string, string, string, bigint, bigint, bigint, bigint, boolean];
+
+            const [, , , startTimestamp, lastEpochTimestamp, nextEpochTimestamp, cycleCount, subIsActive] = subData;
+
+            subscriptionAccounts.push({
+              address: subKey,
+              plan: planKey,
+              subscriber,
+              startTimestamp,
+              lastEpochTimestamp,
+              nextEpochTimestamp,
+              cycleCount,
+              isActive: subIsActive,
+            });
+          } catch {
+            // Non-blocking subscriber read
+          }
+        }
+      } catch {
+        // Non-blocking plan read
+      }
+    }
+
+    return { plans: planAccounts, subscriptions: subscriptionAccounts };
+  } catch (error) {
+    console.warn("[TidePay] EVM contract read notice:", error);
+    return { plans: [], subscriptions: [] };
+  }
+}
+
 

@@ -84,6 +84,20 @@ export const TIDEPAY_EVM_ABI = [
   },
   {
     type: "function",
+    name: "getMerchantPlanKeys",
+    inputs: [{ name: "merchant", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bytes32[]", internalType: "bytes32[]" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getPlanSubscribers",
+    inputs: [{ name: "planKey", type: "bytes32", internalType: "bytes32" }],
+    outputs: [{ name: "", type: "address[]", internalType: "address[]" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
     name: "plans",
     inputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
     outputs: [

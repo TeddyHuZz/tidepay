@@ -118,6 +118,12 @@ contract TidePaySubscription is ReentrancyGuard {
     // subKey = keccak256(abi.encodePacked(planKey, subscriber))
     mapping(bytes32 => Subscription) public subscriptions;
 
+    // Merchant plans registry
+    mapping(address => bytes32[]) internal _merchantPlanKeys;
+
+    // Plan subscribers registry
+    mapping(bytes32 => address[]) internal _planSubscribers;
+
     // --- Events ---
 
     event PlanCreated(
@@ -185,6 +191,14 @@ contract TidePaySubscription is ReentrancyGuard {
         return keccak256(abi.encodePacked(planKey, subscriber));
     }
 
+    function getMerchantPlanKeys(address merchant) external view returns (bytes32[] memory) {
+        return _merchantPlanKeys[merchant];
+    }
+
+    function getPlanSubscribers(bytes32 planKey) external view returns (address[] memory) {
+        return _planSubscribers[planKey];
+    }
+
     // --- Plan Management ---
 
     function createPlan(
@@ -212,6 +226,8 @@ contract TidePaySubscription is ReentrancyGuard {
             planId: planId,
             isActive: true
         });
+
+        _merchantPlanKeys[msg.sender].push(planKey);
 
         emit PlanCreated(
             planKey,
@@ -292,6 +308,8 @@ contract TidePaySubscription is ReentrancyGuard {
 
         // Epoch 0 Settlement: Pull funds from subscriber to merchant
         IERC20(plan.token).safeTransferFrom(subscriber, plan.merchant, plan.amount);
+
+        _planSubscribers[planKey].push(subscriber);
 
         emit Subscribed(subKey, planKey, subscriber, plan.merchant, nowTs, nextEpoch);
     }

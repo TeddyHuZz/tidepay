@@ -4,8 +4,11 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@tidepay/types": "workspace:*",
     "@coral-xyz/anchor": "^0.30.1",
-    "@solana/web3.js": "^1.95.0"
+    "@solana/web3.js": "^1.95.0",
+    "@tidepay/types": "workspace:*"
+  },
+  "devDependencies": {
+    "solc": "^0.8.37"
   }
 }

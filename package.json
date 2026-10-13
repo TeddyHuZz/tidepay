@@ -10,7 +10,9 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "anchor:build": "pnpm --filter protocol build",
-    "anchor:test": "pnpm --filter protocol test"
+    "anchor:test": "pnpm --filter protocol test",
+    "evm:compile": "node packages/contracts-evm/scripts/compile.cjs",
+    "evm:deploy": "node packages/contracts-evm/scripts/deploy.cjs"
   },
   "keywords": [],
   "author": "",

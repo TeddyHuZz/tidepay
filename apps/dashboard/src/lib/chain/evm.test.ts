@@ -19,6 +19,8 @@ describe("TidePay EVM Integration Suite", () => {
     expect(functionNames).toContain("cancelSubscription");
     expect(functionNames).toContain("getPlanKey");
     expect(functionNames).toContain("getSubKey");
+    expect(functionNames).toContain("getMerchantPlanKeys");
+    expect(functionNames).toContain("getPlanSubscribers");
   });
 
   it("exports valid ERC20 ABI functions", () => {
@@ -61,5 +63,16 @@ describe("TidePay EVM Integration Suite", () => {
     expect(baseClient.usdcAddress).toBe(
       "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
     );
+  });
+
+  it("fetchEvmMerchantPlans returns empty arrays when contract is not configured", async () => {
+    const { fetchEvmMerchantPlans } = await import("./accounts");
+    const res = await fetchEvmMerchantPlans(
+      "0x2c0000000000000000000000000000000000798e",
+      11155111,
+      "0x0000000000000000000000000000000000000000"
+    );
+    expect(res.plans).toEqual([]);
+    expect(res.subscriptions).toEqual([]);
   });
 });

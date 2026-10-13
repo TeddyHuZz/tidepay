@@ -20,6 +20,9 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
+import { TIDEPAY_EVM_ABI, EVM_DEPLOYMENTS } from "@tidepay/types";
+import { encodeFunctionData } from "viem";
 import { createClient } from "@/lib/chain/accounts";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
@@ -91,6 +94,7 @@ export function PlanForm() {
   const { success: toastSuccess, error: toastError } = useToast();
   const { connection } = useConnection();
   const { publicKey } = useWallet();
+  const { chainType, evmAddress, evmWallet } = useTidePayUnifiedWallet();
   const { refresh } = useMerchantData();
   const { addPlanToActiveProject } = useProject();
   const { buildTransaction, send } = useSendTransaction();
@@ -123,12 +127,66 @@ export function PlanForm() {
   const formValid = planIdValid && amount !== null && !priceTooLow && intervalValid;
   const intervalPhrase = intervalUnit(intervalSeconds);
 
-  const planAddress = useMemo(
-    () => (publicKey && planIdValid ? client.findMerchantPlanPda(publicKey, planId)[0].toBase58() : null),
-    [client, publicKey, planId, planIdValid],
-  );
+  const planAddress = useMemo(() => {
+    if (chainType === "evm" && evmAddress && planIdValid) {
+      return `0x${planId}`;
+    }
+    return publicKey && planIdValid ? client.findMerchantPlanPda(publicKey, planId)[0].toBase58() : null;
+  }, [chainType, evmAddress, client, publicKey, planId, planIdValid]);
 
   async function createPlan() {
+    if (chainType === "evm") {
+      if (!evmAddress || !formValid || amount === null) return;
+      const contractAddress =
+        (process.env.NEXT_PUBLIC_EVM_CONTRACT_ADDRESS as `0x${string}`) ||
+        EVM_DEPLOYMENTS[11155111]?.contractAddress;
+
+      if (!contractAddress || contractAddress === "0x0000000000000000000000000000000000000000") {
+        const errorMsg = "EVM Contract is not deployed yet. Please deploy TidePaySubscription.sol to Sepolia or Base Sepolia.";
+        setSubmit({ status: "error", message: errorMsg });
+        toastError("Contract Not Deployed", errorMsg);
+        return;
+      }
+
+      setSubmit({ status: "submitting" });
+      try {
+        if (!evmWallet) throw new Error("No EVM wallet connected");
+        const provider = await evmWallet.getEthereumProvider();
+        const usdcAddress = EVM_DEPLOYMENTS[11155111]?.usdcAddress as `0x${string}`;
+
+        const data = encodeFunctionData({
+          abi: TIDEPAY_EVM_ABI,
+          functionName: "createPlan",
+          args: [
+            planId,
+            usdcAddress,
+            amount,
+            BigInt(intervalSeconds),
+            crankBountyAmount,
+          ],
+        });
+
+        const txHash = (await provider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: evmAddress, to: contractAddress, data }],
+        })) as string;
+
+        setSubmit({ status: "success", signature: txHash });
+        addPlanToActiveProject(planId);
+        refresh();
+        toastSuccess(`EVM Plan "${planId}" created!`, "Redirecting to plan analytics...");
+        setTimeout(() => {
+          router.push(`/plans/${encodeURIComponent(planId)}`);
+        }, 1200);
+        return;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSubmit({ status: "error", message: msg });
+        toastError("Failed to create EVM plan", msg);
+        return;
+      }
+    }
+
     if (!publicKey || !formValid || !planAddress || amount === null) return;
     setSubmit({ status: "submitting" });
     try {
@@ -360,13 +418,17 @@ export function PlanForm() {
                 <Link href="/plans">{created ? "Back to plans" : "Cancel"}</Link>
               </Button>
               <Button
-                disabled={!publicKey || !formValid || submit.status === "submitting" || created}
+                disabled={(!publicKey && !evmAddress) || !formValid || submit.status === "submitting" || created}
                 onClick={() => void createPlan()}
               >
-                {submit.status === "submitting" ? "Creating plan…" : "Create plan on Devnet"}
+                {submit.status === "submitting"
+                  ? "Creating plan…"
+                  : chainType === "evm"
+                  ? "Create plan on EVM"
+                  : "Create plan on Devnet"}
               </Button>
             </div>
-            {!publicKey && (
+            {!publicKey && !evmAddress && (
               <p className="text-right text-xs text-muted-foreground">Connect a wallet to create a plan.</p>
             )}
             {submit.status === "error" && (

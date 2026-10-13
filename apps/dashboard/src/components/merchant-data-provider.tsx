@@ -1,20 +1,21 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { createClient, fetchMerchantPlans, fetchSubscriptions } from "@/lib/chain/accounts";
+import { createClient, fetchMerchantPlans, fetchSubscriptions, fetchEvmMerchantPlans } from "@/lib/chain/accounts";
 import { USE_SAMPLE_DATA } from "@/lib/chain/config";
 import { deriveMerchantData } from "@/lib/chain/derive";
 import { getSampleMerchantData } from "@/lib/data";
 import type { MerchantData } from "@/lib/types";
 import { useProject } from "@/components/project-context";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 
 export interface MerchantDataErrorInfo {
   title: string;
   message: string;
   rpcEndpoint: string;
-  cluster: "Solana Devnet" | "Solana Mainnet";
+  cluster: "Solana Devnet" | "Solana Mainnet" | "EVM Testnet";
   status?: number;
   isAuthError: boolean;
   isRateLimit: boolean;
@@ -49,6 +50,11 @@ async function loadMerchantData(connection: Connection, merchant: PublicKey): Pr
   return deriveMerchantData(plans, subscriptions, Math.floor(Date.now() / 1000));
 }
 
+async function loadEvmMerchantData(merchant: `0x${string}`): Promise<MerchantData> {
+  const { plans, subscriptions } = await fetchEvmMerchantPlans(merchant);
+  return deriveMerchantData(plans, subscriptions, Math.floor(Date.now() / 1000));
+}
+
 interface LoadResult {
   key: string;
   data?: MerchantData;
@@ -58,21 +64,34 @@ interface LoadResult {
 
 export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection();
-  const { publicKey } = useWallet();
+  const { chainType, solanaPublicKey, evmAddress } = useTidePayUnifiedWallet();
   const { activeProject } = useProject();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
 
-  const merchant = publicKey?.toBase58() ?? null;
+  const merchant =
+    chainType === "evm" && evmAddress
+      ? evmAddress
+      : chainType === "solana" && solanaPublicKey
+      ? solanaPublicKey.toBase58()
+      : null;
   const requestKey = merchant ? `${merchant}:${version}` : null;
 
   useEffect(() => {
     if (USE_SAMPLE_DATA || !merchant || !requestKey) return;
     let cancelled = false;
     setIsRefreshing(true);
-    loadMerchantData(connection, new PublicKey(merchant))
+
+    const loadPromise =
+      chainType === "evm" && evmAddress
+        ? loadEvmMerchantData(evmAddress)
+        : solanaPublicKey
+        ? loadMerchantData(connection, solanaPublicKey)
+        : Promise.reject(new Error("No wallet connected"));
+
+    loadPromise
       .then(
         (data) => {
           if (!cancelled) {
@@ -84,8 +103,16 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
           console.error("[TidePay] Failed to load merchant data:", error);
           if (!cancelled) {
             const rawMsg = error instanceof Error ? error.message : String(error);
-            const cluster = activeProject.environment === "live" ? "Solana Mainnet" : "Solana Devnet";
-            const rpcEndpoint = connection.rpcEndpoint;
+            const cluster =
+              chainType === "evm"
+                ? "EVM Testnet"
+                : activeProject.environment === "live"
+                ? "Solana Mainnet"
+                : "Solana Devnet";
+            const rpcEndpoint =
+              chainType === "evm"
+                ? "https://rpc.sepolia.org"
+                : connection.rpcEndpoint;
 
             const isAuthError =
               rawMsg.includes("401") ||
@@ -147,7 +174,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [connection, merchant, requestKey, activeProject.environment]);
+  }, [connection, merchant, requestKey, activeProject.environment, chainType, evmAddress, solanaPublicKey]);
 
   // Visibility-aware auto-polling: polls every 20s while active; pauses when tab is hidden
   useEffect(() => {

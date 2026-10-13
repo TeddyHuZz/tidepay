@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import {
   PrivyProvider,
   usePrivy,
@@ -88,28 +88,33 @@ export function useTidePayUnifiedWallet(): TidePayUnifiedWalletState {
 }
 
 function PrivyBridge({ children }: { children: ReactNode }) {
-  const { logout, ready: privyReady } = usePrivy();
+  const { logout, ready: privyReady, authenticated } = usePrivy();
   const { connectWallet } = useConnectWallet();
   const { ready: solanaWalletsReady, wallets: solanaWallets } = usePrivySolanaWallets();
   const { ready: evmWalletsReady, wallets: evmWallets } = usePrivyEvmWallets();
   const { signTransaction: privySignTx } = useSignTransaction();
 
+  const [manuallyDisconnected, setManuallyDisconnected] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem("tidepay_wallet_disconnected") === "true";
+  });
+
   const solanaWallet = solanaWallets[0] ?? null;
   const evmWallet = evmWallets[0] ?? null;
 
   const publicKey = useMemo(() => {
-    if (!solanaWallet?.address) return null;
+    if (manuallyDisconnected || !solanaWallet?.address) return null;
     try {
       return new PublicKey(solanaWallet.address);
     } catch {
       return null;
     }
-  }, [solanaWallet?.address]);
+  }, [manuallyDisconnected, solanaWallet?.address]);
 
   const evmAddress = useMemo(() => {
-    if (!evmWallet?.address) return null;
+    if (manuallyDisconnected || !evmWallet?.address) return null;
     return evmWallet.address.toLowerCase() as `0x${string}`;
-  }, [evmWallet?.address]);
+  }, [manuallyDisconnected, evmWallet?.address]);
 
   const chainType: "solana" | "evm" | null = publicKey
     ? "solana"
@@ -150,6 +155,10 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   }, [signTransaction]);
 
   const disconnect = async () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("tidepay_wallet_disconnected", "true");
+    }
+    setManuallyDisconnected(true);
     try {
       if (solanaWallet) await solanaWallet.disconnect();
     } catch {}
@@ -157,11 +166,15 @@ function PrivyBridge({ children }: { children: ReactNode }) {
       if (evmWallet) await evmWallet.disconnect();
     } catch {}
     try {
-      await logout();
+      if (authenticated) await logout();
     } catch {}
   };
 
   const handleConnect = (chainPreference?: "solana" | "evm") => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("tidepay_wallet_disconnected");
+    }
+    setManuallyDisconnected(false);
     if (chainPreference === "solana") {
       connectWallet({
         walletList: ["phantom", "solflare", "backpack"],
