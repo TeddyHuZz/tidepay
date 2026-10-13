@@ -5,6 +5,8 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useEvmSubscription } from "@/hooks/use-evm-subscription";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 import { explorerUrl } from "@/lib/chain/config";
 import { formatDateTimeUtc } from "@/lib/format";
 import { intervalUnit } from "@/lib/types";
@@ -19,27 +21,89 @@ interface CheckoutCardProps {
   merchant?: string;
 }
 
-export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, active, isSample, merchant }: CheckoutCardProps) {
-  const { connected, publicKey, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
-  const { lookup, action, subscribe, cancel } = useSubscription(isSample ? null : planAddress);
+export function CheckoutCard({
+  planAddress,
+  name,
+  priceUsdc,
+  intervalSeconds,
+  active,
+  isSample,
+  merchant,
+}: CheckoutCardProps) {
+  const isEvmPlan = planAddress.startsWith("0x");
+
+  // Solana hooks
+  const solanaWallet = useWallet();
+  const solanaModal = useWalletModal();
+  const solanaSub = useSubscription(isSample || isEvmPlan ? null : planAddress);
+
+  // EVM hooks
+  const unifiedWallet = useTidePayUnifiedWallet();
+  const evmSub = useEvmSubscription(isEvmPlan ? planAddress : null);
 
   const unit = intervalUnit(intervalSeconds);
-  const pending = action.status === "pending";
-  const subscribed = lookup.status === "active" || lookup.status === "past_due";
-  const isOwner = Boolean(connected && publicKey && merchant && publicKey.toBase58() === merchant);
+
+  // Unified status resolution
+  const isConnected = isEvmPlan
+    ? Boolean(unifiedWallet.evmAddress)
+    : solanaWallet.connected;
+
+  const isPending = isEvmPlan
+    ? evmSub.action.status === "pending"
+    : solanaSub.action.status === "pending";
+
+  const isSubscribed = isEvmPlan
+    ? evmSub.lookup.status === "active"
+    : solanaSub.lookup.status === "active" || solanaSub.lookup.status === "past_due";
+
+  const isOwner = Boolean(
+    isConnected &&
+      merchant &&
+      (isEvmPlan
+        ? unifiedWallet.evmAddress?.toLowerCase() === merchant.toLowerCase()
+        : solanaWallet.publicKey?.toBase58() === merchant)
+  );
 
   const handleDisconnect = async () => {
     try {
-      await disconnect();
+      if (isEvmPlan) {
+        await unifiedWallet.disconnect();
+      } else {
+        await solanaWallet.disconnect();
+      }
     } catch (err) {
       console.error("[TidePay] Disconnect error:", err);
     }
   };
 
+  const handleConnect = () => {
+    if (isEvmPlan) {
+      unifiedWallet.connect("evm");
+    } else {
+      solanaModal.setVisible(true);
+    }
+  };
+
+  const handleSubscribe = () => {
+    if (isEvmPlan) {
+      void evmSub.subscribe();
+    } else {
+      void solanaSub.subscribe();
+    }
+  };
+
+  const handleCancel = () => {
+    if (isEvmPlan) {
+      void evmSub.cancel();
+    } else {
+      void solanaSub.cancel();
+    }
+  };
+
   const rows = [
     { label: "Billed every", value: unit },
-    { label: "Token", value: "USDC (Devnet)" },
+    { label: "Network", value: isEvmPlan ? "Ethereum / Base Sepolia" : "Solana Devnet" },
+    { label: "Token", value: "USDC" },
     { label: "First charge", value: "Today, when you subscribe" },
   ];
 
@@ -47,6 +111,17 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
     <Card className="w-full max-w-md">
       <CardContent className="flex flex-col gap-6 p-6">
         <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span
+              className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${
+                isEvmPlan
+                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+              }`}
+            >
+              {isEvmPlan ? "EVM Plan" : "Solana Plan"}
+            </span>
+          </div>
           <CardTitle className="text-lg">{name}</CardTitle>
           <CardDescription className="mt-1">Recurring subscription, paid in USDC.</CardDescription>
         </div>
@@ -71,39 +146,39 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
         )}
 
         <div className="flex flex-col gap-3">
-          {subscribed ? (
+          {isSubscribed ? (
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1 rounded-md border border-success/30 bg-success-soft px-4 py-3 text-success">
-                <span className="font-semibold">
-                  {lookup.status === "past_due" ? "Subscribed, renewal overdue" : "You're subscribed"}
-                </span>
-                <span className="text-[13px]">
-                  Next renewal {formatDateTimeUtc(new Date(Number(lookup.record.nextEpochTimestamp) * 1000).toISOString())}
-                </span>
+                <span className="font-semibold">You're subscribed</span>
+                {!isEvmPlan && (solanaSub.lookup.status === "active" || solanaSub.lookup.status === "past_due") && (
+                  <span className="text-[13px]">
+                    Next renewal {formatDateTimeUtc(new Date(Number(solanaSub.lookup.record.nextEpochTimestamp) * 1000).toISOString())}
+                  </span>
+                )}
               </div>
               <Button
                 variant="outline"
-                disabled={pending}
-                onClick={() => void cancel()}
+                disabled={isPending}
+                onClick={handleCancel}
                 className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white dark:hover:text-white transition-colors font-medium"
               >
-                {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
+                {isPending ? "Cancelling…" : "Cancel subscription"}
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
-                Instant on-chain revocation · Returns ~0.0015 SOL rent to your wallet
+                Instant on-chain revocation · Non-custodial pull cancelled
               </p>
             </div>
           ) : (
             <SubscribeButton
-              connected={connected}
+              connected={isConnected}
               isSample={isSample}
               active={active}
               isOwner={isOwner}
-              checking={lookup.status === "loading"}
-              pending={pending}
-              onConnect={() => setVisible(true)}
+              checking={isEvmPlan ? evmSub.lookup.status === "loading" : solanaSub.lookup.status === "loading"}
+              pending={isPending}
+              onConnect={handleConnect}
               onDisconnect={handleDisconnect}
-              onSubscribe={() => void subscribe()}
+              onSubscribe={handleSubscribe}
             />
           )}
 
@@ -114,24 +189,45 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
 
           {isSample && (
             <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
-              This is a sample plan. Subscribing needs a plan created on Devnet.
+              This is a sample plan. Subscribing needs a plan created on Devnet or Testnet.
             </p>
           )}
-          {action.status === "error" && (
+
+          {/* Error messages */}
+          {!isEvmPlan && solanaSub.action.status === "error" && (
             <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
-              {action.message}
+              {solanaSub.action.message}
             </p>
           )}
-          {action.status === "done" && (
+          {isEvmPlan && evmSub.action.status === "error" && (
+            <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
+              {evmSub.action.error}
+            </p>
+          )}
+
+          {/* Success messages */}
+          {!isEvmPlan && solanaSub.action.status === "done" && (
             <p role="status" className="text-xs text-muted-foreground">
-              {action.kind === "cancel" && "Subscription cancelled; rent refunded to your wallet. "}
+              {solanaSub.action.kind === "cancel" && "Subscription cancelled; rent refunded to your wallet. "}
               <a
-                href={explorerUrl("tx", action.signature)}
+                href={explorerUrl("tx", solanaSub.action.signature)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
               >
                 View transaction ↗
+              </a>
+            </p>
+          )}
+          {isEvmPlan && evmSub.action.status === "success" && evmSub.action.signature && (
+            <p role="status" className="text-xs text-muted-foreground">
+              <a
+                href={`${evmSub.deployment.blockExplorer}/tx/${evmSub.action.signature}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+              >
+                View EVM transaction ↗
               </a>
             </p>
           )}

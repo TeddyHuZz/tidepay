@@ -1,26 +1,28 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { shortAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 
 const subscribe = () => () => {};
 
-// Wallet state only exists in the browser; render a stable placeholder
-// during SSR and hydration so the markup never mismatches.
 function useIsClient() {
   return useSyncExternalStore(subscribe, () => true, () => false);
 }
 
-import { cn } from "@/lib/utils";
-
 export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "lg" }) {
   const isClient = useIsClient();
-  const { publicKey, connected, connecting, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
+  const {
+    connected,
+    connecting,
+    activeAddress,
+    chainType,
+    connect,
+    disconnect,
+  } = useTidePayUnifiedWallet();
 
   if (!isClient) {
     return (
@@ -30,8 +32,10 @@ export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "
     );
   }
 
-  if (connected && publicKey) {
+  if (connected && activeAddress) {
     const isSm = size === "sm";
+    const isEvm = chainType === "evm";
+
     return (
       <div className="flex items-center gap-1.5 sm:gap-2">
         <span
@@ -42,8 +46,17 @@ export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "
               : "h-9 sm:h-11 px-2.5 sm:px-3.5 text-xs sm:text-[13px] gap-2"
           )}
         >
-          <span className="size-1.5 sm:size-2 rounded-full bg-primary" aria-hidden="true" />
-          {shortAddress(publicKey.toBase58())}
+          <span
+            className={cn(
+              "size-1.5 sm:size-2 rounded-full",
+              isEvm ? "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" : "bg-primary shadow-[0_0_8px_rgba(20,241,149,0.6)]"
+            )}
+            aria-hidden="true"
+          />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-0.5">
+            {isEvm ? "EVM" : "SOL"}
+          </span>
+          {shortAddress(activeAddress)}
         </span>
         <Button
           variant="ghost"
@@ -59,7 +72,7 @@ export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "
   }
 
   return (
-    <Button size={size} disabled={connecting} onClick={() => setVisible(true)}>
+    <Button size={size} disabled={connecting} onClick={() => connect()}>
       {connecting ? "Connecting…" : "Connect wallet"}
     </Button>
   );

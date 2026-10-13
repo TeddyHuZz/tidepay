@@ -1,7 +1,12 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
-import { PrivyProvider, usePrivy, useConnectWallet } from "@privy-io/react-auth";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  PrivyProvider,
+  usePrivy,
+  useConnectWallet,
+  useWallets as usePrivyEvmWallets,
+} from "@privy-io/react-auth";
 import {
   toSolanaWalletConnectors,
   useWallets as usePrivySolanaWallets,
@@ -27,13 +32,70 @@ const solanaConnectors = toSolanaWalletConnectors({
   shouldAutoConnect: true,
 });
 
-function PrivySolanaBridge({ children }: { children: ReactNode }) {
+// Standard EVM Chain configurations for Privy
+const sepoliaChain = {
+  id: 11155111,
+  name: "Sepolia",
+  network: "sepolia",
+  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://rpc.sepolia.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Etherscan", url: "https://sepolia.etherscan.io" },
+  },
+};
+
+const baseSepoliaChain = {
+  id: 84532,
+  name: "Base Sepolia",
+  network: "base-sepolia",
+  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://sepolia.base.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Basescan", url: "https://sepolia.basescan.org" },
+  },
+};
+
+export interface TidePayUnifiedWalletState {
+  chainType: "solana" | "evm" | null;
+  solanaPublicKey: PublicKey | null;
+  evmAddress: `0x${string}` | null;
+  activeAddress: string | null;
+  connected: boolean;
+  connecting: boolean;
+  evmWallet: any | null;
+  connect: (chainPreference?: "solana" | "evm") => void;
+  disconnect: () => Promise<void>;
+}
+
+const TidePayUnifiedWalletContext = createContext<TidePayUnifiedWalletState>({
+  chainType: null,
+  solanaPublicKey: null,
+  evmAddress: null,
+  activeAddress: null,
+  connected: false,
+  connecting: false,
+  evmWallet: null,
+  connect: () => {},
+  disconnect: async () => {},
+});
+
+export function useTidePayUnifiedWallet(): TidePayUnifiedWalletState {
+  return useContext(TidePayUnifiedWalletContext);
+}
+
+function PrivyBridge({ children }: { children: ReactNode }) {
   const { logout, ready: privyReady } = usePrivy();
   const { connectWallet } = useConnectWallet();
-  const { ready: walletsReady, wallets } = usePrivySolanaWallets();
+  const { ready: solanaWalletsReady, wallets: solanaWallets } = usePrivySolanaWallets();
+  const { ready: evmWalletsReady, wallets: evmWallets } = usePrivyEvmWallets();
   const { signTransaction: privySignTx } = useSignTransaction();
 
-  const solanaWallet = wallets[0] ?? null;
+  const solanaWallet = solanaWallets[0] ?? null;
+  const evmWallet = evmWallets[0] ?? null;
 
   const publicKey = useMemo(() => {
     if (!solanaWallet?.address) return null;
@@ -44,8 +106,20 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
     }
   }, [solanaWallet?.address]);
 
-  const connected = Boolean(publicKey);
-  const connecting = !privyReady || !walletsReady;
+  const evmAddress = useMemo(() => {
+    if (!evmWallet?.address) return null;
+    return evmWallet.address.toLowerCase() as `0x${string}`;
+  }, [evmWallet?.address]);
+
+  const chainType: "solana" | "evm" | null = publicKey
+    ? "solana"
+    : evmAddress
+    ? "evm"
+    : null;
+
+  const activeAddress = publicKey ? publicKey.toBase58() : evmAddress;
+  const connected = Boolean(publicKey || evmAddress);
+  const connecting = !privyReady || !solanaWalletsReady || !evmWalletsReady;
 
   const signTransaction = useMemo(() => {
     if (!solanaWallet) return undefined;
@@ -77,19 +151,43 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
 
   const disconnect = async () => {
     try {
-      if (solanaWallet) {
-        await solanaWallet.disconnect();
-      }
-    } catch {
-      // Ignore disconnect error
-    }
+      if (solanaWallet) await solanaWallet.disconnect();
+    } catch {}
+    try {
+      if (evmWallet) await evmWallet.disconnect();
+    } catch {}
     try {
       await logout();
-    } catch {
-      // Ignore logout error
+    } catch {}
+  };
+
+  const handleConnect = (chainPreference?: "solana" | "evm") => {
+    if (chainPreference === "solana") {
+      connectWallet({
+        walletList: ["phantom", "solflare", "backpack"],
+        walletChainType: "solana-only",
+      });
+    } else if (chainPreference === "evm") {
+      connectWallet({
+        walletList: ["metamask", "coinbase_wallet", "rainbow"],
+        walletChainType: "ethereum-only",
+      });
+    } else {
+      connectWallet({
+        walletList: [
+          "phantom",
+          "metamask",
+          "coinbase_wallet",
+          "solflare",
+          "backpack",
+          "rainbow",
+        ],
+        walletChainType: "ethereum-and-solana",
+      });
     }
   };
 
+  // Solana Wallet Adapter bridge (backward-compatible)
   const walletContextValue: WalletContextState = {
     autoConnect: true,
     wallets: [],
@@ -114,15 +212,10 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
       : null,
     publicKey,
     connecting,
-    connected,
+    connected: Boolean(publicKey),
     disconnecting: false,
     select: () => {},
-    connect: async () => {
-      connectWallet({
-        walletList: ["phantom", "solflare", "backpack"],
-        walletChainType: "solana-only",
-      });
-    },
+    connect: async () => handleConnect("solana"),
     disconnect,
     sendTransaction,
     signTransaction: signTransaction as WalletContextState["signTransaction"],
@@ -134,21 +227,30 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
   const walletModalContextValue = {
     visible: false,
     setVisible: (visible: boolean) => {
-      if (visible) {
-        connectWallet({
-          walletList: ["phantom", "solflare", "backpack"],
-          walletChainType: "solana-only",
-        });
-      }
+      if (visible) handleConnect();
     },
   };
 
+  const unifiedContextValue: TidePayUnifiedWalletState = {
+    chainType,
+    solanaPublicKey: publicKey,
+    evmAddress,
+    activeAddress,
+    connected,
+    connecting,
+    evmWallet,
+    connect: handleConnect,
+    disconnect,
+  };
+
   return (
-    <WalletContext.Provider value={walletContextValue}>
-      <WalletModalContext.Provider value={walletModalContextValue}>
-        {children}
-      </WalletModalContext.Provider>
-    </WalletContext.Provider>
+    <TidePayUnifiedWalletContext.Provider value={unifiedContextValue}>
+      <WalletContext.Provider value={walletContextValue}>
+        <WalletModalContext.Provider value={walletModalContextValue}>
+          {children}
+        </WalletModalContext.Provider>
+      </WalletContext.Provider>
+    </TidePayUnifiedWalletContext.Provider>
   );
 }
 
@@ -160,10 +262,19 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
         appearance: {
           theme: "dark",
           accentColor: "#00BFB3",
-          walletChainType: "solana-only",
-          walletList: ["phantom", "solflare", "backpack"],
+          walletChainType: "ethereum-and-solana",
+          walletList: [
+            "phantom",
+            "metamask",
+            "coinbase_wallet",
+            "solflare",
+            "backpack",
+            "rainbow",
+          ],
           showWalletLoginFirst: true,
         },
+        defaultChain: baseSepoliaChain,
+        supportedChains: [baseSepoliaChain, sepoliaChain],
         externalWallets: {
           solana: {
             connectors: solanaConnectors,
@@ -171,7 +282,7 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <PrivySolanaBridge>{children}</PrivySolanaBridge>
+      <PrivyBridge>{children}</PrivyBridge>
     </PrivyProvider>
   );
 }

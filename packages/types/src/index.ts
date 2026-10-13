@@ -20,6 +20,8 @@ export interface MerchantPlan {
   bump: number;
 }
 
+export * from "./evm";
+
 export interface SubscriptionRecord {
   plan: string;
   subscriber: string;

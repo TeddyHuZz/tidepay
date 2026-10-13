@@ -290,3 +290,5 @@ export class TidePayClient {
     getSubscription: this.getSubscriptionRecord.bind(this),
   };
 }
+
+export * from "./evm";
