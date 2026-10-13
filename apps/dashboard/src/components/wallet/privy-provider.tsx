@@ -89,7 +89,6 @@ export function useTidePayUnifiedWallet(): TidePayUnifiedWalletState {
 
 function PrivyBridge({ children }: { children: ReactNode }) {
   const { logout, ready: privyReady, authenticated } = usePrivy();
-  const { connectWallet } = useConnectWallet();
   const { ready: solanaWalletsReady, wallets: solanaWallets } = usePrivySolanaWallets();
   const { ready: evmWalletsReady, wallets: evmWallets } = usePrivyEvmWallets();
   const { signTransaction: privySignTx } = useSignTransaction();
@@ -99,8 +98,40 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     return sessionStorage.getItem("tidepay_wallet_disconnected") === "true";
   });
 
-  const solanaWallet = solanaWallets[0] ?? null;
-  const evmWallet = evmWallets[0] ?? null;
+  const [activeWalletAddress, setActiveWalletAddress] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("tidepay_active_wallet");
+  });
+
+  const { connectWallet } = useConnectWallet({
+    onSuccess: (wallet: any) => {
+      const addr = wallet.address ? wallet.address.toLowerCase() : "";
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("tidepay_wallet_disconnected");
+        if (addr) sessionStorage.setItem("tidepay_active_wallet", addr);
+      }
+      setManuallyDisconnected(false);
+      setActiveWalletAddress(addr);
+    },
+  });
+
+  const solanaWallet = useMemo(() => {
+    if (manuallyDisconnected) return null;
+    if (activeWalletAddress) {
+      return solanaWallets.find((w) => w.address.toLowerCase() === activeWalletAddress) ?? null;
+    }
+    // Only auto-connect if user hasn't explicitly disconnected
+    return solanaWallets[0] ?? null;
+  }, [manuallyDisconnected, activeWalletAddress, solanaWallets]);
+
+  const evmWallet = useMemo(() => {
+    if (manuallyDisconnected) return null;
+    if (activeWalletAddress) {
+      return evmWallets.find((w) => w.address.toLowerCase() === activeWalletAddress) ?? null;
+    }
+    // If no explicit wallet was picked, only pick EVM if no Solana wallet is present AND user didn't disconnect
+    return solanaWallet ? null : (evmWallets[0] ?? null);
+  }, [manuallyDisconnected, activeWalletAddress, evmWallets, solanaWallet]);
 
   const publicKey = useMemo(() => {
     if (manuallyDisconnected || !solanaWallet?.address) return null;
@@ -157,8 +188,10 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const disconnect = async () => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem("tidepay_wallet_disconnected", "true");
+      sessionStorage.removeItem("tidepay_active_wallet");
     }
     setManuallyDisconnected(true);
+    setActiveWalletAddress(null);
     try {
       if (solanaWallet) await solanaWallet.disconnect();
     } catch {}
@@ -171,10 +204,8 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   };
 
   const handleConnect = (chainPreference?: "solana" | "evm") => {
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("tidepay_wallet_disconnected");
-    }
-    setManuallyDisconnected(false);
+    // Note: Do not clear manuallyDisconnected here.
+    // The user has only opened the modal; the selection is confirmed inside onSuccess.
     if (chainPreference === "solana") {
       connectWallet({
         walletList: ["phantom", "solflare", "backpack"],
