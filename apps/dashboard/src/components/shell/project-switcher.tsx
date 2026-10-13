@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 import {
   ChevronDown,
   ChevronUp,
@@ -24,7 +25,7 @@ import { useToast } from "@/components/ui/toast";
 import { ProjectSettingsModal } from "./project-settings-modal";
 
 export function ProjectSwitcher() {
-  const { publicKey, disconnect, connected } = useWallet();
+  const { activeAddress, disconnect, connected } = useTidePayUnifiedWallet();
   const {
     projects,
     activeProject,
@@ -139,8 +140,8 @@ export function ProjectSwitcher() {
 
   const handleCopyWallet = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!publicKey) return;
-    navigator.clipboard.writeText(publicKey.toBase58());
+    if (!activeAddress) return;
+    navigator.clipboard.writeText(activeAddress);
     setCopiedWallet(true);
     setTimeout(() => setCopiedWallet(false), 2000);
   };
@@ -284,11 +285,11 @@ export function ProjectSwitcher() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <User className="size-4 shrink-0 text-muted-foreground" />
                     <span className="font-mono text-foreground truncate">
-                      {publicKey ? shortAddress(publicKey.toBase58(), 4) : "swenfei"}
+                      {activeAddress ? shortAddress(activeAddress, 4) : "swenfei"}
                     </span>
                   </div>
 
-                  {connected && publicKey && (
+                  {connected && activeAddress && (
                     <button
                       type="button"
                       onClick={handleCopyWallet}

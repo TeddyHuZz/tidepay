@@ -32,7 +32,7 @@ export function MerchantGate({
       <Card className="flex flex-col items-center gap-4 px-6 py-14 text-center">
         <h2 className="text-[15px] font-semibold">Connect your merchant wallet</h2>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Connect your Solana or EVM merchant wallet to view plans, active subscribers, and real-time revenue analytics.
+          Connect your Solana or Ethereum merchant wallet to view plans, active subscribers, and real-time revenue analytics.
         </p>
         <WalletButton />
       </Card>

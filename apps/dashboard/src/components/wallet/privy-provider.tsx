@@ -67,7 +67,12 @@ export interface TidePayUnifiedWalletState {
   connected: boolean;
   connecting: boolean;
   evmWallet: any | null;
-  connect: (chainPreference?: "solana" | "evm") => void;
+  solanaWallet: any | null;
+  hasSolanaWallet: boolean;
+  hasEvmWallet: boolean;
+  evmChainId: number;
+  switchEvmChain: (chainId: number) => Promise<void>;
+  connect: (chainPreference?: "solana" | "evm") => void | Promise<void>;
   disconnect: () => Promise<void>;
 }
 
@@ -79,6 +84,11 @@ const TidePayUnifiedWalletContext = createContext<TidePayUnifiedWalletState>({
   connected: false,
   connecting: false,
   evmWallet: null,
+  solanaWallet: null,
+  hasSolanaWallet: false,
+  hasEvmWallet: false,
+  evmChainId: 84532,
+  switchEvmChain: async () => {},
   connect: () => {},
   disconnect: async () => {},
 });
@@ -93,6 +103,12 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const { ready: evmWalletsReady, wallets: evmWallets } = usePrivyEvmWallets();
   const { signTransaction: privySignTx } = useSignTransaction();
 
+  const [selectedEvmChainId, setSelectedEvmChainId] = useState<number>(() => {
+    if (typeof window === "undefined") return 84532;
+    const saved = sessionStorage.getItem("tidepay_evm_chain_id");
+    return saved ? parseInt(saved, 10) : 84532;
+  });
+
   const [manuallyDisconnected, setManuallyDisconnected] = useState(() => {
     if (typeof window === "undefined") return false;
     return sessionStorage.getItem("tidepay_wallet_disconnected") === "true";
@@ -105,35 +121,48 @@ function PrivyBridge({ children }: { children: ReactNode }) {
 
   const { connectWallet } = useConnectWallet({
     onSuccess: (wallet: any) => {
-      const addr = wallet.address ? wallet.address.toLowerCase() : "";
+      const addr = wallet.address ? wallet.address : "";
+      const isEvm = wallet.chainType === "ethereum" || addr.startsWith("0x");
+      const normalizedAddr = isEvm ? addr.toLowerCase() : addr;
+
+      setActiveWalletAddress(normalizedAddr);
+      setManuallyDisconnected(false);
+
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("tidepay_wallet_disconnected");
-        if (addr) sessionStorage.setItem("tidepay_active_wallet", addr);
+        if (normalizedAddr) {
+          sessionStorage.setItem("tidepay_active_wallet", normalizedAddr);
+        }
       }
-      setManuallyDisconnected(false);
-      setActiveWalletAddress(addr);
     },
   });
 
+  const hasSolanaWallet = solanaWallets.length > 0;
+  const hasEvmWallet = evmWallets.length > 0;
+
   const solanaWallet = useMemo(() => {
-    if (manuallyDisconnected) return null;
+    if (manuallyDisconnected || solanaWallets.length === 0) return null;
     if (activeWalletAddress) {
-      return solanaWallets.find((w) => w.address.toLowerCase() === activeWalletAddress) ?? null;
+      if (activeWalletAddress.startsWith("0x")) return null;
+      return solanaWallets.find((w) => w.address === activeWalletAddress) ?? solanaWallets[0];
     }
-    // Only auto-connect if user hasn't explicitly disconnected
+    if (evmWallets.length > 0) return null;
     return solanaWallets[0] ?? null;
-  }, [manuallyDisconnected, activeWalletAddress, solanaWallets]);
+  }, [manuallyDisconnected, activeWalletAddress, solanaWallets, evmWallets.length]);
 
   const evmWallet = useMemo(() => {
-    if (manuallyDisconnected) return null;
+    if (manuallyDisconnected || evmWallets.length === 0) return null;
     if (activeWalletAddress) {
-      return evmWallets.find((w) => w.address.toLowerCase() === activeWalletAddress) ?? null;
+      if (!activeWalletAddress.startsWith("0x")) return null;
+      return (
+        evmWallets.find((w) => w.address.toLowerCase() === activeWalletAddress.toLowerCase()) ??
+        evmWallets[0]
+      );
     }
-    // If no explicit wallet was picked, only pick EVM if no Solana wallet is present AND user didn't disconnect
-    return solanaWallet ? null : (evmWallets[0] ?? null);
-  }, [manuallyDisconnected, activeWalletAddress, evmWallets, solanaWallet]);
+    return evmWallets[0] ?? null;
+  }, [manuallyDisconnected, activeWalletAddress, evmWallets]);
 
-  const publicKey = useMemo(() => {
+  const solanaPublicKey = useMemo(() => {
     if (manuallyDisconnected || !solanaWallet?.address) return null;
     try {
       return new PublicKey(solanaWallet.address);
@@ -142,20 +171,58 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     }
   }, [manuallyDisconnected, solanaWallet?.address]);
 
-  const evmAddress = useMemo(() => {
+  const rawEvmAddress = useMemo(() => {
     if (manuallyDisconnected || !evmWallet?.address) return null;
     return evmWallet.address.toLowerCase() as `0x${string}`;
   }, [manuallyDisconnected, evmWallet?.address]);
 
-  const chainType: "solana" | "evm" | null = publicKey
-    ? "solana"
-    : evmAddress
-    ? "evm"
-    : null;
+  const chainType: "solana" | "evm" | null = useMemo(() => {
+    if (manuallyDisconnected) return null;
+    if (activeWalletAddress?.startsWith("0x") && rawEvmAddress) return "evm";
+    if (activeWalletAddress && !activeWalletAddress.startsWith("0x") && solanaPublicKey) return "solana";
+    if (rawEvmAddress && !solanaPublicKey) return "evm";
+    if (solanaPublicKey && !rawEvmAddress) return "solana";
+    if (rawEvmAddress) return "evm";
+    return null;
+  }, [manuallyDisconnected, activeWalletAddress, rawEvmAddress, solanaPublicKey]);
 
-  const activeAddress = publicKey ? publicKey.toBase58() : evmAddress;
-  const connected = Boolean(publicKey || evmAddress);
+  const publicKey = chainType === "solana" ? solanaPublicKey : null;
+  const evmAddress = chainType === "evm" ? rawEvmAddress : null;
+
+  const activeAddress =
+    chainType === "evm"
+      ? rawEvmAddress
+      : chainType === "solana"
+      ? solanaPublicKey?.toBase58() ?? null
+      : null;
+
+  const connected = Boolean(activeAddress);
   const connecting = !privyReady || !solanaWalletsReady || !evmWalletsReady;
+
+  const evmChainId = useMemo(() => {
+    if (evmWallet?.chainId) {
+      const raw = String(evmWallet.chainId);
+      const parsed = raw.includes(":") ? parseInt(raw.split(":")[1], 10) : Number(raw);
+      if (!isNaN(parsed) && (parsed === 84532 || parsed === 11155111)) {
+        return parsed;
+      }
+    }
+    return selectedEvmChainId;
+  }, [evmWallet?.chainId, selectedEvmChainId]);
+
+  const switchEvmChain = async (targetChainId: number) => {
+    setSelectedEvmChainId(targetChainId);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("tidepay_evm_chain_id", String(targetChainId));
+    }
+    if (evmWallet && typeof evmWallet.switchChain === "function") {
+      try {
+        await evmWallet.switchChain(targetChainId);
+      } catch (err) {
+        console.warn("[TidePay] EVM switchChain notice:", err);
+      }
+    }
+  };
 
   const signTransaction = useMemo(() => {
     if (!solanaWallet) return undefined;
@@ -196,39 +263,27 @@ function PrivyBridge({ children }: { children: ReactNode }) {
       if (solanaWallet) await solanaWallet.disconnect();
     } catch {}
     try {
-      if (evmWallet) await evmWallet.disconnect();
+      if (evmWallet && typeof evmWallet.disconnect === "function" && evmWallet.walletClientType !== "metamask") {
+        await evmWallet.disconnect();
+      }
     } catch {}
     try {
       if (authenticated) await logout();
     } catch {}
   };
 
-  const handleConnect = (chainPreference?: "solana" | "evm") => {
-    // Note: Do not clear manuallyDisconnected here.
-    // The user has only opened the modal; the selection is confirmed inside onSuccess.
-    if (chainPreference === "solana") {
-      connectWallet({
-        walletList: ["phantom", "solflare", "backpack"],
-        walletChainType: "solana-only",
-      });
-    } else if (chainPreference === "evm") {
-      connectWallet({
-        walletList: ["metamask", "coinbase_wallet", "rainbow"],
-        walletChainType: "ethereum-only",
-      });
-    } else {
-      connectWallet({
-        walletList: [
-          "phantom",
-          "metamask",
-          "coinbase_wallet",
-          "solflare",
-          "backpack",
-          "rainbow",
-        ],
-        walletChainType: "ethereum-and-solana",
-      });
-    }
+  const handleConnect = async () => {
+    connectWallet({
+      walletList: [
+        "phantom",
+        "metamask",
+        "coinbase_wallet",
+        "solflare",
+        "backpack",
+        "rainbow",
+      ],
+      walletChainType: "ethereum-and-solana",
+    });
   };
 
   // Solana Wallet Adapter bridge (backward-compatible)
@@ -259,7 +314,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     connected: Boolean(publicKey),
     disconnecting: false,
     select: () => {},
-    connect: async () => handleConnect("solana"),
+    connect: async () => handleConnect(),
     disconnect,
     sendTransaction,
     signTransaction: signTransaction as WalletContextState["signTransaction"],
@@ -271,7 +326,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const walletModalContextValue = {
     visible: false,
     setVisible: (visible: boolean) => {
-      if (visible) handleConnect();
+      if (visible) void handleConnect();
     },
   };
 
@@ -283,6 +338,11 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     connected,
     connecting,
     evmWallet,
+    solanaWallet,
+    hasSolanaWallet,
+    hasEvmWallet,
+    evmChainId,
+    switchEvmChain,
     connect: handleConnect,
     disconnect,
   };

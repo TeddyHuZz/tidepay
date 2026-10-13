@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useMerchantData } from "@/components/merchant-data-provider";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 import { WalkthroughModal } from "./walkthrough-modal";
 import { cn } from "@/lib/utils";
 import { isBlinkSharedLocally } from "./onboarding-state";
@@ -21,7 +22,7 @@ const STORAGE_COLLAPSED_KEY = "tidepay_sidebar_onboarding_collapsed";
 const STORAGE_COMPLETED_KEY = "tidepay_onboarding_completed_100";
 
 export function SidebarOnboardingWidget() {
-  const { connected } = useWallet();
+  const { connected } = useTidePayUnifiedWallet();
   const { state } = useMerchantData();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);

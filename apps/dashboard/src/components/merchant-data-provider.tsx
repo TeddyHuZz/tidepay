@@ -50,8 +50,8 @@ async function loadMerchantData(connection: Connection, merchant: PublicKey): Pr
   return deriveMerchantData(plans, subscriptions, Math.floor(Date.now() / 1000));
 }
 
-async function loadEvmMerchantData(merchant: `0x${string}`): Promise<MerchantData> {
-  const { plans, subscriptions } = await fetchEvmMerchantPlans(merchant);
+async function loadEvmMerchantData(merchant: `0x${string}`, chainId?: number): Promise<MerchantData> {
+  const { plans, subscriptions } = await fetchEvmMerchantPlans(merchant, chainId);
   return deriveMerchantData(plans, subscriptions, Math.floor(Date.now() / 1000));
 }
 
@@ -64,7 +64,7 @@ interface LoadResult {
 
 export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection();
-  const { chainType, solanaPublicKey, evmAddress } = useTidePayUnifiedWallet();
+  const { chainType, solanaPublicKey, evmAddress, evmChainId } = useTidePayUnifiedWallet();
   const { activeProject } = useProject();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
@@ -73,7 +73,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
 
   const merchant =
     chainType === "evm" && evmAddress
-      ? evmAddress
+      ? `${evmAddress}:${evmChainId}`
       : chainType === "solana" && solanaPublicKey
       ? solanaPublicKey.toBase58()
       : null;
@@ -86,7 +86,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
 
     const loadPromise =
       chainType === "evm" && evmAddress
-        ? loadEvmMerchantData(evmAddress)
+        ? loadEvmMerchantData(evmAddress, evmChainId)
         : solanaPublicKey
         ? loadMerchantData(connection, solanaPublicKey)
         : Promise.reject(new Error("No wallet connected"));

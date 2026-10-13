@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 
 export interface Project {
   id: string;
@@ -101,8 +102,8 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { publicKey } = useWallet();
-  const walletAddress = publicKey?.toBase58() ?? null;
+  const { activeAddress } = useTidePayUnifiedWallet();
+  const walletAddress = activeAddress;
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string>("");

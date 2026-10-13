@@ -94,7 +94,7 @@ export function PlanForm() {
   const { success: toastSuccess, error: toastError } = useToast();
   const { connection } = useConnection();
   const { publicKey } = useWallet();
-  const { chainType, evmAddress, evmWallet } = useTidePayUnifiedWallet();
+  const { chainType, evmAddress, evmWallet, evmChainId } = useTidePayUnifiedWallet();
   const { refresh } = useMerchantData();
   const { addPlanToActiveProject } = useProject();
   const { buildTransaction, send } = useSendTransaction();
@@ -139,7 +139,7 @@ export function PlanForm() {
       if (!evmAddress || !formValid || amount === null) return;
       const contractAddress =
         (process.env.NEXT_PUBLIC_EVM_CONTRACT_ADDRESS as `0x${string}`) ||
-        EVM_DEPLOYMENTS[11155111]?.contractAddress;
+        EVM_DEPLOYMENTS[evmChainId as 11155111 | 84532]?.contractAddress;
 
       if (!contractAddress || contractAddress === "0x0000000000000000000000000000000000000000") {
         const errorMsg = "EVM Contract is not deployed yet. Please deploy TidePaySubscription.sol to Sepolia or Base Sepolia.";
@@ -152,7 +152,9 @@ export function PlanForm() {
       try {
         if (!evmWallet) throw new Error("No EVM wallet connected");
         const provider = await evmWallet.getEthereumProvider();
-        const usdcAddress = EVM_DEPLOYMENTS[11155111]?.usdcAddress as `0x${string}`;
+        const usdcAddress =
+          (EVM_DEPLOYMENTS[evmChainId as 11155111 | 84532]?.usdcAddress as `0x${string}`) ||
+          "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
         const data = encodeFunctionData({
           abi: TIDEPAY_EVM_ABI,
@@ -424,7 +426,7 @@ export function PlanForm() {
                 {submit.status === "submitting"
                   ? "Creating plan…"
                   : chainType === "evm"
-                  ? "Create plan on EVM"
+                  ? `Create plan on ${evmChainId === 84532 ? "Base Sepolia" : "Sepolia"}`
                   : "Create plan on Devnet"}
               </Button>
             </div>
