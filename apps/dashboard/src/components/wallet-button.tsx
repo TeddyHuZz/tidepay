@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
+import { EthereumIcon, BaseIcon, SolanaIcon } from "@/components/chain-icons";
 
 const subscribe = () => () => {};
 
@@ -20,6 +21,7 @@ export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "
     connecting,
     activeAddress,
     chainType,
+    evmChainId,
     connect,
     disconnect,
   } = useTidePayUnifiedWallet();
@@ -46,13 +48,15 @@ export function WalletButton({ size = "default" }: { size?: "default" | "sm" | "
               : "h-9 sm:h-11 px-2.5 sm:px-3.5 text-xs sm:text-[13px] gap-2"
           )}
         >
-          <span
-            className={cn(
-              "size-1.5 sm:size-2 rounded-full",
-              isEvm ? "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" : "bg-primary shadow-[0_0_8px_rgba(20,241,149,0.6)]"
-            )}
-            aria-hidden="true"
-          />
+          {isEvm ? (
+            evmChainId === 11155111 ? (
+              <EthereumIcon className="size-3.5" />
+            ) : (
+              <BaseIcon className="size-3.5" />
+            )
+          ) : (
+            <SolanaIcon className="size-3.5" />
+          )}
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-0.5">
             {isEvm ? "EVM" : "SOL"}
           </span>

@@ -19,6 +19,7 @@ import { useProject } from "@/components/project-context";
 import { useTheme } from "@/components/theme-provider";
 import { useTidePayUnifiedWallet } from "@/components/wallet/privy-provider";
 import { Moon, Sun, ChevronDown, Check } from "lucide-react";
+import { EthereumIcon, BaseIcon, SolanaIcon } from "@/components/chain-icons";
 import { cn } from "@/lib/utils";
 
 export function Topbar() {
@@ -87,7 +88,11 @@ export function Topbar() {
               className="h-8 inline-flex items-center gap-1.5 px-2.5 sm:px-3 text-xs font-medium rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer shrink-0"
               title="Switch EVM network"
             >
-              <span className="size-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]" />
+              {evmChainId === 11155111 ? (
+                <EthereumIcon className="size-3.5" />
+              ) : (
+                <BaseIcon className="size-3.5" />
+              )}
               <span>{evmChainId === 11155111 ? "Sepolia" : "Base Sepolia"}</span>
               <ChevronDown className="size-3 opacity-70" />
             </button>
@@ -107,7 +112,7 @@ export function Topbar() {
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-blue-400" />
+                    <BaseIcon className="size-3.5" />
                     <span>Base Sepolia</span>
                   </div>
                   {evmChainId === 84532 && <Check className="size-3.5 text-blue-400" />}
@@ -126,7 +131,7 @@ export function Topbar() {
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-indigo-400" />
+                    <EthereumIcon className="size-3.5" />
                     <span>Sepolia</span>
                   </div>
                   {evmChainId === 11155111 && <Check className="size-3.5 text-blue-400" />}
@@ -137,13 +142,14 @@ export function Topbar() {
         ) : chainType === "solana" ? (
           <Badge
             variant="outline"
-            className={`h-8 items-center px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
+            className={`h-8 items-center gap-1.5 px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
               isLive
                 ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
                 : "border-border/80 text-muted-foreground"
             }`}
           >
-            {isLive ? "Mainnet" : "Devnet"}
+            <SolanaIcon className="size-3.5" />
+            <span>{isLive ? "Mainnet" : "Devnet"}</span>
           </Badge>
         ) : null}
 
