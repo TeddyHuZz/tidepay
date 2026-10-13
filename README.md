@@ -62,6 +62,14 @@ TidePay replaces custodial escrow vaults with deterministic, on-chain time-locke
 | **RPC Cluster** | `https://api.devnet.solana.com` | High-performance Solana Devnet RPC |
 | **Actions API** | `https://api-tidepay.vercel.app` | Dial.to & Twitter/X Solana Actions specification |
 
+### EVM Testnet Deployments (Sepolia & Base Sepolia)
+
+| Network | Component | Address | Details |
+| :--- | :--- | :--- | :--- |
+| **Ethereum Sepolia** | Official Circle USDC | [`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`](https://sepolia.etherscan.io/token/0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238) | Official Circle Testnet USDC (6 Decimals, EIP-2612 Permit) |
+| **Base Sepolia** | Official Circle USDC | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/token/0x036CbD53842c5426634e7929541eC2318f3dCF7e) | Official Circle Testnet USDC (6 Decimals, EIP-2612 Permit) |
+| **EVM Engine** | `TidePaySubscription.sol` | Configured via `NEXT_PUBLIC_EVM_CONTRACT_ADDRESS` | Non-Custodial Pull Delegation with Re-Entrancy Guard |
+
 ---
 
 ## 🏗️ Architecture & Settlement Lifecycle
@@ -98,6 +106,47 @@ sequenceDiagram
 
 ---
 
+## 🌐 Multi-Chain Architecture: Solana vs EVM
+
+TidePay maintains identical non-custodial billing invariants across both Solana and EVM networks (Ethereum Sepolia, Base Sepolia, Arbitrum), routed through a unified Privy multi-chain frontend.
+
+```mermaid
+flowchart TD
+    subgraph UnifiedConsole ["Unified Merchant Console & Checkout (apps/dashboard)"]
+        Privy["Privy Multi-Chain Provider"] -->|Detects Connected Wallet| Router{"Chain Router"}
+    end
+
+    Router -->|Solana| SolanaSettlement
+    Router -->|EVM| EVMSettlement
+
+    subgraph SolanaSettlement ["Solana Settlement"]
+        S_User["Subscriber Wallet"] -->|Approve Delegate| S_PDA["Program Authority PDA\n(b'tidepay_auth')"]
+        S_Crank["Keeper Crank Bot"] -->|process_epoch| S_Program["Anchor Program"]
+        S_PDA -.-> S_Program
+        S_Program -->|CPI transfer_checked| S_Merchant["Merchant ATA"]
+    end
+
+    subgraph EVMSettlement ["EVM Settlement (Base / Arbitrum / Ethereum)"]
+        E_User["Subscriber EOA / Privy"] -->|EIP-2612 Permit or Approve| E_Contract["TidePaySubscription.sol"]
+        E_Crank["Keeper Crank Bot"] -->|processEpoch| E_Contract
+        E_Contract -->|SafeERC20 transferFrom| E_Merchant["Merchant Address"]
+    end
+```
+
+### Architectural Invariant Parity
+
+| Layer / Invariant | Solana Implementation | EVM Implementation (Ethereum / Base) |
+| :--- | :--- | :--- |
+| **Pull Authority** | SPL Token `approve` to Program Authority PDA (`b"tidepay_auth"`) | ERC-20 `approve` or EIP-2612 `permit` to `TidePaySubscription.sol` |
+| **1-Click Checkout** | Solana Actions & Blinks (Dial.to / Twitter/X) | EIP-2612 typed signature permit (gasless 1-step subscription) |
+| **Settlement Trigger** | On-chain Anchor CPI via `transfer_checked` | On-chain Solidity execution via `SafeERC20.transferFrom` |
+| **Time-Lock Rule** | `clock.unix_timestamp >= record.next_epoch_timestamp` | `block.timestamp >= subscription.nextEpochTimestamp` |
+| **Re-Entrancy Guard** | State updated before CPI calls | `nonReentrant` modifier + Checks-Effects-Interactions pattern |
+| **Keeper Crank** | Autonomous Node.js crank (`process_epoch`) for 0.05 USDC bounty | Shared TypeScript crank (`processEpoch`) with keeper bounty payout |
+| **Account Rent Cleanup** | PDA closed via `close = subscriber` (returns ~0.0015 SOL) | State flag deactivated (`isActive = false`) |
+
+---
+
 ## 🧪 Judge & Evaluator Quickstart (2-Minute Test)
 
 Judges can test the entire lifecycle in under two minutes without waiting 30 days:
@@ -120,8 +169,9 @@ tidepay/
 │   └── web/             # Marketing landing page, docs portal & brand assets (tidepay.vercel.app)
 ├── packages/
 │   ├── protocol/        # Anchor 0.30+ Rust program & automated keeper crank daemon
-│   ├── types/           # Shared IDL, TypeScript interfaces, and PDA seed constants
-│   └── sdk/             # @tidepay/sdk integration client library
+│   ├── contracts-evm/   # Solidity TidePaySubscription contract & EVM deployment configs
+│   ├── types/           # Shared IDL, TypeScript interfaces, PDA seeds & EVM ABIs
+│   └── sdk/             # @tidepay/sdk integration client library (Solana & EVM)
 └── docs/
     └── ARCHITECTURE_AND_PRD.md  # Detailed technical specifications & PRD
 ```

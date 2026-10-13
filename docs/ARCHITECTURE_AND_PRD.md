@@ -107,13 +107,54 @@ tidepay/
 │   └── web/             # Marketing landing page, documentation, and showcase
 ├── packages/
 │   ├── protocol/        # Anchor 0.30+ Rust program & automated keeper crank daemon
-│   ├── types/           # Shared IDL, TypeScript interfaces, PDA seed constants
-│   └── sdk/             # @tidepay/sdk client library for Web3 developers
+│   ├── contracts-evm/   # Solidity smart contracts (TidePaySubscription.sol)
+│   ├── types/           # Shared IDL, TypeScript interfaces, PDA seeds & EVM ABIs
+│   └── sdk/             # @tidepay/sdk client library for Web3 developers (Solana + EVM)
 ```
 
-*Code in `apps/*` strictly interacts via `@tidepay/sdk` and `@tidepay/types`. Direct imports from `packages/protocol` are forbidden.*
+*Code in `apps/*` strictly interacts via `@tidepay/sdk` and `@tidepay/types`. Direct imports from protocol packages are forbidden.*
+
+### 3.3 Multi-Chain Architecture: Solana vs EVM
+
+TidePay maintains identical non-custodial billing invariants across both Solana and EVM networks (Ethereum Sepolia, Base Sepolia, Arbitrum), routed through a unified Privy multi-chain frontend.
+
+```mermaid
+flowchart TD
+    subgraph UnifiedConsole ["Unified Merchant Console & Checkout (apps/dashboard)"]
+        Privy["Privy Multi-Chain Provider"] -->|Detects Connected Wallet| Router{"Chain Router"}
+    end
+
+    Router -->|Solana| SolanaSettlement
+    Router -->|EVM| EVMSettlement
+
+    subgraph SolanaSettlement ["Solana Settlement"]
+        S_User["Subscriber Wallet"] -->|Approve Delegate| S_PDA["Program Authority PDA\n(b'tidepay_auth')"]
+        S_Crank["Keeper Crank Bot"] -->|process_epoch| S_Program["Anchor Program"]
+        S_PDA -.-> S_Program
+        S_Program -->|CPI transfer_checked| S_Merchant["Merchant ATA"]
+    end
+
+    subgraph EVMSettlement ["EVM Settlement (Base / Arbitrum / Ethereum)"]
+        E_User["Subscriber EOA / Privy"] -->|EIP-2612 Permit or Approve| E_Contract["TidePaySubscription.sol"]
+        E_Crank["Keeper Crank Bot"] -->|processEpoch| E_Contract
+        E_Contract -->|SafeERC20 transferFrom| E_Merchant["Merchant Address"]
+    end
+```
+
+#### Architectural Invariant Parity
+
+| Layer / Invariant | Solana Implementation | EVM Implementation (Ethereum / Base) |
+| :--- | :--- | :--- |
+| **Pull Authority** | SPL Token `approve` to Program Authority PDA (`b"tidepay_auth"`) | ERC-20 `approve` or EIP-2612 `permit` to `TidePaySubscription.sol` |
+| **1-Click Checkout** | Solana Actions & Blinks (Dial.to / Twitter/X) | EIP-2612 typed signature permit (gasless 1-step subscription) |
+| **Settlement Trigger** | On-chain Anchor CPI via `transfer_checked` | On-chain Solidity execution via `SafeERC20.transferFrom` |
+| **Time-Lock Rule** | `clock.unix_timestamp >= record.next_epoch_timestamp` | `block.timestamp >= subscription.nextEpochTimestamp` |
+| **Re-Entrancy Guard** | State updated before CPI calls | `nonReentrant` modifier + Checks-Effects-Interactions pattern |
+| **Keeper Crank** | Autonomous Node.js crank (`process_epoch`) for 0.05 USDC bounty | Shared TypeScript crank (`processEpoch`) with keeper bounty payout |
+| **Account Rent Cleanup** | PDA closed via `close = subscriber` (returns ~0.0015 SOL) | State flag deactivated (`isActive = false`) |
 
 ---
+
 
 ## 4. On-Chain Protocol Specification (Rust / Anchor)
 
