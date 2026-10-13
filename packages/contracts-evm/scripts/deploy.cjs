@@ -36,7 +36,7 @@ async function main() {
 
   const network = (process.env.NETWORK || "sepolia").toLowerCase();
   const chain = network === "base-sepolia" || network === "base" ? baseSepolia : sepolia;
-  const rpcUrl = chain.id === 84532 ? "https://sepolia.base.org" : "https://rpc.sepolia.org";
+  const rpcUrl = chain.id === 84532 ? "https://sepolia.base.org" : "https://ethereum-sepolia-rpc.publicnode.com";
 
   console.log(`\n🚀 Deploying TidePaySubscription to ${chain.name} (Chain ID: ${chain.id})...`);
 

@@ -67,8 +67,9 @@ TidePay replaces custodial escrow vaults with deterministic, on-chain time-locke
 | Network | Component | Address | Details |
 | :--- | :--- | :--- | :--- |
 | **Ethereum Sepolia** | Official Circle USDC | [`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`](https://sepolia.etherscan.io/token/0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238) | Official Circle Testnet USDC (6 Decimals, EIP-2612 Permit) |
+| **Ethereum Sepolia** | `TidePaySubscription` | [`0xae29be2e69eb40fb689061afb696fb34ee0c9f52`](https://sepolia.etherscan.io/address/0xae29be2e69eb40fb689061afb696fb34ee0c9f52) | Live Non-Custodial Recurring Billing Contract |
 | **Base Sepolia** | Official Circle USDC | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/token/0x036CbD53842c5426634e7929541eC2318f3dCF7e) | Official Circle Testnet USDC (6 Decimals, EIP-2612 Permit) |
-| **EVM Engine** | `TidePaySubscription.sol` | Configured via `NEXT_PUBLIC_EVM_CONTRACT_ADDRESS` | Non-Custodial Pull Delegation with Re-Entrancy Guard |
+| **Base Sepolia** | `TidePaySubscription` | [`0xae29be2e69eb40fb689061afb696fb34ee0c9f52`](https://sepolia.basescan.org/address/0xae29be2e69eb40fb689061afb696fb34ee0c9f52) | Live Non-Custodial Recurring Billing Contract (L2) |
 
 ---
 

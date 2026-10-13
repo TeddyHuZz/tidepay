@@ -242,7 +242,7 @@ export const EVM_DEPLOYMENTS = {
     name: "Sepolia",
     chainType: "ethereum",
     usdcAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Official Circle Sepolia USDC
-    contractAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // Configurable deployed contract
+    contractAddress: "0xae29be2e69eb40fb689061afb696fb34ee0c9f52", // Deployed TidePaySubscription contract
     blockExplorer: "https://sepolia.etherscan.io"
   },
   // Base Sepolia (L2 Testnet)
@@ -250,7 +250,7 @@ export const EVM_DEPLOYMENTS = {
     name: "Base Sepolia",
     chainType: "base",
     usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", // Official Circle Base Sepolia USDC
-    contractAddress: "0x254dffcd3277C0b1660F6d42EFbB754edaBAbC2B", // Configurable deployed contract
+    contractAddress: "0xae29be2e69eb40fb689061afb696fb34ee0c9f52", // Deployed TidePaySubscription contract
     blockExplorer: "https://sepolia.basescan.org"
   }
 } as const;
