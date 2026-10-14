@@ -26,7 +26,14 @@ export function Topbar() {
   const pathname = usePathname();
   const { activeProject } = useProject();
   const { theme, toggleTheme } = useTheme();
-  const { chainType, evmChainId, switchEvmChain } = useTidePayUnifiedWallet();
+  const {
+    chainType,
+    evmChainId,
+    switchEvmChain,
+    switchChainType,
+    hasSolanaWallet,
+    hasEvmWallet,
+  } = useTidePayUnifiedWallet();
   const [isEvmDropdownOpen, setIsEvmDropdownOpen] = useState(false);
   const evmDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -136,21 +143,95 @@ export function Topbar() {
                   </div>
                   {evmChainId === 11155111 && <Check className="size-3.5 text-blue-400" />}
                 </button>
+
+                {hasSolanaWallet && (
+                  <>
+                    <div className="my-1 border-t border-border/50" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        switchChainType("solana");
+                        setIsEvmDropdownOpen(false);
+                      }}
+                      className="flex w-full items-center justify-between px-2.5 py-2 rounded-lg text-left text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <SolanaIcon className="size-3.5" />
+                        <span>Solana Devnet</span>
+                      </div>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         ) : chainType === "solana" ? (
-          <Badge
-            variant="outline"
-            className={`h-8 items-center gap-1.5 px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
-              isLive
-                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                : "border-border/80 text-muted-foreground"
-            }`}
-          >
-            <SolanaIcon className="size-3.5" />
-            <span>{isLive ? "Mainnet" : "Devnet"}</span>
-          </Badge>
+          hasEvmWallet ? (
+            <div className="relative" ref={evmDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsEvmDropdownOpen((v) => !v)}
+                className="h-8 inline-flex items-center gap-1.5 px-2.5 sm:px-3 text-xs font-medium rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer shrink-0"
+                title="Switch network"
+              >
+                <SolanaIcon className="size-3.5" />
+                <span>{isLive ? "Mainnet" : "Devnet"}</span>
+                <ChevronDown className="size-3 opacity-70" />
+              </button>
+              {isEvmDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 min-w-44 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-1 shadow-xl text-xs">
+                  <div className="flex w-full items-center justify-between px-2.5 py-2 rounded-lg text-emerald-400 font-semibold bg-emerald-500/10">
+                    <div className="flex items-center gap-2">
+                      <SolanaIcon className="size-3.5" />
+                      <span>Solana {isLive ? "Mainnet" : "Devnet"}</span>
+                    </div>
+                    <Check className="size-3.5 text-emerald-400" />
+                  </div>
+                  <div className="my-1 border-t border-border/50" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchChainType("evm");
+                      void switchEvmChain(84532);
+                      setIsEvmDropdownOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between px-2.5 py-2 rounded-lg text-left text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BaseIcon className="size-3.5" />
+                      <span>Base Sepolia</span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchChainType("evm");
+                      void switchEvmChain(11155111);
+                      setIsEvmDropdownOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between px-2.5 py-2 rounded-lg text-left text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <EthereumIcon className="size-3.5" />
+                      <span>Sepolia</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Badge
+              variant="outline"
+              className={`h-8 items-center gap-1.5 px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
+                isLive
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                  : "border-border/80 text-muted-foreground"
+              }`}
+            >
+              <SolanaIcon className="size-3.5" />
+              <span>{isLive ? "Mainnet" : "Devnet"}</span>
+            </Badge>
+          )
         ) : null}
 
         <WalletButton size="sm" />

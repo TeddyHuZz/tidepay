@@ -20,6 +20,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+const FALLBACK_RPC_URL = process.env.SOLANA_FALLBACK_RPC_URL || "https://api.devnet.solana.com";
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || "15000", 10);
 const DEFAULT_KEYPAIR_PATH = path.join(
   process.env.HOME || "",
@@ -53,33 +54,49 @@ function loadKeypair(): Keypair {
 }
 
 export class TidePayCrankWorker {
-  private connection: Connection;
+  private primaryConnection: Connection;
+  private fallbackConnection: Connection | null = null;
   private crankKeypair: Keypair;
-  private client: TidePayClient;
+  private primaryClient: TidePayClient;
+  private fallbackClient: TidePayClient | null = null;
   private inFlightLocks: Set<string> = new Set();
   private isRunning: boolean = false;
 
   constructor() {
-    this.connection = new Connection(RPC_URL, "confirmed");
     this.crankKeypair = loadKeypair();
-    this.client = new TidePayClient(
-      this.connection,
-      {
-        publicKey: this.crankKeypair.publicKey,
-        signTransaction: async <T extends Transaction>(tx: T) => {
-          tx.partialSign(this.crankKeypair);
-          return tx;
-        },
+    const walletAdapter = {
+      publicKey: this.crankKeypair.publicKey,
+      signTransaction: async <T extends Transaction>(tx: T) => {
+        tx.partialSign(this.crankKeypair);
+        return tx;
       },
+    };
+
+    this.primaryConnection = new Connection(RPC_URL, "confirmed");
+    this.primaryClient = new TidePayClient(
+      this.primaryConnection,
+      walletAdapter,
       TIDEPAY_PROGRAM_ID
     );
+
+    if (FALLBACK_RPC_URL && FALLBACK_RPC_URL !== RPC_URL) {
+      this.fallbackConnection = new Connection(FALLBACK_RPC_URL, "confirmed");
+      this.fallbackClient = new TidePayClient(
+        this.fallbackConnection,
+        walletAdapter,
+        TIDEPAY_PROGRAM_ID
+      );
+    }
   }
 
   public async start(): Promise<void> {
     this.isRunning = true;
     console.log("==========================================");
     console.log("🌊 [TidePay Keeper Crank] Worker Started");
-    console.log(`📡 RPC Endpoint: ${RPC_URL}`);
+    console.log(`📡 Primary RPC: ${RPC_URL}`);
+    if (this.fallbackConnection) {
+      console.log(`🛡️ Fallback RPC: ${FALLBACK_RPC_URL}`);
+    }
     console.log(`🔑 Keeper Public Key: ${this.crankKeypair.publicKey.toBase58()}`);
     console.log(`⏱️ Polling Interval: ${POLL_INTERVAL_MS / 1000}s`);
     console.log("==========================================");
@@ -87,8 +104,10 @@ export class TidePayCrankWorker {
     while (this.isRunning) {
       try {
         await this.pollAndExecute();
-      } catch (err) {
-        console.error("[TidePay Crank] Polling error:", err);
+      } catch (err: any) {
+        console.error(
+          `[TidePay Crank] Polling error: ${err?.message || err}`
+        );
       }
       await new Promise((res) => setTimeout(res, POLL_INTERVAL_MS));
     }
@@ -99,11 +118,37 @@ export class TidePayCrankWorker {
     this.isRunning = false;
   }
 
+  private async fetchAccountsWithFallback(): Promise<{
+    accounts: any[];
+    client: TidePayClient;
+    connection: Connection;
+  }> {
+    try {
+      const accounts = await (this.primaryClient.program.account as any).subscriptionRecord.all();
+      return { accounts, client: this.primaryClient, connection: this.primaryConnection };
+    } catch (err: any) {
+      const isDnsOrNetwork =
+        err?.code === "ENOTFOUND" ||
+        err?.message?.includes("fetch failed") ||
+        err?.message?.includes("ENOTFOUND") ||
+        err?.cause?.code === "ENOTFOUND";
+
+      if (this.fallbackClient && this.fallbackConnection && isDnsOrNetwork) {
+        console.warn(
+          `[TidePay Crank] Primary RPC unreachable (${err?.cause?.hostname || RPC_URL}). Using fallback RPC (${FALLBACK_RPC_URL})...`
+        );
+        const accounts = await (this.fallbackClient.program.account as any).subscriptionRecord.all();
+        return { accounts, client: this.fallbackClient, connection: this.fallbackConnection };
+      }
+      throw err;
+    }
+  }
+
   private async pollAndExecute(): Promise<void> {
     const currentTime = BigInt(Math.floor(Date.now() / 1000));
 
-    // Fetch all subscription records from the program
-    const accounts = await (this.client.program.account as any).subscriptionRecord.all();
+    // Fetch all subscription records from the program with fallback support
+    const { accounts, client, connection } = await this.fetchAccountsWithFallback();
 
     const dueSubscriptions = accounts.filter((item: any) => {
       const record = item.account;
@@ -127,20 +172,24 @@ export class TidePayCrankWorker {
         continue;
       }
 
-      this.processDueSubscription(sub).catch((err) => {
+      this.processDueSubscription(sub, client, connection).catch((err) => {
         console.error(`[TidePay Crank] Failed to process ${subPubkeyStr}:`, err);
       });
     }
   }
 
-  private async processDueSubscription(sub: any): Promise<void> {
+  private async processDueSubscription(
+    sub: any,
+    client: TidePayClient,
+    connection: Connection
+  ): Promise<void> {
     const subPubkey: PublicKey = sub.publicKey;
     const subPubkeyStr = subPubkey.toBase58();
     this.inFlightLocks.add(subPubkeyStr);
 
     try {
       const planPubkey: PublicKey = sub.account.plan;
-      const plan = await this.client.getMerchantPlan(planPubkey);
+      const plan = await client.getMerchantPlan(planPubkey);
       if (!plan || !plan.isActive) {
         return;
       }
@@ -168,7 +217,7 @@ export class TidePayCrankWorker {
       );
 
       // Add processEpoch instruction
-      const { instruction } = await this.client.buildProcessEpochInstruction({
+      const { instruction } = await client.buildProcessEpochInstruction({
         crank: this.crankKeypair.publicKey,
         plan: planPubkey,
         subscription: subPubkey,
@@ -181,7 +230,7 @@ export class TidePayCrankWorker {
       tx.add(instruction);
 
       // Submit with retry & exponential backoff
-      await this.executeWithRetry(tx);
+      await this.executeWithRetry(tx, connection);
       console.log(`✅ [TidePay Crank] Successfully settled epoch for subscription: ${subPubkeyStr}`);
     } finally {
       this.inFlightLocks.delete(subPubkeyStr);
@@ -190,13 +239,14 @@ export class TidePayCrankWorker {
 
   private async executeWithRetry(
     tx: Transaction,
+    connection: Connection,
     maxRetries: number = 3
   ): Promise<string> {
     let delay = 1000;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const signature = await sendAndConfirmTransaction(
-          this.connection,
+          connection,
           tx,
           [this.crankKeypair],
           { commitment: "confirmed" }
