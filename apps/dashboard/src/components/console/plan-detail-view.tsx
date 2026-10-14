@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
 import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchDatabaseSettlements, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
@@ -73,6 +74,7 @@ function PlanDetailContent({
   const { connection } = useConnection();
   const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [hasResolvedSettlements, setHasResolvedSettlements] = useState(false);
   const [planDbStats, setPlanDbStats] = useState<{ totalSettlements: number; totalEarnedNet: string; totalGrossBilled: string } | null>(null);
 
   const decodedParam = decodeURIComponent(planId);
@@ -83,13 +85,17 @@ function PlanDetailContent({
     const pubkey = parseAddress(plan.id);
     if (!pubkey) return;
 
+    let cancelled = false;
+
     // Primary: Instant 5ms query from Neon Postgres indexer
     fetchDatabaseSettlements([plan.id]).then((res) => {
+      if (cancelled) return;
       if (res && res.byPlan[plan.id]) {
         setPlanDbStats(res.byPlan[plan.id]);
         if (res.events && res.events.length > 0) {
           setOnChainEvents((prev) => (prev.length === 0 ? res.events : prev));
         }
+        setHasResolvedSettlements(true);
       }
     });
 
@@ -102,9 +108,22 @@ function PlanDetailContent({
       DEFAULT_ACTIVITY_LIMIT,
       plan.name,
     )
-      .then(setOnChainEvents)
-      .finally(() => setLoadingEvents(false));
+      .then((events) => {
+        if (!cancelled) setOnChainEvents(events);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingEvents(false);
+          setHasResolvedSettlements(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [connection, plan?.id, plan?.priceUsdc, lastRefreshedAt]);
+
+  const isSettlementsLoading = !hasResolvedSettlements && !planDbStats && onChainEvents.length === 0;
 
   const { publicKey } = useWallet();
   const { buildTransaction, send } = useSendTransaction();
@@ -296,9 +315,13 @@ function PlanDetailContent({
               <div className="mt-2 flex items-center justify-between sm:justify-end gap-4 sm:gap-6 border-t pt-3 sm:mt-0 sm:border-t-0 sm:pt-0">
                 <div className="text-left sm:text-right">
                   <div className="text-xs text-muted-foreground">Total Earned (Net)</div>
-                  <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
-                    +{totalSettledUsdc} USDC
-                  </div>
+                  {isSettlementsLoading ? (
+                    <Skeleton className="h-6 w-24 mt-1 sm:ml-auto" />
+                  ) : (
+                    <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
+                      +{totalSettledUsdc} USDC
+                    </div>
+                  )}
                 </div>
                 <div className="h-8 w-px bg-border/60" />
                 <div className="text-right">
@@ -525,7 +548,30 @@ function PlanDetailContent({
                     <CardDescription className="text-xs sm:text-sm">On-chain renewal transactions executed by Keeper Cranks.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
-                    {onChainEvents.length === 0 && planActivity.length === 0 ? (
+                    {isSettlementsLoading ? (
+                      <Table className="min-w-145 md:min-w-full">
+                        <TableHeader>
+                          <TableRow className="border-t-0 hover:bg-transparent">
+                            <TableHead>Event</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Time</TableHead>
+                            <TableHead>Amount (Net)</TableHead>
+                            <TableHead className="text-right">Transaction</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <TableRow key={i} className="hover:bg-transparent">
+                              <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                              <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                              <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                              <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : onChainEvents.length === 0 && planActivity.length === 0 ? (
                       <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                         {loadingEvents
                           ? "Loading on-chain events from Solana Devnet..."

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ShareBlinkButton } from "@/components/console/share-blink-button";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
@@ -77,22 +78,30 @@ function OverviewContent({
   const { connection } = useConnection();
   const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [hasResolvedSettlements, setHasResolvedSettlements] = useState(false);
   const [dbSummary, setDbSummary] = useState<DatabaseSettlementsResult["summary"] | null>(null);
   const [dbByPlan, setDbByPlan] = useState<DatabaseSettlementsResult["byPlan"]>({});
 
   useEffect(() => {
-    if (plans.length === 0) return;
+    if (plans.length === 0) {
+      setHasResolvedSettlements(true);
+      return;
+    }
     setLoadingEvents(true);
+
+    let cancelled = false;
 
     // Primary: Instant 5ms query from Neon Postgres indexer
     const planAddrs = plans.map((p) => p.id);
     fetchDatabaseSettlements(planAddrs).then((res) => {
+      if (cancelled) return;
       if (res) {
         setDbSummary(res.summary);
         setDbByPlan(res.byPlan);
         if (res.events && res.events.length > 0) {
           setOnChainEvents((prev) => (prev.length === 0 ? res.events : prev));
         }
+        setHasResolvedSettlements(true);
       }
     });
 
@@ -103,9 +112,24 @@ function OverviewContent({
       DEFAULT_CRANK_BOUNTY_USDC,
       DEFAULT_ACTIVITY_LIMIT,
     )
-      .then(setOnChainEvents)
-      .finally(() => setLoadingEvents(false));
+      .then((events) => {
+        if (!cancelled) {
+          setOnChainEvents(events);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingEvents(false);
+          setHasResolvedSettlements(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [connection, plans, lastRefreshedAt]);
+
+  const isSettlementsLoading = plans.length > 0 && !hasResolvedSettlements && !dbSummary && onChainEvents.length === 0;
 
   // Active vs Past Subscribers across all plans
   const activeSubscribers = subscribers.filter((s) => s.status === "Active");
@@ -199,14 +223,23 @@ function OverviewContent({
             <span className="text-xs font-medium">Total Earned (Net)</span>
             <Wallet className="size-4 text-primary" />
           </div>
-          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
-            +{totalEarnedNetUsdc} USDC
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {totalSettlementsCount > 0
-              ? `${totalGrossBilledUsdc} USDC gross across ${totalSettlementsCount} settlements`
-              : "Across 0 on-chain settlements"}
-          </p>
+          {isSettlementsLoading ? (
+            <div className="mt-2 space-y-2">
+              <Skeleton className="h-7 w-32" />
+              <Skeleton className="h-3.5 w-48" />
+            </div>
+          ) : (
+            <>
+              <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
+                +{totalEarnedNetUsdc} USDC
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {totalSettlementsCount > 0
+                  ? `${totalGrossBilledUsdc} USDC gross across ${totalSettlementsCount} settlements`
+                  : "Across 0 on-chain settlements"}
+              </p>
+            </>
+          )}
         </Card>
 
         <Card className="p-4 sm:p-5">
@@ -217,13 +250,17 @@ function OverviewContent({
           <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {totalMrr} USDC
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {activeCount > 0
-              ? `Normalized across ${activeCount} active subscriber(s)`
-              : totalSettlementsCount > 0
-                ? `0 active · +${totalEarnedNetUsdc} USDC earned to date`
-                : "Normalized across 0 subscriber(s)"}
-          </p>
+          {isSettlementsLoading ? (
+            <Skeleton className="h-3.5 w-44 mt-1" />
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {activeCount > 0
+                ? `Normalized across ${activeCount} active subscriber(s)`
+                : totalSettlementsCount > 0
+                  ? `0 active · +${totalEarnedNetUsdc} USDC earned to date`
+                  : "Normalized across 0 subscriber(s)"}
+            </p>
+          )}
         </Card>
 
         <Card className="p-4 sm:p-5">
@@ -234,11 +271,15 @@ function OverviewContent({
           <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {activeCount}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {allTimeCount > 0
-              ? `${allTimeCount} total all-time (${activeCount} active, ${pastCount} past)`
-              : "Ready for subscriptions"}
-          </p>
+          {isSettlementsLoading ? (
+            <Skeleton className="h-3.5 w-48 mt-1" />
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {allTimeCount > 0
+                ? `${allTimeCount} total all-time (${activeCount} active, ${pastCount} past)`
+                : "Ready for subscriptions"}
+            </p>
+          )}
         </Card>
 
         <Card className="p-4 sm:p-5">
@@ -246,16 +287,25 @@ function OverviewContent({
             <span className="text-xs font-medium">Renewal Success Rate</span>
             <ShieldCheck className="size-4 text-primary" />
           </div>
-          <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
-            {renewalSuccessRate}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {!hasHistory
-              ? "No renewal attempts yet"
-              : pastDueSubscribers.length === 0
-                ? "100% on-chain settlements"
-                : `${pastDueSubscribers.length} renewal(s) past due`}
-          </p>
+          {isSettlementsLoading ? (
+            <div className="mt-2 space-y-2">
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-3.5 w-40" />
+            </div>
+          ) : (
+            <>
+              <div className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
+                {renewalSuccessRate}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {!hasHistory
+                  ? "No renewal attempts yet"
+                  : pastDueSubscribers.length === 0
+                    ? "100% on-chain settlements"
+                    : `${pastDueSubscribers.length} renewal(s) past due`}
+              </p>
+            </>
+          )}
         </Card>
       </div>
 
@@ -325,14 +375,20 @@ function OverviewContent({
                       </TableCell>
                       <TableCell className="text-xs">
                         <span className="font-semibold text-foreground">{planActiveSubs} active</span>
-                        {planPulls > 0 && (
+                        {isSettlementsLoading ? (
+                          <Skeleton className="inline-block h-3 w-12 ml-1.5 align-middle" />
+                        ) : planPulls > 0 ? (
                           <span className="text-muted-foreground text-[11px] ml-1.5">
                             ({planPulls} pull{planPulls === 1 ? "" : "s"})
                           </span>
-                        )}
+                        ) : null}
                       </TableCell>
                       <TableCell className="font-mono text-xs font-semibold text-primary">
-                        +{planEarnedNet} USDC
+                        {isSettlementsLoading ? (
+                          <Skeleton className="h-4 w-20" />
+                        ) : (
+                          `+${planEarnedNet} USDC`
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={p.active ? "success" : "neutral"}>
@@ -380,9 +436,13 @@ function OverviewContent({
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2.5">
                   <CardTitle className="text-base">Recent Settlements & Activity</CardTitle>
-                  <Badge variant="outline" className="tabular-nums">
-                    {onChainEvents.length} on-chain
-                  </Badge>
+                  {isSettlementsLoading ? (
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  ) : (
+                    <Badge variant="outline" className="tabular-nums">
+                      {onChainEvents.length} on-chain
+                    </Badge>
+                  )}
                 </div>
                 <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:underline -ml-2 sm:-mr-2 sm:ml-0 self-start sm:self-auto">
                   <Link href="/subscribers">View subscribers →</Link>
@@ -393,7 +453,43 @@ function OverviewContent({
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {onChainEvents.length === 0 ? (
+              {isSettlementsLoading ? (
+                <Table className="min-w-145 md:min-w-full">
+                  <TableHeader>
+                    <TableRow className="border-t-0 hover:bg-transparent">
+                      <TableHead>Event</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Amount (Net)</TableHead>
+                      <TableHead className="text-right">Transaction</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <TableRow key={i} className="hover:bg-transparent">
+                        <TableCell>
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-28" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-3.5 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-20 ml-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : onChainEvents.length === 0 ? (
                 <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                   {loadingEvents ? "Loading on-chain events from Solana Devnet…" : "No on-chain activity yet."}
                 </div>
