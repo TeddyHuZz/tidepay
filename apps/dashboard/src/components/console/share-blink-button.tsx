@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Share2,
   Copy,
@@ -38,26 +39,77 @@ export function ShareBlinkButton({
 }: ShareBlinkButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { success: toastSuccess, info: toastInfo } = useToast();
 
   const actionUrl = getActionUrl(planId);
   const dialUrl = blinkUrl(planId);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const menuWidth = 288; // w-72 = 288px
+    const menuHeight = 310;
+    const gap = 6;
+
+    // Check if there is enough space below the trigger
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const fitsBelow = spaceBelow >= menuHeight + gap;
+
+    const top = fitsBelow
+      ? rect.bottom + gap
+      : Math.max(12, rect.top - menuHeight - gap);
+
+    let left = align === "right" ? rect.right - menuWidth : rect.left;
+    // Clamp horizontally to stay completely inside the viewport
+    left = Math.max(12, Math.min(left, window.innerWidth - menuWidth - 12));
+
+    setCoords({ top, left });
+  };
+
+  // Recalculate position on scroll and resize while open
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [isOpen, align]);
+
   // Close menu when clicking outside or pressing Escape
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setIsOpen(false);
     }
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
@@ -97,12 +149,12 @@ export function ShareBlinkButton({
   };
 
   return (
-    <div className="relative inline-block text-left" ref={menuRef}>
+    <div className="relative inline-block text-left" ref={triggerRef}>
       <Button
         type="button"
         size={size}
         variant={variant === "outline" ? "outline" : "default"}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
           "gap-1.5 font-medium transition-all",
           variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
@@ -114,103 +166,110 @@ export function ShareBlinkButton({
         <ChevronDown className={cn("size-3.5 transition-transform duration-200", isOpen && "rotate-180")} />
       </Button>
 
-      {isOpen && (
-        <div
-          className={cn(
-            "absolute z-50 mt-2 w-72 rounded-xl border border-border/80 bg-popover/95 p-1.5 text-popover-foreground shadow-xl backdrop-blur-md outline-none",
-            "animate-in fade-in-0 zoom-in-95 duration-150",
-            align === "right" ? "right-0" : "left-0"
-          )}
-        >
-          <div className="px-2.5 py-2 border-b border-border/50">
-            <p className="text-xs font-semibold text-foreground">Distribute Solana Blink</p>
-            <p className="text-[11px] text-muted-foreground">
-              Share on social media for 1-click wallet subscriptions.
-            </p>
-          </div>
+      {mounted && isOpen && coords &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+            }}
+            className={cn(
+              "z-50 w-72 rounded-xl border border-border/80 bg-popover/95 p-1.5 text-popover-foreground shadow-2xl backdrop-blur-md outline-none",
+              "animate-in fade-in-0 zoom-in-95 duration-150"
+            )}
+          >
+            <div className="px-2.5 py-2 border-b border-border/50">
+              <p className="text-xs font-semibold text-foreground">Distribute Solana Blink</p>
+              <p className="text-[11px] text-muted-foreground">
+                Share on social media for 1-click wallet subscriptions.
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-0.5 py-1">
-            {/* Share to X (Twitter) */}
-            <button
-              type="button"
-              onClick={shareToTwitter}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-            >
-              <div className="flex size-6 items-center justify-center rounded-md bg-foreground/10 text-foreground">
-                <svg className="size-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium">Post to X (Twitter)</span>
-                <span className="text-[10px] text-muted-foreground">Unfurls native Blink card on X</span>
-              </div>
-            </button>
+            <div className="flex flex-col gap-0.5 py-1">
+              {/* Share to X (Twitter) */}
+              <button
+                type="button"
+                onClick={shareToTwitter}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+              >
+                <div className="flex size-6 items-center justify-center rounded-md bg-foreground/10 text-foreground">
+                  <svg className="size-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium">Post to X (Twitter)</span>
+                  <span className="text-[10px] text-muted-foreground">Unfurls native Blink card on X</span>
+                </div>
+              </button>
 
-            {/* Share to Telegram */}
-            <button
-              type="button"
-              onClick={shareToTelegram}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-            >
-              <div className="flex size-6 items-center justify-center rounded-md bg-[#229ED9]/15 text-[#229ED9]">
-                <Send className="size-3.5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium">Share on Telegram</span>
-                <span className="text-[10px] text-muted-foreground">Direct link with 1-click checkout</span>
-              </div>
-            </button>
+              {/* Share to Telegram */}
+              <button
+                type="button"
+                onClick={shareToTelegram}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+              >
+                <div className="flex size-6 items-center justify-center rounded-md bg-[#229ED9]/15 text-[#229ED9]">
+                  <Send className="size-3.5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium">Share on Telegram</span>
+                  <span className="text-[10px] text-muted-foreground">Direct link with 1-click checkout</span>
+                </div>
+              </button>
 
-            {/* Copy for Discord */}
-            <button
-              type="button"
-              onClick={shareToDiscord}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-            >
-              <div className="flex size-6 items-center justify-center rounded-md bg-[#5865F2]/15 text-[#5865F2]">
-                <MessageCircle className="size-3.5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium">Copy for Discord</span>
-                <span className="text-[10px] text-muted-foreground">Formatted message with action URL</span>
-              </div>
-            </button>
+              {/* Copy for Discord */}
+              <button
+                type="button"
+                onClick={shareToDiscord}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+              >
+                <div className="flex size-6 items-center justify-center rounded-md bg-[#5865F2]/15 text-[#5865F2]">
+                  <MessageCircle className="size-3.5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium">Copy for Discord</span>
+                  <span className="text-[10px] text-muted-foreground">Formatted message with action URL</span>
+                </div>
+              </button>
 
-            {/* Copy Direct Action URL */}
-            <button
-              type="button"
-              onClick={() => handleCopy(actionUrl, "action", "Solana Action URL")}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-            >
-              <div className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary">
-                {copiedKey === "action" ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium">{copiedKey === "action" ? "Copied!" : "Copy Blink Action URL"}</span>
-                <span className="text-[10px] text-muted-foreground truncate">{actionUrl}</span>
-              </div>
-            </button>
-          </div>
+              {/* Copy Direct Action URL */}
+              <button
+                type="button"
+                onClick={() => handleCopy(actionUrl, "action", "Solana Action URL")}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+              >
+                <div className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  {copiedKey === "action" ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium">{copiedKey === "action" ? "Copied!" : "Copy Blink Action URL"}</span>
+                  <span className="text-[10px] text-muted-foreground truncate">{actionUrl}</span>
+                </div>
+              </button>
+            </div>
 
-          {/* Secondary / Playground Link */}
-          <div className="border-t border-border/50 pt-1 mt-0.5">
-            <a
-              href={dialUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              <span className="flex items-center gap-1.5">
-                <Share2 className="size-3" />
-                Open on Dial.to (Playground)
-              </span>
-              <ExternalLink className="size-3 opacity-60" />
-            </a>
-          </div>
-        </div>
-      )}
+            {/* Secondary / Playground Link */}
+            <div className="border-t border-border/50 pt-1 mt-0.5">
+              <a
+                href={dialUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setIsOpen(false)}
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Share2 className="size-3" />
+                  Open on Dial.to (Playground)
+                </span>
+                <ExternalLink className="size-3 opacity-60" />
+              </a>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
