@@ -1,0 +1,11 @@
+pub const ERR_UNAUTHORIZED: &str = "ERR_UNAUTHORIZED: Caller is not authorized";
+pub const ERR_PLAN_EXISTS: &str = "ERR_PLAN_EXISTS: Plan ID already exists";
+pub const ERR_PLAN_NOT_FOUND: &str = "ERR_PLAN_NOT_FOUND: Plan does not exist";
+pub const ERR_PLAN_INACTIVE: &str = "ERR_PLAN_INACTIVE: Plan is currently inactive";
+pub const ERR_SUBSCRIPTION_EXISTS: &str = "ERR_SUBSCRIPTION_EXISTS: Subscriber already active on plan";
+pub const ERR_SUBSCRIPTION_NOT_FOUND: &str = "ERR_SUBSCRIPTION_NOT_FOUND: Subscription record not found";
+pub const ERR_SUBSCRIPTION_NOT_DUE: &str = "ERR_SUBSCRIPTION_NOT_DUE: Current block time is before next epoch";
+pub const ERR_INVALID_AMOUNT: &str = "ERR_INVALID_AMOUNT: Amount must be greater than zero";
+pub const ERR_INVALID_INTERVAL: &str = "ERR_INVALID_INTERVAL: Interval must be at least 60 seconds";
+pub const ERR_INVALID_TOKEN: &str = "ERR_INVALID_TOKEN: Attached token does not match plan token";
+pub const ERR_INSUFFICIENT_PAYMENT: &str = "ERR_INSUFFICIENT_PAYMENT: Payment amount less than plan price";
