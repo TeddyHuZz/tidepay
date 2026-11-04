@@ -31,7 +31,12 @@ import {
   explorerUrl,
 } from "@/lib/chain/config";
 import { describeTransactionError } from "@/lib/chain/errors";
-import { parseUsdc } from "@/lib/chain/derive";
+import { formatUsdc, parseUsdc } from "@/lib/chain/derive";
+import { useNearMerchant } from "@/hooks/use-near-merchant";
+import { NEAR_CONTRACT_ID, NEAR_PROTOCOL_FEE_BPS, nearExplorerUrl } from "@/lib/near/config";
+import { describeNearError } from "@/lib/near/errors";
+import { toNearPlanId } from "@/lib/near/ids";
+import { buildNearCreatePlanParams, nearNetPayout, nearPriceTooLow } from "@/lib/near/plan-args";
 import { INTERVALS, getInterval, intervalUnit, type IntervalId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -103,13 +108,16 @@ export function PlanForm() {
   const [customUnit, setCustomUnit] = useState<CustomUnit>("days");
   const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
   const [tokenId, setTokenId] = useState<TokenId>("USDC");
+  const [network, setNetwork] = useState<"solana" | "near">("solana");
+  const { prepare, status: nearStatus, accountId: nearAccountId } = useNearMerchant();
 
-  const token = TOKENS[tokenId];
+  const isNear = network === "near";
+  const token = TOKENS[isNear ? "USDC" : tokenId];
   const crankBountyAmount = parseUsdc(token.renewalFee, token.decimals) ?? BigInt(0);
   const planIdValid = PLAN_ID_PATTERN.test(planId);
   const planIdError = planId !== "" && !planIdValid;
   const amount = parseUsdc(price, token.decimals);
-  const priceTooLow = amount !== null && amount <= crankBountyAmount;
+  const priceTooLow = amount !== null && (isNear ? nearPriceTooLow(amount, crankBountyAmount) : amount <= crankBountyAmount);
   const priceError = price !== "" && (amount === null || priceTooLow);
 
   const customNumber = parseInt(customCount, 10);
@@ -127,6 +135,34 @@ export function PlanForm() {
     () => (publicKey && planIdValid ? client.findMerchantPlanPda(publicKey, planId)[0].toBase58() : null),
     [client, publicKey, planId, planIdValid],
   );
+
+  function selectNetwork(next: "solana" | "near") {
+    setNetwork(next);
+    if (next === "near") setTokenId("USDC"); // the NEAR demo token is the only option
+    setSubmit({ status: "idle" });
+  }
+
+  async function createNearPlan() {
+    if (!formValid || amount === null) return;
+    setSubmit({ status: "submitting" });
+    try {
+      const client = await prepare(); // derive the key, fund the account, register it on the token
+      if (!client) throw new Error("Could not set up your NEAR account. Please try again.");
+      await client.createPlan(buildNearCreatePlanParams({ planId, amount, intervalSeconds }));
+      setSubmit({ status: "success", signature: nearAccountId ?? "" });
+
+      addPlanToActiveProject(toNearPlanId(planId));
+      addPlanToActiveProject(planId);
+      refresh();
+      toastSuccess(`Plan "${planId}" created successfully!`, "Redirecting to plan analytics...");
+      setTimeout(() => router.push(`/plans/${encodeURIComponent(toNearPlanId(planId))}`), 1200);
+    } catch (error) {
+      console.error("[TidePay] createNearPlan failed:", error);
+      const message = describeNearError(error);
+      setSubmit({ status: "error", message });
+      toastError("Failed to create plan", message);
+    }
+  }
 
   async function createPlan() {
     if (!publicKey || !formValid || !planAddress || amount === null) return;
@@ -207,9 +243,41 @@ export function PlanForm() {
           <div>
             <CardTitle className="text-base">Plan details</CardTitle>
             <CardDescription className="mt-1">
-              Subscribers approve a one-time delegated allowance. Nothing is held in escrow.
+              {isNear
+                ? "Subscribers prepay renewals into the TidePay contract and get the unused balance back when they cancel."
+                : "Subscribers approve a one-time delegated allowance. Nothing is held in escrow."}
             </CardDescription>
           </div>
+
+          <fieldset className="flex min-w-0 flex-col gap-3 border-0 p-0">
+            <legend className="mb-1 text-sm font-medium">Network</legend>
+            <div role="group" aria-label="Network" className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "solana", label: "Solana Devnet" },
+                  { id: "near", label: "NEAR Testnet" },
+                ] as const
+              ).map((option) => {
+                const selected = option.id === network;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => selectNetwork(option.id)}
+                    className={cn(
+                      "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
+                      selected
+                        ? "border-primary bg-success-soft text-success"
+                        : "border-input bg-background text-foreground/80 hover:bg-accent",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="plan-id">Plan ID</Label>
@@ -243,7 +311,9 @@ export function PlanForm() {
               />
               <p id="plan-price-hint" className={cn("text-xs", priceError ? "text-destructive" : "text-muted-foreground")}>
                 {priceTooLow
-                  ? `Price must be greater than the ${token.renewalFee} ${token.symbol} renewal fee.`
+                  ? isNear
+                    ? "Price is too low to cover the protocol fee and the renewal fee."
+                    : `Price must be greater than the ${token.renewalFee} ${token.symbol} renewal fee.`
                   : priceError
                     ? "Enter an amount greater than 0."
                     : `Up to ${token.decimals} decimal places.`}
@@ -257,11 +327,13 @@ export function PlanForm() {
                 onChange={(e) => setTokenId(e.target.value as TokenId)}
                 className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
               >
-                {(Object.keys(TOKENS) as TokenId[]).map((id) => (
-                  <option key={id} value={id}>
-                    {TOKENS[id].label}
-                  </option>
-                ))}
+                {(Object.keys(TOKENS) as TokenId[])
+                  .filter((id) => !isNear || id === "USDC")
+                  .map((id) => (
+                    <option key={id} value={id}>
+                      {isNear ? "USDC (NEAR Testnet demo token)" : TOKENS[id].label}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
@@ -274,7 +346,7 @@ export function PlanForm() {
               <span className="ml-auto font-mono text-xs font-semibold text-primary">{token.renewalFee} {token.symbol}</span>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              A fixed {token.renewalFee} {token.symbol} network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain Solana gas fees.
+              A fixed {token.renewalFee} {token.symbol} network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain {isNear ? `NEAR gas fees. A ${NEAR_PROTOCOL_FEE_BPS / 100}% protocol fee also applies` : "Solana gas fees"}.
             </p>
           </div>
 
@@ -361,9 +433,15 @@ export function PlanForm() {
               </Button>
               <Button
                 disabled={!publicKey || !formValid || submit.status === "submitting" || created}
-                onClick={() => void createPlan()}
+                onClick={() => void (isNear ? createNearPlan() : createPlan())}
               >
-                {submit.status === "submitting" ? "Creating plan…" : "Create plan on Devnet"}
+                {submit.status === "submitting"
+                  ? isNear && (nearStatus === "deriving" || nearStatus === "funding" || nearStatus === "registering")
+                    ? { deriving: "Unlocking NEAR account…", funding: "Funding NEAR account…", registering: "Registering token…" }[nearStatus]
+                    : "Creating plan…"
+                  : isNear
+                    ? "Create plan on NEAR Testnet"
+                    : "Create plan on Devnet"}
               </Button>
             </div>
             {!publicKey && (
@@ -377,8 +455,13 @@ export function PlanForm() {
             {submit.status === "success" && (
               <p role="status" className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-[13px] text-success">
                 Plan created.{" "}
-                <a href={explorerUrl("tx", submit.signature)} target="_blank" rel="noreferrer" className="underline">
-                  View transaction
+                <a
+                  href={isNear ? nearExplorerUrl("address", submit.signature) : explorerUrl("tx", submit.signature)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  {isNear ? "View account" : "View transaction"}
                 </a>
               </p>
             )}
@@ -392,7 +475,7 @@ export function PlanForm() {
             <CardTitle className="text-base">{created ? "Share your plan" : "Share links"}</CardTitle>
             <CardDescription className="mt-1">
               {created
-                ? "Your plan is live on Devnet. Share any of these with subscribers."
+                ? `Your plan is live on ${isNear ? "NEAR Testnet" : "Devnet"}. Share any of these with subscribers.`
                 : "Derived from your wallet and plan ID. They work once the plan is created."}
             </CardDescription>
           </div>
@@ -406,13 +489,32 @@ export function PlanForm() {
               <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
                 <span>Net payout to merchant</span>
                 <span className="font-mono font-medium text-foreground">
-                  {(Number(price) - Number(token.renewalFee)).toFixed(token.displayDecimals)} {token.symbol} / cycle
+                  {isNear
+                    ? formatUsdc(nearNetPayout(amount, crankBountyAmount))
+                    : (Number(price) - Number(token.renewalFee)).toFixed(token.displayDecimals)}{" "}
+                  {token.symbol} / cycle
                 </span>
               </div>
             )}
           </div>
 
-          {planAddress ? (
+          {isNear ? (
+            planIdValid ? (
+              <>
+                <OutputField label="Checkout link" value={checkoutUrl(toNearPlanId(planId))} copyLabel="Copy checkout link" />
+                <OutputField
+                  label="Embed snippet"
+                  value={`<iframe src="${checkoutUrl(toNearPlanId(planId))}" width="420" height="520"></iframe>`}
+                  copyLabel="Copy embed snippet"
+                />
+                <OutputField label="Contract" value={NEAR_CONTRACT_ID || "Set NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT"} copyLabel="Copy contract id" />
+              </>
+            ) : (
+              <p className="rounded-md border border-dashed border-input bg-background px-3 py-2.5 text-sm text-muted-foreground">
+                Enter a valid plan ID to see the share links.
+              </p>
+            )
+          ) : planAddress ? (
             <>
               <OutputField label="Blink URL" value={blinkUrl(planAddress)} copyLabel="Copy Blink URL" />
               <OutputField label="Checkout link" value={checkoutUrl(planAddress)} copyLabel="Copy checkout link" />
