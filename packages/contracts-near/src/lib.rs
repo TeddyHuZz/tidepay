@@ -182,14 +182,15 @@ impl TidePayContract {
         let pay = |to: AccountId, amt: u128, memo: String| {
             ext_ft::ext(plan.token_id.clone()).with_attached_deposit(ONE_YOCTO).ft_transfer(to, U128(amt), Some(memo))
         };
-        let mut all = pay(plan.merchant_id.clone(), merchant_amount, format!("TidePay Cycle {}", sub.cycle_count));
+        // NEAR forbids returning a joint (.and) promise, so only the merchant payout is returned;
+        // the bounty and fee transfers are scheduled independently.
         if bounty > 0 {
-            all = all.and(pay(keeper, bounty, "TidePay Crank Bounty".to_string()));
+            let _ = pay(keeper, bounty, "TidePay Crank Bounty".to_string());
         }
         if fee > 0 {
-            all = all.and(pay(self.protocol_fee_recipient.clone(), fee, "TidePay Fee".to_string()));
+            let _ = pay(self.protocol_fee_recipient.clone(), fee, "TidePay Fee".to_string());
         }
-        all
+        pay(plan.merchant_id.clone(), merchant_amount, format!("TidePay Cycle {}", sub.cycle_count))
     }
 
     pub fn cancel_subscription(&mut self, plan_id: String) -> Promise {

@@ -16,7 +16,7 @@ const accountId = required("NEAR_CRANK_ACCOUNT_ID");
 const contractId = required("TIDEPAY_NEAR_CONTRACT_ID");
 const watched = parseWatchList(required("NEAR_CRANK_WATCH")); // e.g. "pro-monthly:alice.testnet"
 
-const provider = new JsonRpcProvider({ url: process.env.NEAR_RPC_URL ?? `https://rpc.${networkId}.near.org` });
+const provider = new JsonRpcProvider({ url: process.env.NEAR_RPC_URL ?? (networkId === "mainnet" ? "https://free.rpc.fastnear.com" : "https://test.rpc.fastnear.com") });
 const signer = KeyPairSigner.fromSecretKey(required("NEAR_CRANK_PRIVATE_KEY") as KeyPairString);
 const client = new TidePayNearClient(new Account(accountId, provider, signer), contractId);
 const runner = new NearCrankRunner(client, watched);
