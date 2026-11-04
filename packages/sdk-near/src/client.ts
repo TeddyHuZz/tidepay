@@ -1,5 +1,7 @@
 import type { Account, SerializedReturnValue } from "near-api-js";
 
+export type TxOutcome = Awaited<ReturnType<Account["callFunctionRaw"]>>;
+
 export const DEFAULT_CRANK_BOUNTY = 50_000n;
 export const DEFAULT_PROTOCOL_FEE_BPS = 50;
 const ONE_YOCTO = 1n; // NEP-141 ft_transfer_call requires exactly 1 yoctoNEAR
@@ -67,8 +69,9 @@ export class TidePayNearClient {
     return this.ftTransferCall(p.tokenId, p.amount, { action: "deposit", plan_id: p.planId });
   }
 
-  processEpoch(p: { planId: string; subscriberId: string }) {
-    return this.account.callFunction({
+  /** Returns the raw outcome so callers can read `transaction.hash` and check `status`. */
+  processEpoch(p: { planId: string; subscriberId: string }): Promise<TxOutcome> {
+    return this.account.callFunctionRaw({
       contractId: this.contractId,
       methodName: "process_epoch",
       args: { plan_id: p.planId, subscriber_id: p.subscriberId },

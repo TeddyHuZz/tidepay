@@ -1,6 +1,7 @@
 packages:
   - "packages/*"
   - "packages/protocol/crank"
+  - "packages/protocol-near/crank"
   - "apps/*"
 
 allowBuilds:

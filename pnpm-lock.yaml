@@ -374,6 +374,28 @@ importers:
 
   packages/protocol: {}
 
+  packages/protocol-near/crank:
+    dependencies:
+      '@tidepay/sdk-near':
+        specifier: workspace:*
+        version: link:../../sdk-near
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      near-api-js:
+        specifier: ^7.4.0
+        version: 7.4.0
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.15
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))
+
   packages/protocol/crank:
     dependencies:
       '@coral-xyz/anchor':
