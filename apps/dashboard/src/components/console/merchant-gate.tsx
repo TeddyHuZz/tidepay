@@ -10,6 +10,7 @@ import type { MerchantData } from "@/lib/types";
 import { useProject } from "@/components/project-context";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { nearBannerMessage } from "@/lib/near/status-banner";
 import { AlertTriangle, RefreshCw, RotateCcw, Settings, Terminal } from "lucide-react";
 
 export interface MerchantGateMeta {
@@ -24,7 +25,7 @@ export function MerchantGate({
 }: {
   children: (data: MerchantData, meta: MerchantGateMeta) => ReactNode;
 }) {
-  const { state, refresh, isRefreshing, lastRefreshedAt } = useMerchantData();
+  const { state, refresh, isRefreshing, lastRefreshedAt, nearError } = useMerchantData();
   const { activeProject, updateActiveProject, openSettingsModal } = useProject();
 
   if (state.status === "disconnected") {
@@ -158,6 +159,11 @@ export function MerchantGate({
       {state.isSample && (
         <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
           Showing sample data. Unset NEXT_PUBLIC_USE_SAMPLE_DATA to read from Devnet.
+        </p>
+      )}
+      {nearBannerMessage(nearError) && (
+        <p role="alert" className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
+          {nearBannerMessage(nearError)}
         </p>
       )}
       {children(state.data, { refresh, isRefreshing, lastRefreshedAt })}

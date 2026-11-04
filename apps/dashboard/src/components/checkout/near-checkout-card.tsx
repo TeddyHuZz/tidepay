@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useNearSubscriber } from "@/hooks/use-near-subscriber";
 import { formatUsdc } from "@/lib/chain/derive";
 import { formatDateTimeUtc } from "@/lib/format";
-import { createNearReader } from "@/lib/near/chain-ops";
+import { tryCreateNearReader } from "@/lib/near/chain-ops";
 import {
   DEFAULT_PREPAID_CYCLES,
   MAX_PREPAID_CYCLES,
@@ -50,11 +50,11 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
 
   const accountId = wallet.accountId;
   const required = prepaidAmount(priceUsdc, cycles);
-  const reader = useMemo(() => createNearReader(), []);
+  const reader = useMemo(() => tryCreateNearReader(), []);
 
   // Reads what this wallet has on chain. A result for another account or an older refresh is ignored.
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !reader) return;
     let cancelled = false;
     Promise.all([reader.getSubscription(planId, accountId), reader.getFtBalance(NEAR_USDC_TOKEN_ID, accountId)]).then(
       ([subscription, balance]) => !cancelled && setView({ owner: accountId, version, data: { subscription, balance, readAtMs: Date.now() } }),
@@ -118,6 +118,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const getTestUsdc = () =>
     run("mint", async () => {
       if (!accountId) throw new Error("Connect a NEAR wallet first.");
+      if (!reader) throw new Error("NEAR checkout is not configured.");
       if (!(await reader.isStorageRegistered(NEAR_USDC_TOKEN_ID, accountId))) {
         await wallet.callFunction({
           contractId: NEAR_USDC_TOKEN_ID,
@@ -135,7 +136,11 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     </p>
   ) : null;
 
-  const actions = !accountId ? (
+  const actions = !reader ? (
+    <Button size="lg" disabled>
+      NEAR checkout is not configured
+    </Button>
+  ) : !accountId ? (
     <Button size="lg" disabled={wallet.connecting} onClick={() => void wallet.connect()}>
       {wallet.connecting ? "Connecting…" : "Connect NEAR wallet to subscribe"}
     </Button>

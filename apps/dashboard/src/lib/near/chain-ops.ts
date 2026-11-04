@@ -34,3 +34,8 @@ export function createNearReader(contractId: string = NEAR_CONTRACT_ID, rpcUrl: 
   if (!contractId) throw new Error("NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT is not set");
   return new TidePayNearClient(new Account("reader.testnet", new JsonRpcProvider({ url: rpcUrl })), contractId);
 }
+
+/** Like createNearReader, but null when no contract is configured, so a page can show a message instead of crashing. */
+export function tryCreateNearReader(contractId: string = NEAR_CONTRACT_ID, rpcUrl: string = NEAR_RPC_URL): TidePayNearClient | null {
+  return contractId ? createNearReader(contractId, rpcUrl) : null;
+}
