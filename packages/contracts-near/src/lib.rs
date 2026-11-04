@@ -3,7 +3,7 @@ pub mod types;
 
 use near_sdk::collections::LookupMap;
 use errors::*;
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::{env, ext_contract, near, require, AccountId, NearToken, PanicOnDefault, Promise};
 use types::*;
 
@@ -70,7 +70,7 @@ impl TidePayContract {
             protocol_fee_bps: fee_bps,
             crank_bounty,
             is_active: true,
-            created_at_ns: env::block_timestamp(),
+            created_at_ns: U64(env::block_timestamp()),
         };
 
         self.plans.insert(&plan_id, &plan);
@@ -96,7 +96,7 @@ impl TidePayContract {
 
     pub fn is_subscription_due(&self, plan_id: String, subscriber_id: AccountId) -> bool {
         self.get_subscription(plan_id, subscriber_id)
-            .is_some_and(|s| s.is_active && env::block_timestamp() >= s.next_epoch_timestamp_ns)
+            .is_some_and(|s| s.is_active && env::block_timestamp() >= s.next_epoch_timestamp_ns.0)
     }
     pub fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> U128 {
         let token_id = env::predecessor_account_id();
@@ -118,9 +118,9 @@ impl TidePayContract {
                 let sub = SubscriptionRecord {
                     plan_id: parsed.plan_id.clone(),
                     subscriber_id: sender_id.clone(),
-                    start_timestamp_ns: now_ns,
-                    last_epoch_timestamp_ns: now_ns,
-                    next_epoch_timestamp_ns: now_ns + plan.interval_seconds * SECONDS_TO_NANOS,
+                    start_timestamp_ns: U64(now_ns),
+                    last_epoch_timestamp_ns: U64(now_ns),
+                    next_epoch_timestamp_ns: U64(now_ns + plan.interval_seconds * SECONDS_TO_NANOS),
                     cycle_count: 1,
                     is_active: true,
                     deposited_balance: U128(amount.0 - plan.amount.0),
@@ -159,13 +159,13 @@ impl TidePayContract {
 
         require!(sub.is_active, ERR_SUBSCRIPTION_INACTIVE);
         let now_ns = env::block_timestamp();
-        require!(now_ns >= sub.next_epoch_timestamp_ns, ERR_SUBSCRIPTION_NOT_DUE);
+        require!(now_ns >= sub.next_epoch_timestamp_ns.0, ERR_SUBSCRIPTION_NOT_DUE);
         require!(sub.deposited_balance.0 >= plan.amount.0, ERR_INSUFFICIENT_BALANCE);
 
         // Effects before interactions
         sub.deposited_balance = U128(sub.deposited_balance.0 - plan.amount.0);
-        sub.last_epoch_timestamp_ns = now_ns;
-        sub.next_epoch_timestamp_ns = now_ns + plan.interval_seconds * SECONDS_TO_NANOS;
+        sub.last_epoch_timestamp_ns = U64(now_ns);
+        sub.next_epoch_timestamp_ns = U64(now_ns + plan.interval_seconds * SECONDS_TO_NANOS);
         sub.cycle_count += 1;
         self.subscriptions.insert(&sub_key, &sub);
 

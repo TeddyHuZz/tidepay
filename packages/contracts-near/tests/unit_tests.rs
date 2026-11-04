@@ -93,7 +93,7 @@ fn test_subscribe_and_due_check() {
     let sub = contract.get_subscription("saas-tier1".to_string(), acct("subscriber.testnet")).unwrap();
     assert_eq!(sub.cycle_count, 1);
     assert_eq!(sub.deposited_balance.0, 40_000_000); // 50 - 10 paid for epoch 0
-    assert_eq!(sub.next_epoch_timestamp_ns, 160 * SEC);
+    assert_eq!(sub.next_epoch_timestamp_ns.0, 160 * SEC);
 
     at("keeper.testnet", 120);
     assert!(!contract.is_subscription_due("saas-tier1".to_string(), acct("subscriber.testnet")));
@@ -110,7 +110,7 @@ fn test_process_epoch_advances_state() {
     let sub = contract.get_subscription("saas-tier1".to_string(), acct("subscriber.testnet")).unwrap();
     assert_eq!(sub.cycle_count, 2);
     assert_eq!(sub.deposited_balance.0, 30_000_000);
-    assert_eq!(sub.next_epoch_timestamp_ns, 220 * SEC);
+    assert_eq!(sub.next_epoch_timestamp_ns.0, 220 * SEC);
 }
 
 #[test]

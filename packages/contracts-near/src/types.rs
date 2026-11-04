@@ -1,5 +1,5 @@
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::AccountId;
 
@@ -21,7 +21,7 @@ pub struct MerchantPlan {
     pub protocol_fee_bps: u16,
     pub crank_bounty: U128,
     pub is_active: bool,
-    pub created_at_ns: u64,
+    pub created_at_ns: U64,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
@@ -30,9 +30,9 @@ pub struct MerchantPlan {
 pub struct SubscriptionRecord {
     pub plan_id: String,
     pub subscriber_id: AccountId,
-    pub start_timestamp_ns: u64,
-    pub last_epoch_timestamp_ns: u64,
-    pub next_epoch_timestamp_ns: u64,
+    pub start_timestamp_ns: U64,
+    pub last_epoch_timestamp_ns: U64,
+    pub next_epoch_timestamp_ns: U64,
     pub cycle_count: u64,
     pub is_active: bool,
     pub deposited_balance: U128,
