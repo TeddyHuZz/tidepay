@@ -4,6 +4,8 @@ export type TxOutcome = Awaited<ReturnType<Account["callFunctionRaw"]>>;
 
 export const DEFAULT_CRANK_BOUNTY = 50_000n;
 export const DEFAULT_PROTOCOL_FEE_BPS = 50;
+/** Covers a NEP-141 storage registration (0.02 NEAR; the token refunds any excess). */
+export const TOKEN_STORAGE_DEPOSIT_YOCTO = 20_000_000_000_000_000_000_000n;
 const ONE_YOCTO = 1n; // NEP-141 ft_transfer_call requires exactly 1 yoctoNEAR
 const TGAS = 1_000_000_000_000n;
 
@@ -89,6 +91,42 @@ export class TidePayNearClient {
     });
   }
 
+  togglePlanStatus(planId: string, isActive: boolean) {
+    return this.account.callFunction({
+      contractId: this.contractId,
+      methodName: "toggle_plan_status",
+      args: { plan_id: planId, is_active: isActive },
+      gas: 30n * TGAS,
+    });
+  }
+
+  /** Registers `accountId` on a NEP-141 token so it can receive transfers; paid by this client's account. */
+  registerStorage(tokenId: string, accountId: string) {
+    return this.account.callFunction({
+      contractId: tokenId,
+      methodName: "storage_deposit",
+      args: { account_id: accountId, registration_only: true },
+      deposit: TOKEN_STORAGE_DEPOSIT_YOCTO,
+      gas: 30n * TGAS,
+    });
+  }
+
+  async isStorageRegistered(tokenId: string, accountId: string): Promise<boolean> {
+    return (await this.view("storage_balance_of", { account_id: accountId }, tokenId)) != null;
+  }
+
+  async getFtBalance(tokenId: string, accountId: string): Promise<bigint> {
+    return BigInt((await this.view<string>("ft_balance_of", { account_id: accountId }, tokenId)) ?? "0");
+  }
+
+  async getMerchantPlans(merchantId: string, fromIndex = 0, limit = 100): Promise<MerchantPlan[]> {
+    return (await this.view<MerchantPlan[]>("get_merchant_plans", { merchant_id: merchantId, from_index: fromIndex, limit })) ?? [];
+  }
+
+  async getPlanSubscribers(planId: string, fromIndex = 0, limit = 100): Promise<SubscriptionRecord[]> {
+    return (await this.view<SubscriptionRecord[]>("get_plan_subscribers", { plan_id: planId, from_index: fromIndex, limit })) ?? [];
+  }
+
   async getPlan(planId: string): Promise<MerchantPlan | null> {
     return (await this.view<MerchantPlan>("get_plan", { plan_id: planId })) ?? null;
   }
@@ -111,7 +149,7 @@ export class TidePayNearClient {
     });
   }
 
-  private view<T extends SerializedReturnValue>(method: string, args: Record<string, unknown>) {
-    return this.account.provider.callFunction<T>({ contractId: this.contractId, method, args });
+  private view<T extends SerializedReturnValue>(method: string, args: Record<string, unknown>, contractId = this.contractId) {
+    return this.account.provider.callFunction<T>({ contractId, method, args });
   }
 }

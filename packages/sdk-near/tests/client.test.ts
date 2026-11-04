@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Account } from "near-api-js";
-import { TidePayNearClient } from "../src/client.js";
+import { TOKEN_STORAGE_DEPOSIT_YOCTO, TidePayNearClient } from "../src/client.js";
 
 const mockAccount = () => {
   const callFunction = vi.fn().mockResolvedValue("ok");
@@ -62,5 +62,67 @@ describe("TidePayNearClient", () => {
     expect(await client.getPlan("nope")).toBeNull();
     expect(await client.isSubscriptionDue("nope", "a.testnet")).toBe(false);
     expect(view).toHaveBeenCalledWith({ contractId: "tidepay.testnet", method: "get_plan", args: { plan_id: "nope" } });
+  });
+
+  it("getMerchantPlans pages through the contract index and defaults to []", async () => {
+    const { account, view } = mockAccount();
+    const client = new TidePayNearClient(account, "tidepay.testnet");
+    expect(await client.getMerchantPlans("m.testnet")).toEqual([]);
+    expect(view).toHaveBeenCalledWith({
+      contractId: "tidepay.testnet",
+      method: "get_merchant_plans",
+      args: { merchant_id: "m.testnet", from_index: 0, limit: 100 },
+    });
+  });
+
+  it("getPlanSubscribers sends plan id, offset and limit", async () => {
+    const { account, view } = mockAccount();
+    view.mockResolvedValueOnce([{ subscriber_id: "s.testnet" }]);
+    const rows = await new TidePayNearClient(account, "tidepay.testnet").getPlanSubscribers("p", 100, 50);
+    expect(rows).toHaveLength(1);
+    expect(view).toHaveBeenCalledWith({
+      contractId: "tidepay.testnet",
+      method: "get_plan_subscribers",
+      args: { plan_id: "p", from_index: 100, limit: 50 },
+    });
+  });
+
+  it("togglePlanStatus calls toggle_plan_status", async () => {
+    const { account, callFunction } = mockAccount();
+    await new TidePayNearClient(account, "tidepay.testnet").togglePlanStatus("p", false);
+    expect(callFunction.mock.calls[0][0]).toMatchObject({
+      contractId: "tidepay.testnet",
+      methodName: "toggle_plan_status",
+      args: { plan_id: "p", is_active: false },
+    });
+  });
+
+  it("isStorageRegistered reads the token contract and maps null to false", async () => {
+    const { account, view } = mockAccount();
+    const client = new TidePayNearClient(account, "tidepay.testnet");
+    expect(await client.isStorageRegistered("usdc.testnet", "a.testnet")).toBe(false);
+    view.mockResolvedValueOnce({ total: "1", available: "0" });
+    expect(await client.isStorageRegistered("usdc.testnet", "a.testnet")).toBe(true);
+    expect(view).toHaveBeenCalledWith({ contractId: "usdc.testnet", method: "storage_balance_of", args: { account_id: "a.testnet" } });
+  });
+
+  it("getFtBalance returns bigint units and 0n for no result", async () => {
+    const { account, view } = mockAccount();
+    const client = new TidePayNearClient(account, "tidepay.testnet");
+    view.mockResolvedValueOnce("30000000");
+    expect(await client.getFtBalance("usdc.testnet", "a.testnet")).toBe(30_000_000n);
+    expect(await client.getFtBalance("usdc.testnet", "a.testnet")).toBe(0n);
+  });
+
+  it("registerStorage registers the account on the token with the storage deposit", async () => {
+    const { account, callFunction } = mockAccount();
+    await new TidePayNearClient(account, "tidepay.testnet").registerStorage("usdc.testnet", "a.testnet");
+    expect(callFunction.mock.calls[0][0]).toMatchObject({
+      contractId: "usdc.testnet",
+      methodName: "storage_deposit",
+      args: { account_id: "a.testnet", registration_only: true },
+      deposit: TOKEN_STORAGE_DEPOSIT_YOCTO,
+    });
+    expect(TOKEN_STORAGE_DEPOSIT_YOCTO).toBe(20_000_000_000_000_000_000_000n);
   });
 });
