@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the contract and runs the full subscribe -> wait -> keeper-settles flow on NEAR testnet.
 # Usage: NEAR_ACCOUNT_ID=you.testnet NEAR_PRIVATE_KEY=ed25519:... ./scripts/test-near-flow.sh
-# The account must hold >= ~8 testnet NEAR (https://near-faucet.io). Exits non-zero on any failed check.
+# The account must hold >= ~5 testnet NEAR (https://near-faucet.io). Exits non-zero on any failed check.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

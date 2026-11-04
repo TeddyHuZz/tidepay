@@ -33,6 +33,8 @@ Copy `.env.example` to `.env.local`. `NEXT_PUBLIC_*` values are inlined at build
 | `NEXT_PUBLIC_USDC_MINT` | Accepted mint for new plans. Defaults to Devnet USDC |
 | `NEXT_PUBLIC_DEMO_PLAN_ADDRESS` | Plan the `/demo` app gates on. Unset: `/demo` runs in mock mode |
 | `NEXT_PUBLIC_USE_SAMPLE_DATA` | `1` shows sample data instead of reading the chain |
+| `NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT` | NEAR Testnet contract id for NEAR plans (see `scripts/deploy-near-contract.sh`). Unset: NEAR plans are disabled |
+| `NEXT_PUBLIC_NEAR_RPC_URL` | NEAR RPC. Defaults to `https://test.rpc.fastnear.com` |
 
 ## Routes
 
@@ -40,10 +42,11 @@ Copy `.env.example` to `.env.local`. `NEXT_PUBLIC_*` values are inlined at build
 | --- | --- |
 | `/` | Overview: MRR, subscribers, successful pulls, crank status, billing activity |
 | `/plans` | The connected merchant's plans, with checkout links and copyable Blink URLs |
-| `/plans/new` | Creates a plan on Devnet (`initialize_plan`) and shows its address, Blink URL, checkout link and embed snippet |
+| `/plans/new` | Creates a plan on Solana Devnet (`initialize_plan`) or NEAR Testnet (`create_plan`) and shows its share links. NEAR plans have a checkout link and embed snippet but no Blink |
 | `/subscribers` | Live subscriptions with status and next due epoch |
 | `/developers` | `@tidepay/sdk` snippets and a webhook payload simulator |
 | `/checkout/[planAddress]` | One-click subscribe, and cancel for existing subscribers |
+| `/checkout/near/[planId]` | The same checkout for a NEAR plan: connect a NEAR wallet, prepay cycles, cancel for a refund |
 | `/demo` | "PromptPilot AI", gated on an active subscription to `NEXT_PUBLIC_DEMO_PLAN_ADDRESS` |
 
 Console routes share the sidebar, top bar and merchant data through the `(console)` route group. Checkout and the demo are standalone.

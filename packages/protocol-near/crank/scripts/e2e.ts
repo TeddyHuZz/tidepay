@@ -1,5 +1,5 @@
 // End-to-end testnet check: deploy TidePay, subscribe, wait one interval, let the keeper settle, assert balances.
-// Needs one funded testnet account (>= ~8 NEAR) in NEAR_ACCOUNT_ID / NEAR_PRIVATE_KEY. Exits non-zero on any mismatch.
+// Needs one funded testnet account (>= ~5 NEAR) in NEAR_ACCOUNT_ID / NEAR_PRIVATE_KEY. Exits non-zero on any mismatch.
 import { readFileSync } from "node:fs";
 import { Account, JsonRpcProvider, KeyPair, KeyPairSigner, type KeyPairString } from "near-api-js";
 import { TidePayNearClient } from "@tidepay/sdk-near";
@@ -55,10 +55,10 @@ async function main() {
   const run = Date.now().toString(36);
 
   step("Create accounts");
-  const contract = await newAccount("tidepay", run, 4n * NEAR); // ~2.75 NEAR of wasm storage
-  const merchant = await newAccount("merchant", run, NEAR / 2n);
-  const subscriber = await newAccount("sub", run, NEAR / 2n);
-  const keeper = await newAccount("keeper", run, NEAR / 2n);
+  const contract = await newAccount("tidepay", run, (32n * NEAR) / 10n); // ~2.75 NEAR of wasm storage, plus headroom
+  const merchant = await newAccount("merchant", run, NEAR / 5n);
+  const subscriber = await newAccount("sub", run, NEAR / 5n);
+  const keeper = await newAccount("keeper", run, NEAR / 5n);
   const treasury = await newAccount("treasury", run, NEAR / 10n);
   console.log(`contract: ${contract.accountId}`);
 
@@ -86,7 +86,9 @@ async function main() {
 
   step("Merchant creates plan");
   await merchantClient.createPlan({ planId, tokenId, amount: PRICE, intervalSeconds: INTERVAL_S, crankBounty: BOUNTY, protocolFeeBps: Number(FEE_BPS) });
-  check("plan is active", String((await merchantClient.getPlan(planId))?.is_active), "true");
+  // RPC reads can lag a write that just finalized, so wait for the data instead of reading once.
+  const plan = await eventually("plan visible", () => merchantClient.getPlan(planId), (p) => p !== null);
+  check("plan is active", String(plan?.is_active), "true");
 
   step("Subscriber subscribes (epoch 0 paid immediately)");
   await subscriberClient.subscribe({ planId, tokenId, depositAmount: DEPOSIT });
@@ -94,18 +96,27 @@ async function main() {
   await eventually("epoch 0 payout", () => balanceOf(merchant.accountId), (b) => b === merchantAfterEpoch0);
   check("merchant after epoch 0", await balanceOf(merchant.accountId), merchantAfterEpoch0);
   check("treasury after epoch 0", await balanceOf(treasury.accountId), FEE);
-  let sub = await subscriberClient.getSubscription(planId, subscriber.accountId);
+  let sub = await eventually("subscription visible", () => subscriberClient.getSubscription(planId, subscriber.accountId), (r) => r !== null);
   check("cycle_count", sub!.cycle_count, 1);
   check("prepaid balance", sub!.deposited_balance, DEPOSIT - PRICE);
 
   step("Keeper must not settle before the interval");
   const runner = new NearCrankRunner(keeperClient, [{ planId, subscriberId: subscriber.accountId }]);
-  check("due immediately after subscribe", String(await keeperClient.isSubscriptionDue(planId, subscriber.accountId)), "false");
+  // Slow RPC reads above can use up the 60 s interval, so judge the contract against the chain's own clock, not ours:
+  // "not due" requires the block time before the call to be under next_epoch; "due" requires the block time after to be over it.
+  const blockNs = async () => BigInt((await provider.viewBlock({ finality: "final" })).header.timestamp_nanosec);
+  const nextEpochNs = BigInt(sub!.next_epoch_timestamp_ns);
+  const before = await blockNs();
+  const dueNow = await keeperClient.isSubscriptionDue(planId, subscriber.accountId);
+  const after = await blockNs();
+  const consistent = dueNow ? after >= nextEpochNs : before < nextEpochNs;
+  check("contract due-state matches chain time", String(consistent), "true");
+  console.log(`     (due=${dueNow}, block time ${before < nextEpochNs ? "before" : "after"} next epoch when asked)`);
 
   step(`Wait ${INTERVAL_S}s, then keeper settles epoch 1`);
   await eventually("subscription due", () => keeperClient.isSubscriptionDue(planId, subscriber.accountId), Boolean, (INTERVAL_S + 90) * 1000);
   await runner.tick();
-  sub = await subscriberClient.getSubscription(planId, subscriber.accountId);
+  sub = await eventually("cycle 2 visible", () => subscriberClient.getSubscription(planId, subscriber.accountId), (r) => r?.cycle_count === 2);
   check("cycle_count after keeper", sub!.cycle_count, 2);
   check("prepaid balance after keeper", sub!.deposited_balance, DEPOSIT - 2n * PRICE);
 

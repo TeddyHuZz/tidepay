@@ -38,6 +38,7 @@ interface ChainView {
 }
 
 const ONE_YOCTO = BigInt(1);
+const REREAD_DELAY_MS = 2_000;
 const CANCEL_GAS = BigInt(60) * BigInt(10) ** BigInt(12);
 
 export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSeconds, active }: NearCheckoutCardProps) {
@@ -88,6 +89,8 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
         const hash = await send();
         setAction({ status: "done", kind, hash });
         setVersion((v) => v + 1);
+        // Reads can lag the write by a moment; read again shortly so the card settles on the new state.
+        setTimeout(() => setVersion((v) => v + 1), REREAD_DELAY_MS);
       } catch (error) {
         console.error(`[TidePay] NEAR ${kind} failed:`, error);
         setAction({ status: "error", message: describeNearError(error) });

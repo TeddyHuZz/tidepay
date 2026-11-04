@@ -36,6 +36,7 @@ import { useNearMerchant } from "@/hooks/use-near-merchant";
 import { NEAR_CONTRACT_ID, NEAR_PROTOCOL_FEE_BPS, nearExplorerUrl } from "@/lib/near/config";
 import { describeNearError } from "@/lib/near/errors";
 import { toNearPlanId } from "@/lib/near/ids";
+import { waitFor } from "@/lib/near/wait";
 import { buildNearCreatePlanParams, nearNetPayout, nearPriceTooLow } from "@/lib/near/plan-args";
 import { INTERVALS, getInterval, intervalUnit, type IntervalId } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -150,6 +151,9 @@ export function PlanForm() {
       if (!client) throw new Error("Could not set up your NEAR account. Please try again.");
       await client.createPlan(buildNearCreatePlanParams({ planId, amount, intervalSeconds }));
       setSubmit({ status: "success", signature: nearAccountId ?? "" });
+
+      // Reads can lag the write by a moment; wait until the plan is visible before refreshing and redirecting.
+      await waitFor(() => client.getPlan(planId), { attempts: 12, intervalMs: 400 });
 
       addPlanToActiveProject(toNearPlanId(planId));
       addPlanToActiveProject(planId);

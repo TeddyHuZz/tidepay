@@ -26,30 +26,43 @@
 **What it is:** A non-custodial recurring billing contract for NEAR. A merchant creates a plan (price, interval, keeper bounty). A subscriber pays epoch 0 and prepays later cycles in a NEP-141 token. After each interval anyone can call `process_epoch`; the contract splits the payment between merchant, protocol fee and the keeper that called it. Settlement is time-locked on-chain (`block_timestamp >= next_epoch_timestamp_ns`). Subscribers can cancel and get the unused balance back.  
 **NEAR's role:** Prepaid NEP-141 balances held by the contract and settled by a permissionless keeper, plus NEAR Intents (1Click) so a subscriber on Solana, Ethereum or Base can fund their NEAR account.
 
-**Prior work (Q-002, Q-005):** TidePay existed before the hackathon as a Solana/Anchor product (programs, dashboard, Actions API, Solana crank, landing and docs). That baseline is the commit `eb26be3` (2026-10-12), tagged `pre-hackathon`. Everything NEAR-specific was written on branch `feat/near` from 2026-11-03: [`packages/contracts-near`](./packages/contracts-near) (contract), [`packages/sdk-near`](./packages/sdk-near) (TypeScript client), [`packages/protocol-near/crank`](./packages/protocol-near/crank) (keeper and e2e script), and the 1Click routes in [`apps/api/src/app/api/near`](./apps/api/src/app/api/near). [Diff against baseline](https://github.com/TeddyHuZz/tidepay/compare/pre-hackathon...feat/near).
+**Prior work (Q-002, Q-005):** TidePay existed before the hackathon as a Solana/Anchor product (programs, dashboard, Actions API, Solana crank, landing and docs). That baseline is the commit `eb26be3` (2026-10-12), tagged `pre-hackathon`. Everything NEAR-specific was written on branch `feat/near` from 2026-11-03: [`packages/contracts-near`](./packages/contracts-near) (contract), [`packages/sdk-near`](./packages/sdk-near) (TypeScript client), [`packages/protocol-near/crank`](./packages/protocol-near/crank) (keeper, deploy and e2e scripts), the 1Click and gas-sponsor routes in [`apps/api/src/app/api/near`](./apps/api/src/app/api/near), and the NEAR support in [`apps/dashboard`](./apps/dashboard) (embedded NEAR account, NEAR plans, NEAR checkout). [Diff against baseline](https://github.com/TeddyHuZz/tidepay/compare/pre-hackathon...feat/near).
 
 ### Try it (do X, see Y)
 
 Requirements: Rust with `wasm32-unknown-unknown`, Node 20+, pnpm, `pnpm install`.
 
-1. **Contract unit tests.** `cargo test --manifest-path packages/contracts-near/Cargo.toml` → `9 passed`.
-2. **TypeScript tests.** `pnpm --filter @tidepay/sdk-near test && pnpm --filter @tidepay/crank-near test && pnpm --filter api test` → all pass.
+1. **Contract unit tests.** `cargo test --manifest-path packages/contracts-near/Cargo.toml` → `13 passed`.
+2. **TypeScript tests.** `pnpm --filter @tidepay/sdk-near test && pnpm --filter @tidepay/crank-near test && pnpm --filter api exec vitest run && pnpm --filter dashboard exec vitest run` → all pass.
 3. **Full flow on NEAR testnet.** Get a funded testnet account (https://near-faucet.io), then:
    ```bash
    NEAR_ACCOUNT_ID=you.testnet NEAR_PRIVATE_KEY=ed25519:... ./scripts/test-near-flow.sh
    ```
-   It builds the wasm, creates sub-accounts, deploys the contract, subscribes, waits one 60 s interval, runs the keeper, and checks every token balance. It prints `SUCCESS` and exits 0, or prints the first mismatch and exits 1. Takes about 3 minutes and needs about 8 testnet NEAR. It uses the existing `usdc.fakes.testnet` token (6 decimals, open `mint`).
+   It builds the wasm, creates sub-accounts, deploys the contract, subscribes, waits one 60 s interval, runs the keeper, and checks every token balance. It prints `SUCCESS` and exits 0, or prints the first mismatch and exits 1. Takes about 3 minutes and needs about 5 testnet NEAR. It uses the existing `usdc.fakes.testnet` token (6 decimals, open `mint`).
 4. **Cross-chain funding quote (dry run, mainnet data, no funds move).**
    ```bash
    curl -X POST localhost:3001/api/near/intents/quote -H 'content-type: application/json' -d '{"originAsset":"nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near","amount":"10000000","refundTo":"<solana address>","recipient":"alice.near","dry":true}'
    ```
    → a quote converting 10 USDC on Solana to about 9.99 USDC on NEAR. NEAR Intents has no testnet (Q-007), so only dry quotes were run.
 
-**Recorded testnet run (2026-11-04):** contract [`tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet`](https://testnet.nearblocks.io/address/tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet); keeper settlement tx [`9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M`](https://testnet.nearblocks.io/txns/9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M).
+**Recorded testnet run (2026-11-04):** contract [`tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet`](https://testnet.nearblocks.io/address/tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet); keeper settlement tx [`9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M`](https://testnet.nearblocks.io/txns/9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M). The dashboard uses a separate deployment with the index views: [`tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet`](https://testnet.nearblocks.io/address/tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet).
+
+### Merchant flow in the dashboard (one login, two chains)
+
+A merchant signs in once (email, Google, or a Solana wallet) and can create and manage plans on Solana Devnet or NEAR Testnet from `apps/dashboard` without installing a NEAR wallet.
+
+- **How the NEAR account works.** The merchant's NEAR key is derived in the browser from one signature by their Solana wallet (message `TidePay NEAR account v1\n<solana address>`, key = SHA-256 of the signature). It is kept in memory only and never sent anywhere. The same login gives the same NEAR account on any device, so the NEAR account is exactly as recoverable as the Solana wallet: **losing access to the login means losing the NEAR account, its plans and its payouts.** The two accounts have different addresses (the NEAR one is a 64-character hex implicit account).
+- **First use.** The first NEAR action asks the wallet for the signature, then the app funds the account with 0.5 testnet NEAR through a gas-sponsor route (`POST /api/near/sponsor`, testnet only, rate limited) and registers it on the token. Later page loads show NEAR plans without any prompt.
+- **Create a plan.** `/plans/new` → choose **NEAR Testnet** → the checkout link is `/checkout/near/<plan id>`. NEAR plans have no Blink.
+- **Subscribers** use their own wallet: a NEAR wallet (NEAR Connect) on the NEAR checkout page, a Solana wallet on the Solana one. On testnet the NEAR checkout has a **Get test USDC** button.
+- **Setup.** Set `NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT` in `apps/dashboard/.env.local` (deploy your own with `./scripts/deploy-near-contract.sh`), and `NEAR_SPONSOR_ACCOUNT_ID` / `NEAR_SPONSOR_PRIVATE_KEY` in `apps/api/.env.local`. Email and Google sign-in must also be enabled in the Privy dashboard for the app id in use.
+- **Plan IDs are global on NEAR.** Two merchants cannot use the same plan ID; the second gets "A plan with this ID already exists on NEAR".
+- The contract now exposes `get_merchant_plans` and `get_plan_subscribers`, so a keeper could discover what to settle; the bundled keeper still reads `NEAR_CRANK_WATCH`.
 
 ### Known limits
 - A failed token payout (for example a receiver not registered on the token) does not roll back the subscription state. A `ft_resolve_transfer` callback is not implemented.
-- The keeper watches subscriptions listed in `NEAR_CRANK_WATCH`; the contract cannot enumerate them.
+- The keeper watches subscriptions listed in `NEAR_CRANK_WATCH`. The contract can now list them, but the keeper does not use that yet.
+- The dashboard's NEAR browser flows (embedded-account setup, plan form, NEAR Connect checkout) were verified by replaying their exact chain calls against testnet and by unit tests, not by a person clicking through them in a browser.
 - The 1Click routes deliver USDC to the subscriber's NEAR account. The subscriber then calls `subscribe`; it is not one atomic step. Executing a real swap was not tested.
 - Not audited. Testnet only.
 
