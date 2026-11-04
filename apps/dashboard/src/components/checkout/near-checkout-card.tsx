@@ -1,0 +1,253 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { SubscriptionRecord } from "@tidepay/sdk-near";
+import { CheckoutShell } from "@/components/checkout/checkout-shell";
+import { Button } from "@/components/ui/button";
+import { useNearSubscriber } from "@/hooks/use-near-subscriber";
+import { formatUsdc } from "@/lib/chain/derive";
+import { formatDateTimeUtc } from "@/lib/format";
+import { createNearReader } from "@/lib/near/chain-ops";
+import {
+  DEFAULT_PREPAID_CYCLES,
+  MAX_PREPAID_CYCLES,
+  MIN_PREPAID_CYCLES,
+  nearCheckoutState,
+  prepaidAmount,
+} from "@/lib/near/checkout-state";
+import { NEAR_CONTRACT_ID, NEAR_USDC_TOKEN_ID, nearExplorerUrl } from "@/lib/near/config";
+import { describeNearError } from "@/lib/near/errors";
+import { TOKEN_STORAGE_DEPOSIT_YOCTO } from "@tidepay/sdk-near";
+
+interface NearCheckoutCardProps {
+  planId: string;
+  merchant: string;
+  name: string;
+  priceUsdc: string;
+  intervalSeconds: number;
+  active: boolean;
+}
+
+type Action = { status: "idle" } | { status: "pending"; kind: "subscribe" | "cancel" | "mint" } | { status: "done"; kind: "subscribe" | "cancel" | "mint"; hash: string } | { status: "error"; message: string };
+
+interface ChainView {
+  subscription: SubscriptionRecord | null;
+  balance: bigint;
+  /** When this was read; renewal lateness is judged against it. */
+  readAtMs: number;
+}
+
+const ONE_YOCTO = BigInt(1);
+const CANCEL_GAS = BigInt(60) * BigInt(10) ** BigInt(12);
+
+export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSeconds, active }: NearCheckoutCardProps) {
+  const wallet = useNearSubscriber();
+  const [cycles, setCycles] = useState(DEFAULT_PREPAID_CYCLES);
+  const [action, setAction] = useState<Action>({ status: "idle" });
+  const [view, setView] = useState<{ owner: string; version: number; data: ChainView } | null>(null);
+  const [version, setVersion] = useState(0);
+
+  const accountId = wallet.accountId;
+  const required = prepaidAmount(priceUsdc, cycles);
+  const reader = useMemo(() => createNearReader(), []);
+
+  // Reads what this wallet has on chain. A result for another account or an older refresh is ignored.
+  useEffect(() => {
+    if (!accountId) return;
+    let cancelled = false;
+    Promise.all([reader.getSubscription(planId, accountId), reader.getFtBalance(NEAR_USDC_TOKEN_ID, accountId)]).then(
+      ([subscription, balance]) => !cancelled && setView({ owner: accountId, version, data: { subscription, balance, readAtMs: Date.now() } }),
+      (error: unknown) => {
+        console.error("[TidePay] Failed to read NEAR checkout state:", error);
+        if (!cancelled) setAction({ status: "error", message: describeNearError(error) });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, planId, reader, version]);
+
+  const loaded = accountId !== null && view?.owner === accountId && view.version === version;
+  const data = loaded ? view.data : null;
+  const subscription = data?.subscription ?? null;
+  const isOwner = Boolean(accountId && accountId === merchant);
+
+  const state = nearCheckoutState({
+    plan: { active },
+    subscription,
+    balance: data?.balance ?? BigInt(0),
+    required,
+    nowNs: BigInt(data?.readAtMs ?? 0) * BigInt(1_000_000),
+  });
+  const pending = action.status === "pending";
+
+  const run = useCallback(
+    async (kind: "subscribe" | "cancel" | "mint", send: () => Promise<string>) => {
+      setAction({ status: "pending", kind });
+      try {
+        const hash = await send();
+        setAction({ status: "done", kind, hash });
+        setVersion((v) => v + 1);
+      } catch (error) {
+        console.error(`[TidePay] NEAR ${kind} failed:`, error);
+        setAction({ status: "error", message: describeNearError(error) });
+      }
+    },
+    [],
+  );
+
+  const subscribe = () =>
+    run("subscribe", () =>
+      wallet.callFunction({
+        contractId: NEAR_USDC_TOKEN_ID,
+        methodName: "ft_transfer_call",
+        args: { receiver_id: NEAR_CONTRACT_ID, amount: required.toString(), msg: JSON.stringify({ action: "subscribe", plan_id: planId }) },
+        deposit: ONE_YOCTO,
+      }),
+    );
+
+  const cancel = () =>
+    run("cancel", () =>
+      wallet.callFunction({ contractId: NEAR_CONTRACT_ID, methodName: "cancel_subscription", args: { plan_id: planId }, gas: CANCEL_GAS }),
+    );
+
+  // Testnet only: the demo token has an open `mint`. It must register the account first or the mint is rejected.
+  const getTestUsdc = () =>
+    run("mint", async () => {
+      if (!accountId) throw new Error("Connect a NEAR wallet first.");
+      if (!(await reader.isStorageRegistered(NEAR_USDC_TOKEN_ID, accountId))) {
+        await wallet.callFunction({
+          contractId: NEAR_USDC_TOKEN_ID,
+          methodName: "storage_deposit",
+          args: { account_id: accountId, registration_only: true },
+          deposit: TOKEN_STORAGE_DEPOSIT_YOCTO,
+        });
+      }
+      return wallet.callFunction({ contractId: NEAR_USDC_TOKEN_ID, methodName: "mint", args: { account_id: accountId, amount: required.toString() } });
+    });
+
+  const ownerNotice = isOwner ? (
+    <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
+      You are currently connected as the merchant of this plan. To test subscribing, please switch to a separate subscriber account in your NEAR wallet.
+    </p>
+  ) : null;
+
+  const actions = !accountId ? (
+    <Button size="lg" disabled={wallet.connecting} onClick={() => void wallet.connect()}>
+      {wallet.connecting ? "Connecting…" : "Connect NEAR wallet to subscribe"}
+    </Button>
+  ) : isOwner && state !== "subscribed" && state !== "past-due" ? (
+    <Button
+      size="lg"
+      variant="secondary"
+      className="w-full font-medium border border-border/80 bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground shadow-xs"
+      onClick={() => void wallet.disconnect()}
+    >
+      Disconnect wallet to switch
+    </Button>
+  ) : !loaded ? (
+    <Button size="lg" disabled>
+      Checking subscription…
+    </Button>
+  ) : state === "subscribed" || state === "past-due" ? (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1 rounded-md border border-success/30 bg-success-soft px-4 py-3 text-success">
+        <span className="font-semibold">{state === "past-due" ? "Subscribed, renewal overdue" : "You're subscribed"}</span>
+        <span className="text-[13px]">
+          Next renewal {formatDateTimeUtc(new Date(Number(BigInt(subscription!.next_epoch_timestamp_ns) / BigInt(1_000_000_000)) * 1000).toISOString())}
+          {" · "}
+          {formatUsdc(BigInt(subscription!.deposited_balance))} USDC prepaid
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        disabled={pending}
+        onClick={() => void cancel()}
+        className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white dark:hover:text-white transition-colors font-medium"
+      >
+        {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground text-center">Instant on-chain cancel · Returns your unused prepaid balance</p>
+    </div>
+  ) : state === "paused" ? (
+    <Button size="lg" disabled>
+      This plan is not accepting subscribers
+    </Button>
+  ) : state === "needs-funds" ? (
+    <div className="flex flex-col gap-3">
+      <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
+        You have {formatUsdc(data?.balance ?? BigInt(0))} USDC and need {formatUsdc(required)} USDC for {cycles} cycle{cycles === 1 ? "" : "s"}.
+      </p>
+      <Button size="lg" disabled={pending} onClick={() => void getTestUsdc()}>
+        {pending && action.kind === "mint" ? "Confirm in your wallet…" : `Get ${formatUsdc(required)} test USDC`}
+      </Button>
+    </div>
+  ) : (
+    <Button size="lg" disabled={pending || required === BigInt(0)} onClick={() => void subscribe()}>
+      {pending && action.kind === "subscribe" ? "Confirm in your wallet…" : "1-Click Subscribe"}
+    </Button>
+  );
+
+  const footer = (
+    <>
+      {action.status === "error" && (
+        <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
+          {action.message}
+        </p>
+      )}
+      {action.status === "done" && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {action.kind === "cancel" && "Subscription cancelled; your unused balance is on its way back. "}
+          {action.hash && (
+            <a
+              href={nearExplorerUrl("tx", action.hash)}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+            >
+              View transaction ↗
+            </a>
+          )}
+        </p>
+      )}
+    </>
+  );
+
+  const showCycles = !subscription?.is_active;
+
+  return (
+    <CheckoutShell
+      name={name}
+      priceUsdc={priceUsdc}
+      intervalSeconds={intervalSeconds}
+      tokenLabel="USDC (NEAR Testnet)"
+      extraRows={
+        showCycles
+          ? [
+              {
+                label: "Prepaid cycles",
+                value: (
+                  <select
+                    aria-label="Prepaid cycles"
+                    value={cycles}
+                    onChange={(e) => setCycles(Number(e.target.value))}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                  >
+                    {Array.from({ length: MAX_PREPAID_CYCLES - MIN_PREPAID_CYCLES + 1 }, (_, i) => i + MIN_PREPAID_CYCLES).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                ),
+              },
+            ]
+          : []
+      }
+      ownerNotice={ownerNotice}
+      actions={actions}
+      explainer="You prepay the cycles above into the TidePay contract. Each renewal is pulled from that balance, and you can cancel any time to get the unused balance back."
+      footer={footer}
+    />
+  );
+}
