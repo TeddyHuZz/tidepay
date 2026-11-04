@@ -28,3 +28,9 @@ export function createNearChainOps(
   };
   return { client, ops };
 }
+
+/** Read-only client: views never sign, so no key is needed and no wallet prompt happens. */
+export function createNearReader(contractId: string = NEAR_CONTRACT_ID, rpcUrl: string = NEAR_RPC_URL): TidePayNearClient {
+  if (!contractId) throw new Error("NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT is not set");
+  return new TidePayNearClient(new Account("reader.testnet", new JsonRpcProvider({ url: rpcUrl })), contractId);
+}

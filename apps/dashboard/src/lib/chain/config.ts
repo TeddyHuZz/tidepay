@@ -1,4 +1,6 @@
 import { PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { fromNearPlanId, isNearPlanId } from "@/lib/near/ids";
+import { nearExplorerUrl } from "@/lib/near/config";
 
 export const DEVNET_RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() ||
@@ -98,6 +100,19 @@ export function blinkUrl(planAddress: string, environment: "sandbox" | "live" = 
 }
 
 export function checkoutUrl(planAddress: string) {
-  return `${APP_URL}/checkout/${planAddress}`;
+  return isNearPlanId(planAddress)
+    ? `${APP_URL}/checkout/near/${fromNearPlanId(planAddress)}`
+    : `${APP_URL}/checkout/${planAddress}`;
+}
+
+/** Share and explorer links for a plan on either chain. NEAR has no Blink. */
+export function planLinks(planId: string, environment: "sandbox" | "live" = "sandbox") {
+  const near = isNearPlanId(planId);
+  return {
+    checkout: checkoutUrl(planId),
+    blink: near ? null : blinkUrl(planId, environment),
+    explorerAddress: (value: string) => (near ? nearExplorerUrl("address", value) : explorerUrl("address", value, environment)),
+    explorerTx: (value: string) => (near ? nearExplorerUrl("tx", value) : explorerUrl("tx", value, environment)),
+  };
 }
 

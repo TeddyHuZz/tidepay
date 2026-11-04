@@ -9,6 +9,12 @@ import { deriveMerchantData } from "@/lib/chain/derive";
 import { getSampleMerchantData } from "@/lib/data";
 import type { MerchantData } from "@/lib/types";
 import { useProject } from "@/components/project-context";
+import { useNearMerchant } from "@/hooks/use-near-merchant";
+import { createNearReader } from "@/lib/near/chain-ops";
+import { NEAR_CONTRACT_ID } from "@/lib/near/config";
+import { describeNearError } from "@/lib/near/errors";
+import { fetchNearMerchantData } from "@/lib/near/load";
+import { mergeMerchantData } from "@/lib/near/merchant-data";
 
 export interface MerchantDataErrorInfo {
   title: string;
@@ -33,6 +39,8 @@ export interface MerchantDataContextValue {
   refresh: () => void;
   isRefreshing: boolean;
   lastRefreshedAt: number | null;
+  /** Set when NEAR plans could not be read; Solana data is unaffected. */
+  nearError: string | null;
 }
 
 const AUTO_POLL_INTERVAL_MS = 45_000;
@@ -64,6 +72,8 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const [result, setResult] = useState<LoadResult | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const { accountId: nearAccountId } = useNearMerchant();
+  const [nearResult, setNearResult] = useState<{ key: string; data?: MerchantData; error?: string } | null>(null);
 
   const merchant = publicKey?.toBase58() ?? null;
   const requestKey = merchant ? `${merchant}:${version}` : null;
@@ -149,6 +159,25 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     };
   }, [connection, merchant, requestKey, activeProject.environment]);
 
+  // NEAR plans are read with the remembered public account id, so no signature is needed to view them.
+  const nearKey = nearAccountId && NEAR_CONTRACT_ID ? `${nearAccountId}:${version}` : null;
+  useEffect(() => {
+    if (!nearAccountId || !nearKey) return;
+    let cancelled = false;
+    fetchNearMerchantData(createNearReader(), nearAccountId, Math.floor(Date.now() / 1000)).then(
+      (data) => !cancelled && setNearResult({ key: nearKey, data }),
+      (error: unknown) => {
+        console.error("[TidePay] Failed to load NEAR data:", error);
+        if (!cancelled) setNearResult({ key: nearKey, error: describeNearError(error) });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [nearAccountId, nearKey]);
+  const nearData = nearKey && nearResult?.key === nearKey ? (nearResult.data ?? null) : null;
+  const nearError = nearKey && nearResult?.key === nearKey ? (nearResult.error ?? null) : null;
+
   // Visibility-aware auto-polling: polls every 20s while active; pauses when tab is hidden
   useEffect(() => {
     if (USE_SAMPLE_DATA || !merchant) return;
@@ -184,7 +213,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     state = { status: "disconnected" };
   } else if (result?.data) {
     // Scope data by active project
-    const rawData = result.data;
+    const rawData = mergeMerchantData(result.data, nearData);
     const allowed = activeProject.planIds || [];
 
     // If active project has specific planIds assigned, show only those plans.
@@ -230,7 +259,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <MerchantDataContext.Provider value={{ state, refresh, isRefreshing, lastRefreshedAt }}>
+    <MerchantDataContext.Provider value={{ state, refresh, isRefreshing, lastRefreshedAt, nearError }}>
       {children}
     </MerchantDataContext.Provider>
   );

@@ -5,6 +5,7 @@ import { useWallets, useSignMessage } from "@privy-io/react-auth/solana";
 import type { TidePayNearClient } from "@tidepay/sdk-near";
 import { API_URL } from "@/lib/chain/config";
 import { createNearChainOps } from "@/lib/near/chain-ops";
+import { implicitAccountIdFromPublicKey } from "@/lib/near/derive-key";
 import { describeNearError } from "@/lib/near/errors";
 import { prepareNearAccount, type PrepareStatus } from "@/lib/near/prepare";
 
@@ -12,6 +13,7 @@ export type NearMerchantStatus = "idle" | PrepareStatus | "ready" | "error";
 
 export interface NearMerchantState {
   status: NearMerchantStatus;
+  /** Known from this session or an earlier setup on this browser; null until the merchant first sets up NEAR. */
   accountId: string | null;
   /** Signs with the derived key; only set once `status === "ready"`. */
   client: TidePayNearClient | null;
@@ -32,7 +34,8 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
   const wallet = wallets[0] ?? null;
 
   const [status, setStatus] = useState<NearMerchantStatus>("idle");
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [derivedAccountId, setDerivedAccountId] = useState<string | null>(null);
+  const [rememberedAccountId, setRememberedAccountId] = useState<string | null>(null);
   const [client, setClient] = useState<TidePayNearClient | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef<Promise<TidePayNearClient | null> | null>(null);
@@ -41,10 +44,13 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
   // A different Solana wallet is a different NEAR account.
   useEffect(() => {
     setStatus("idle");
-    setAccountId(null);
+    setDerivedAccountId(null);
     setClient(null);
     setError(null);
     inFlight.current = null;
+    // The public key from an earlier setup tells us the account id, so the console can read it without a signature.
+    const remembered = walletAddress ? window.localStorage.getItem(`tidepay:near:pk:${walletAddress}`) : null;
+    setRememberedAccountId(remembered ? implicitAccountIdFromPublicKey(remembered) : null);
   }, [walletAddress]);
 
   const prepare = useCallback(async () => {
@@ -81,7 +87,7 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
           onStatus: setStatus,
         });
         const ready = createNearChainOps(result.keyPair, result.accountId).client;
-        setAccountId(result.accountId);
+        setDerivedAccountId(result.accountId);
         setClient(ready);
         setStatus("ready");
         return ready;
@@ -98,6 +104,7 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
     return run;
   }, [client, signMessage, wallet]);
 
+  const accountId = derivedAccountId ?? rememberedAccountId;
   const value = useMemo(() => ({ status, accountId, client, error, prepare }), [status, accountId, client, error, prepare]);
   return <NearMerchantContext.Provider value={value}>{children}</NearMerchantContext.Provider>;
 }

@@ -77,6 +77,8 @@ export interface PlanSummary {
   intervalSeconds: number;
   subscribers: number;
   active: boolean;
+  /** Absent means Solana. */
+  network?: "solana" | "near";
 }
 
 export interface SubscriberRow {
@@ -87,6 +89,8 @@ export interface SubscriberRow {
   lastBilledAt: string;
   nextDueAt: string;
   status: SubscriptionStatus;
+  /** Absent means Solana. */
+  network?: "solana" | "near";
 }
 
 export interface MerchantData {

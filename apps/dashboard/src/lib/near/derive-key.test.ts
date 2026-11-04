@@ -6,6 +6,7 @@ import {
   NearDerivationMismatchError,
   assertStableDerivation,
   implicitAccountId,
+  implicitAccountIdFromPublicKey,
   keyPairFromSignature,
 } from "./derive-key";
 
@@ -63,5 +64,12 @@ describe("assertStableDerivation", () => {
 
   it("throws when the wallet now derives a different key", () => {
     expect(() => assertStableDerivation("ed25519:abc", "ed25519:xyz")).toThrow(NearDerivationMismatchError);
+  });
+});
+
+describe("implicitAccountIdFromPublicKey", () => {
+  it("matches implicitAccountId, so the account can be found without signing again", async () => {
+    const kp = await keyPairFromSignature(sigA);
+    expect(implicitAccountIdFromPublicKey(kp.getPublicKey().toString())).toBe(implicitAccountId(kp));
   });
 });
