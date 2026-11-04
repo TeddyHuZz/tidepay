@@ -46,6 +46,7 @@ export function deriveNearMerchantData(
       nextDueAt: isoOf(sub.next_epoch_timestamp_ns),
       status,
       network: "near" as const,
+      cycleCount: sub.cycle_count,
     }))
     .sort((a, b) => b.lastBilledAt.localeCompare(a.lastBilledAt));
 

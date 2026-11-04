@@ -20,7 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DEFAULT_CRANK_BOUNTY_USDC, checkoutUrl, explorerUrl } from "@/lib/chain/config";
+import { DEFAULT_CRANK_BOUNTY_USDC, explorerUrl, planLinks } from "@/lib/chain/config";
+import { isNearPlanId } from "@/lib/near/ids";
+import { nearExplorerUrl } from "@/lib/near/config";
 import {
   DEFAULT_ACTIVITY_LIMIT,
   fetchAllMerchantPlansActivity,
@@ -68,18 +70,21 @@ function SubscribersContent({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<string>("All");
 
+  // NEAR plans have no Solana accounts; keep them out of the Solana activity fetch.
+  const solanaPlans = useMemo(() => plans.filter((p) => !isNearPlanId(p.id)), [plans]);
+
   useEffect(() => {
-    if (plans.length === 0) return;
+    if (solanaPlans.length === 0) return;
     setLoadingEvents(true);
     fetchAllMerchantPlansActivity(
       connection,
-      plans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
+      solanaPlans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
       DEFAULT_CRANK_BOUNTY_USDC,
       DEFAULT_ACTIVITY_LIMIT,
     )
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));
-  }, [connection, plans, lastRefreshedAt]);
+  }, [connection, solanaPlans, lastRefreshedAt]);
 
   // Consolidate all subscribers (active on-chain accounts + historical churned subscribers)
   const allSubscribers = useMemo(() => {
@@ -343,12 +348,15 @@ function SubscribersContent({
               </TableHeader>
               <TableBody>
                 {filteredSubscribers.map((row) => {
-                  const matchedPlan = plans.find((p) => p.name === row.plan || p.id === row.plan);
+                  const rowIsNear = row.network === "near";
+                  const matchedPlan = plans.find(
+                    (p) => (p.name === row.plan || p.id === row.plan) && (p.network === "near") === rowIsNear,
+                  );
                   const planAddress = matchedPlan?.id || (row.plan.length > 20 ? row.plan : "");
-                  const portalLink = planAddress ? checkoutUrl(planAddress) : "";
+                  const portalLink = planAddress ? planLinks(planAddress).checkout : "";
 
                   return (
-                    <TableRow key={row.wallet}>
+                    <TableRow key={row.id || row.wallet}>
                       <TableCell className="font-mono text-xs">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-foreground">{shortAddress(row.wallet)}</span>
@@ -356,7 +364,7 @@ function SubscribersContent({
                         </div>
                       </TableCell>
                       <TableCell className="text-foreground/80 font-mono text-xs font-medium">
-                        <Link href={`/plans/${encodeURIComponent(row.plan)}`} className="hover:text-primary hover:underline">
+                        <Link href={matchedPlan ? planLinks(matchedPlan.id).detailPath(row.plan) : `/plans/${encodeURIComponent(row.plan)}`} className="hover:text-primary hover:underline">
                           {row.plan}
                         </Link>
                       </TableCell>
@@ -388,7 +396,7 @@ function SubscribersContent({
                             </a>
                           )}
                           <a
-                            href={explorerUrl("address", row.wallet)}
+                            href={rowIsNear ? nearExplorerUrl("address", row.wallet) : explorerUrl("address", row.wallet)}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"

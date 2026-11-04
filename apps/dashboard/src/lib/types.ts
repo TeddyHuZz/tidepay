@@ -91,6 +91,8 @@ export interface SubscriberRow {
   status: SubscriptionStatus;
   /** Absent means Solana. */
   network?: "solana" | "near";
+  /** Paid cycles so far (NEAR only; Solana activity comes from chain events). */
+  cycleCount?: number;
 }
 
 export interface MerchantData {

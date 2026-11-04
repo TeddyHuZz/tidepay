@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useWallets, useSignMessage } from "@privy-io/react-auth/solana";
 import type { TidePayNearClient } from "@tidepay/sdk-near";
 import { API_URL } from "@/lib/chain/config";
@@ -22,7 +22,20 @@ export interface NearMerchantState {
   prepare: () => Promise<TidePayNearClient | null>;
 }
 
+interface Session {
+  /** Solana wallet this session belongs to; a different wallet is a different NEAR account. */
+  owner: string | null;
+  status: NearMerchantStatus;
+  accountId: string | null;
+  client: TidePayNearClient | null;
+  error: string | null;
+}
+
+const IDLE: Omit<Session, "owner"> = { status: "idle", accountId: null, client: null, error: null };
+
 const NearMerchantContext = createContext<NearMerchantState | null>(null);
+
+const noSubscribe = () => () => {};
 
 /**
  * Holds the merchant's embedded NEAR account for the whole app, so it is derived once per page load and only
@@ -32,41 +45,39 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
   const { wallets } = useWallets();
   const { signMessage } = useSignMessage();
   const wallet = wallets[0] ?? null;
-
-  const [status, setStatus] = useState<NearMerchantStatus>("idle");
-  const [derivedAccountId, setDerivedAccountId] = useState<string | null>(null);
-  const [rememberedAccountId, setRememberedAccountId] = useState<string | null>(null);
-  const [client, setClient] = useState<TidePayNearClient | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const inFlight = useRef<Promise<TidePayNearClient | null> | null>(null);
   const walletAddress = wallet?.address ?? null;
 
-  // A different Solana wallet is a different NEAR account.
-  useEffect(() => {
-    setStatus("idle");
-    setDerivedAccountId(null);
-    setClient(null);
-    setError(null);
-    inFlight.current = null;
-    // The public key from an earlier setup tells us the account id, so the console can read it without a signature.
-    const remembered = walletAddress ? window.localStorage.getItem(`tidepay:near:pk:${walletAddress}`) : null;
-    setRememberedAccountId(remembered ? implicitAccountIdFromPublicKey(remembered) : null);
-  }, [walletAddress]);
+  const [stored, setStored] = useState<Session>({ owner: null, ...IDLE });
+  const inFlight = useRef<{ owner: string; promise: Promise<TidePayNearClient | null> } | null>(null);
+
+  // Ignore a session that belongs to a previously connected wallet.
+  const session: Session = stored.owner === walletAddress ? stored : { owner: walletAddress, ...IDLE };
+
+  // The public key remembered from an earlier setup gives the account id, so the console can read it without a signature.
+  const rememberedKey = useSyncExternalStore(
+    noSubscribe,
+    () => (walletAddress ? window.localStorage.getItem(`tidepay:near:pk:${walletAddress}`) : null),
+    () => null,
+  );
+  const rememberedAccountId = useMemo(() => (rememberedKey ? implicitAccountIdFromPublicKey(rememberedKey) : null), [rememberedKey]);
 
   const prepare = useCallback(async () => {
-    if (client) return client;
-    if (inFlight.current) return inFlight.current;
+    if (session.client) return session.client;
     if (!wallet) {
-      setError("Sign in to use NEAR plans.");
-      setStatus("error");
+      setStored({ owner: null, ...IDLE, status: "error", error: "Sign in to use NEAR plans." });
       return null;
     }
+    const owner = wallet.address;
+    if (inFlight.current?.owner === owner) return inFlight.current.promise;
 
-    const run = (async () => {
-      setError(null);
+    const patch = (next: Partial<Omit<Session, "owner">>) =>
+      setStored((prev) => ({ ...(prev.owner === owner ? prev : { owner, ...IDLE }), ...next, owner }));
+
+    const promise = (async () => {
+      patch({ error: null });
       try {
         const result = await prepareNearAccount({
-          solanaAddress: wallet.address,
+          solanaAddress: owner,
           signDerivationMessage: async (message) => {
             const { signature } = await signMessage({ message, wallet, options: { uiOptions: { showWalletUIs: false } } });
             return signature;
@@ -84,28 +95,28 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
             }
           },
           connect: (keyPair, id) => createNearChainOps(keyPair, id).ops,
-          onStatus: setStatus,
+          onStatus: (status) => patch({ status }),
         });
         const ready = createNearChainOps(result.keyPair, result.accountId).client;
-        setDerivedAccountId(result.accountId);
-        setClient(ready);
-        setStatus("ready");
+        patch({ status: "ready", accountId: result.accountId, client: ready, error: null });
         return ready;
       } catch (e) {
         console.error("[TidePay] NEAR account setup failed:", e);
-        setError(describeNearError(e));
-        setStatus("error");
+        patch({ status: "error", error: describeNearError(e) });
         return null;
       } finally {
         inFlight.current = null;
       }
     })();
-    inFlight.current = run;
-    return run;
-  }, [client, signMessage, wallet]);
+    inFlight.current = { owner, promise };
+    return promise;
+  }, [session.client, signMessage, wallet]);
 
-  const accountId = derivedAccountId ?? rememberedAccountId;
-  const value = useMemo(() => ({ status, accountId, client, error, prepare }), [status, accountId, client, error, prepare]);
+  const accountId = session.accountId ?? rememberedAccountId;
+  const value = useMemo(
+    () => ({ status: session.status, accountId, client: session.client, error: session.error, prepare }),
+    [session.status, accountId, session.client, session.error, prepare],
+  );
   return <NearMerchantContext.Provider value={value}>{children}</NearMerchantContext.Provider>;
 }
 

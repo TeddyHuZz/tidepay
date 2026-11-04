@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DollarSign,
@@ -16,6 +16,7 @@ import {
 import { useConnection } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { Badge } from "@/components/ui/badge";
+import { isNearPlanId } from "@/lib/near/ids";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,8 +24,7 @@ import { ShareBlinkButton } from "@/components/console/share-blink-button";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
   explorerUrl,
-  checkoutUrl,
-  blinkUrl,
+  planLinks,
 } from "@/lib/chain/config";
 import {
   DEFAULT_ACTIVITY_LIMIT,
@@ -80,12 +80,15 @@ function OverviewContent({
   const [dbSummary, setDbSummary] = useState<DatabaseSettlementsResult["summary"] | null>(null);
   const [dbByPlan, setDbByPlan] = useState<DatabaseSettlementsResult["byPlan"]>({});
 
+  // NEAR plans have no Solana accounts; keep them out of every Solana fetch.
+  const solanaPlans = useMemo(() => plans.filter((p) => !isNearPlanId(p.id)), [plans]);
+
   useEffect(() => {
-    if (plans.length === 0) return;
+    if (solanaPlans.length === 0) return;
     setLoadingEvents(true);
 
     // Primary: Instant 5ms query from Neon Postgres indexer
-    const planAddrs = plans.map((p) => p.id);
+    const planAddrs = solanaPlans.map((p) => p.id);
     fetchDatabaseSettlements(planAddrs).then((res) => {
       if (res) {
         setDbSummary(res.summary);
@@ -99,13 +102,13 @@ function OverviewContent({
     // Fallback & continuous background sync with on-chain Solana state
     fetchAllMerchantPlansActivity(
       connection,
-      plans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
+      solanaPlans.map((p) => ({ id: p.id, name: p.name, priceUsdc: p.priceUsdc })),
       DEFAULT_CRANK_BOUNTY_USDC,
       DEFAULT_ACTIVITY_LIMIT,
     )
       .then(setOnChainEvents)
       .finally(() => setLoadingEvents(false));
-  }, [connection, plans, lastRefreshedAt]);
+  }, [connection, solanaPlans, lastRefreshedAt]);
 
   // Active vs Past Subscribers across all plans
   const activeSubscribers = subscribers.filter((s) => s.status === "Active");
@@ -316,9 +319,10 @@ function OverviewContent({
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs font-semibold text-foreground">
-                        <Link href={`/plans/${encodeURIComponent(p.name || p.id)}`} className="hover:text-primary hover:underline">
+                        <Link href={planLinks(p.id).detailPath(p.name || p.id)} className="hover:text-primary hover:underline">
                           {p.name}
                         </Link>
+                        {p.network === "near" && <Badge variant="outline" className="ml-2">NEAR</Badge>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {p.priceUsdc} USDC / {intervalUnit(p.intervalSeconds)}
@@ -342,21 +346,23 @@ function OverviewContent({
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button asChild variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
-                            <a href={checkoutUrl(p.id)} target="_blank" rel="noreferrer">
+                            <a href={planLinks(p.id).checkout} target="_blank" rel="noreferrer">
                               Checkout
                               <ExternalLink className="size-3" />
                             </a>
                           </Button>
-                          <ShareBlinkButton
-                            planId={p.id}
-                            planName={p.name}
-                            priceUsdc={p.priceUsdc}
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            align="right"
-                          />
+                          {planLinks(p.id).blink && (
+                            <ShareBlinkButton
+                              planId={p.id}
+                              planName={p.name}
+                              priceUsdc={p.priceUsdc}
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              align="right"
+                            />
+                          )}
                           <Button asChild size="sm" className="h-7 px-2.5 text-xs">
-                            <Link href={`/plans/${encodeURIComponent(p.name || p.id)}`}>
+                            <Link href={planLinks(p.id).detailPath(p.name || p.id)}>
                               Details
                             </Link>
                           </Button>

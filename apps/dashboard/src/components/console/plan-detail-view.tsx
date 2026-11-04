@@ -25,7 +25,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DEFAULT_CRANK_BOUNTY_USDC, blinkUrl, checkoutUrl, explorerUrl } from "@/lib/chain/config";
+import { DEFAULT_CRANK_BOUNTY_USDC, explorerUrl, planLinks } from "@/lib/chain/config";
+import { useNearMerchant } from "@/hooks/use-near-merchant";
+import { describeNearError } from "@/lib/near/errors";
+import { fromNearPlanId, isNearPlanId } from "@/lib/near/ids";
+import { nearNetPayout } from "@/lib/near/plan-args";
+import { formatUsdc, parseUsdc } from "@/lib/chain/derive";
 import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchDatabaseSettlements, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
 import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
@@ -107,6 +112,7 @@ function PlanDetailContent({
   }, [connection, plan?.id, plan?.priceUsdc, lastRefreshedAt]);
 
   const { publicKey } = useWallet();
+  const { prepare } = useNearMerchant();
   const { buildTransaction, send } = useSendTransaction();
   const { success: toastSuccess, error: toastError } = useToast();
   const [isToggling, setIsToggling] = useState(false);
@@ -116,6 +122,26 @@ function PlanDetailContent({
       toastError("Wallet required", "Connect your merchant wallet to update this plan.");
       return;
     }
+    if (isNearPlanId(plan.id)) {
+      setIsToggling(true);
+      try {
+        const nearClient = await prepare();
+        if (!nearClient) throw new Error("Could not set up your NEAR account. Please try again.");
+        const targetActive = !plan.active;
+        await nearClient.togglePlanStatus(fromNearPlanId(plan.id), targetActive);
+        toastSuccess(
+          targetActive ? "Plan Resumed" : "Plan Paused",
+          targetActive ? `${plan.name} is now active and accepting subscriptions.` : `${plan.name} is paused. New checkouts will be rejected.`,
+        );
+        setTimeout(() => onRefresh(), 1000);
+      } catch (err) {
+        toastError("Update failed", describeNearError(err));
+      } finally {
+        setIsToggling(false);
+      }
+      return;
+    }
+
     const planPubkey = parseAddress(plan.id);
     if (!planPubkey) return;
 
@@ -179,6 +205,8 @@ function PlanDetailContent({
     );
   }
 
+  const isNear = isNearPlanId(plan.id);
+
   // Metrics calculations
   const planSubscribers = subscribers.filter(
     (s) => s.plan === plan.id || s.plan === plan.name,
@@ -196,13 +224,19 @@ function PlanDetailContent({
         
         const priceNum = parseFloat(plan.priceUsdc) || 0;
         const keeperFeeNum = parseFloat(DEFAULT_CRANK_BOUNTY_USDC) || 0.05;
-        const netPerCycle = Math.max(0, priceNum - keeperFeeNum).toFixed(2);
+        const priceUnits = parseUsdc(plan.priceUsdc);
+        const netPerCycle =
+          isNear && priceUnits !== null
+            ? formatUsdc(nearNetPayout(priceUnits))
+            : Math.max(0, priceNum - keeperFeeNum).toFixed(2);
         
         // Approximate 30-day normalized MRR
         const cycleSeconds = plan.intervalSeconds || 2_592_000;
         const mrr = ((priceNum * activeCount * 2_592_000) / cycleSeconds).toFixed(2);
         const rpcPaidCount = onChainEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed").length;
-        const paidEventsCount = planDbStats ? planDbStats.totalSettlements : rpcPaidCount;
+        // NEAR has no Solana event history; each paid cycle is counted from the subscription records.
+        const nearPaidCycles = planSubscribers.reduce((total, s) => total + (s.cycleCount ?? 0), 0);
+        const paidEventsCount = isNear ? nearPaidCycles : planDbStats ? planDbStats.totalSettlements : rpcPaidCount;
         const totalSettledUsdc = planDbStats ? planDbStats.totalEarnedNet : (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
         const grossSettledUsdc = planDbStats ? planDbStats.totalGrossBilled : (paidEventsCount * priceNum).toFixed(2);
 
@@ -222,8 +256,9 @@ function PlanDetailContent({
           (a) => a.plan === plan.id || a.plan === plan.name,
         );
 
-        const checkoutLink = checkoutUrl(plan.id);
-        const actionBlink = blinkUrl(plan.id);
+        const links = planLinks(plan.id);
+        const checkoutLink = links.checkout;
+        const actionBlink = links.blink;
         const embedSnippet = `<iframe src="${checkoutLink}" width="420" height="520" frameborder="0"></iframe>`;
 
         return (
@@ -269,12 +304,14 @@ function PlanDetailContent({
                     <ExternalLink className="size-3.5" />
                   </a>
                 </Button>
-                <ShareBlinkButton
-                  planId={plan.id}
-                  planName={plan.name}
-                  priceUsdc={plan.priceUsdc}
-                  align="right"
-                />
+                {links.blink && (
+                  <ShareBlinkButton
+                    planId={plan.id}
+                    planName={plan.name}
+                    priceUsdc={plan.priceUsdc}
+                    align="right"
+                  />
+                )}
               </div>
             </div>
 
@@ -288,9 +325,12 @@ function PlanDetailContent({
                   </Badge>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>Plan PDA:</span>
-                  <code className="font-mono text-foreground/80 break-all">{plan.id.slice(0, 8)}...{plan.id.slice(-6)}</code>
-                  <CopyButton value={plan.id} label="Copy plan address" />
+                  <span>{isNear ? "Plan ID:" : "Plan PDA:"}</span>
+                  <code className="font-mono text-foreground/80 break-all">
+                    {isNear ? plan.name : `${plan.id.slice(0, 8)}...${plan.id.slice(-6)}`}
+                  </code>
+                  <CopyButton value={isNear ? plan.name : plan.id} label={isNear ? "Copy plan ID" : "Copy plan address"} />
+                  {isNear && <Badge variant="outline">NEAR Testnet</Badge>}
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between sm:justify-end gap-4 sm:gap-6 border-t pt-3 sm:mt-0 sm:border-t-0 sm:pt-0">
@@ -407,11 +447,11 @@ function PlanDetailContent({
                     </div>
                     <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Accepted Mint</span>
-                      <span className="font-mono text-xs text-muted-foreground">USDC (Devnet)</span>
+                      <span className="font-mono text-xs text-muted-foreground">{isNear ? "USDC (NEAR Testnet)" : "USDC (Devnet)"}</span>
                     </div>
                     <div className="flex justify-between py-2.5 text-xs sm:text-sm">
                       <span className="text-muted-foreground">Settlement Protocol</span>
-                      <span className="text-foreground">TidePay v1 (Anchor)</span>
+                      <span className="text-foreground">{isNear ? "TidePay v1 (NEAR contract)" : "TidePay v1 (Anchor)"}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -420,18 +460,22 @@ function PlanDetailContent({
                 <Card className="w-full min-w-0">
                   <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <CardTitle className="text-base">Share & Integrations</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Distribute this plan via Blinks, direct link, or embed.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">
+                      {isNear ? "Distribute this plan via a direct link or embed." : "Distribute this plan via Blinks, direct link, or embed."}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4 px-4 sm:px-6">
-                    <div className="flex w-full min-w-0 flex-col gap-1.5">
-                      <div className="flex items-center justify-between text-xs font-medium text-foreground">
-                        <span>Solana Action (Blink)</span>
-                        <CopyButton value={actionBlink} label="Copy Blink URL" />
+                    {actionBlink && (
+                      <div className="flex w-full min-w-0 flex-col gap-1.5">
+                        <div className="flex items-center justify-between text-xs font-medium text-foreground">
+                          <span>Solana Action (Blink)</span>
+                          <CopyButton value={actionBlink} label="Copy Blink URL" />
+                        </div>
+                        <code className="w-full min-w-0 break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
+                          {actionBlink}
+                        </code>
                       </div>
-                      <code className="w-full min-w-0 break-all rounded-md border bg-background p-2 font-mono text-[11px] text-muted-foreground">
-                        {actionBlink}
-                      </code>
-                    </div>
+                    )}
 
                     <div className="flex w-full min-w-0 flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs font-medium text-foreground">
@@ -467,7 +511,9 @@ function PlanDetailContent({
                         {allTimeCount > 0 ? `${activeCount} active · ${allTimeCount} all-time` : `${activeCount} active`}
                       </Badge>
                     </div>
-                    <CardDescription className="text-xs sm:text-sm">Wallets subscribed with delegated token allowances.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">
+                      {isNear ? "Accounts subscribed with prepaid balances." : "Wallets subscribed with delegated token allowances."}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
                     {planSubscribers.length === 0 ? (

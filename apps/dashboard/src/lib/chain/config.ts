@@ -110,6 +110,10 @@ export function planLinks(planId: string, environment: "sandbox" | "live" = "san
   const near = isNearPlanId(planId);
   return {
     checkout: checkoutUrl(planId),
+    /** In-app path of the checkout page. */
+    checkoutPath: near ? `/checkout/near/${fromNearPlanId(planId)}` : `/checkout/${planId}`,
+    /** Console detail page. NEAR plans are addressed by id so a same-named Solana plan cannot shadow them. */
+    detailPath: (name: string) => `/plans/${encodeURIComponent(near ? planId : name)}`,
     blink: near ? null : blinkUrl(planId, environment),
     explorerAddress: (value: string) => (near ? nearExplorerUrl("address", value) : explorerUrl("address", value, environment)),
     explorerTx: (value: string) => (near ? nearExplorerUrl("tx", value) : explorerUrl("tx", value, environment)),
