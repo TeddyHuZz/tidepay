@@ -155,3 +155,72 @@ fn test_bounty_plus_fee_exceeding_amount_rejected() {
     let mut contract = TidePayContract::new(acct("treasury.testnet"));
     contract.create_plan("p".to_string(), acct("usdc.testnet"), U128(100), 60, U128(101), Some(50));
 }
+
+// ---- index views -----------------------------------------------------------
+
+fn new_plan(contract: &mut TidePayContract, merchant: &str, plan_id: &str) {
+    at(merchant, 0);
+    contract.create_plan(plan_id.to_string(), acct("usdc.testnet"), U128(10_000_000), 60, U128(50_000), Some(50));
+}
+
+fn subscribe_as(contract: &mut TidePayContract, sender: &str, plan_id: &str) {
+    at("usdc.testnet", 100);
+    let msg = format!(r#"{{"action":"subscribe","plan_id":"{plan_id}"}}"#);
+    contract.ft_on_transfer(acct(sender), U128(10_000_000), msg);
+}
+
+#[test]
+fn test_get_merchant_plans_lists_only_that_merchants_plans() {
+    at("merchant.testnet", 0);
+    let mut contract = TidePayContract::new(acct("treasury.testnet"));
+    new_plan(&mut contract, "merchant.testnet", "a1");
+    new_plan(&mut contract, "merchant.testnet", "a2");
+    new_plan(&mut contract, "other.testnet", "b1");
+
+    let mine = contract.get_merchant_plans(acct("merchant.testnet"), 0, 10);
+    assert_eq!(mine.iter().map(|p| p.plan_id.as_str()).collect::<Vec<_>>(), ["a1", "a2"]);
+    let theirs = contract.get_merchant_plans(acct("other.testnet"), 0, 10);
+    assert_eq!(theirs.len(), 1);
+    assert!(contract.get_merchant_plans(acct("nobody.testnet"), 0, 10).is_empty());
+}
+
+#[test]
+fn test_get_plan_subscribers_paginates() {
+    at("merchant.testnet", 0);
+    let mut contract = TidePayContract::new(acct("treasury.testnet"));
+    new_plan(&mut contract, "merchant.testnet", "p");
+    for s in ["s1.testnet", "s2.testnet", "s3.testnet"] {
+        subscribe_as(&mut contract, s, "p");
+    }
+
+    assert_eq!(contract.get_plan_subscribers("p".to_string(), 0, 2).len(), 2);
+    let last = contract.get_plan_subscribers("p".to_string(), 2, 2);
+    assert_eq!(last.len(), 1);
+    assert_eq!(last[0].subscriber_id, acct("s3.testnet"));
+    assert!(contract.get_plan_subscribers("p".to_string(), 3, 2).is_empty());
+}
+
+#[test]
+fn test_resubscribe_after_cancel_does_not_duplicate_subscriber() {
+    at("merchant.testnet", 0);
+    let mut contract = TidePayContract::new(acct("treasury.testnet"));
+    new_plan(&mut contract, "merchant.testnet", "p");
+    subscribe_as(&mut contract, "s1.testnet", "p");
+    at("s1.testnet", 120);
+    let _ = contract.cancel_subscription("p".to_string());
+    subscribe_as(&mut contract, "s1.testnet", "p");
+
+    assert_eq!(contract.get_plan_subscribers("p".to_string(), 0, 10).len(), 1);
+}
+
+#[test]
+fn test_limit_is_clamped() {
+    at("merchant.testnet", 0);
+    let mut contract = TidePayContract::new(acct("treasury.testnet"));
+    new_plan(&mut contract, "merchant.testnet", "p");
+    for i in 0..101 {
+        subscribe_as(&mut contract, &format!("s{i}.testnet"), "p");
+    }
+
+    assert_eq!(contract.get_plan_subscribers("p".to_string(), 0, 10_000).len(), 100);
+}

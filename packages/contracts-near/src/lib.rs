@@ -27,6 +27,9 @@ pub struct TidePayContract {
     pub protocol_fee_recipient: AccountId,
     pub plans: LookupMap<String, MerchantPlan>,
     pub subscriptions: LookupMap<String, SubscriptionRecord>, // Key: format!("{}:{}", plan_id, subscriber_id)
+    // shortcut: a Vec per key is unbounded; move to store::IterableSet if a merchant or plan grows past a few thousand entries
+    pub merchant_plans: LookupMap<AccountId, Vec<String>>,
+    pub plan_subscribers: LookupMap<String, Vec<AccountId>>,
 }
 
 #[near]
@@ -39,6 +42,8 @@ impl TidePayContract {
             protocol_fee_recipient,
             plans: LookupMap::new(b"p"),
             subscriptions: LookupMap::new(b"s"),
+            merchant_plans: LookupMap::new(b"m"),
+            plan_subscribers: LookupMap::new(b"u"),
         }
     }
 
@@ -74,6 +79,9 @@ impl TidePayContract {
         };
 
         self.plans.insert(&plan_id, &plan);
+        let mut mine = self.merchant_plans.get(&plan.merchant_id).unwrap_or_default();
+        mine.push(plan_id.clone());
+        self.merchant_plans.insert(&plan.merchant_id, &mine);
         env::log_str(&format!("EVENT_PLAN_CREATED: plan_id={}, merchant={}", plan_id, plan.merchant_id));
         plan
     }
@@ -94,6 +102,19 @@ impl TidePayContract {
         self.subscriptions.get(&format!("{}:{}", plan_id, subscriber_id))
     }
 
+    pub fn get_merchant_plans(&self, merchant_id: AccountId, from_index: u64, limit: u64) -> Vec<MerchantPlan> {
+        let ids = self.merchant_plans.get(&merchant_id).unwrap_or_default();
+        page(&ids, from_index, limit).iter().filter_map(|id| self.plans.get(id)).collect()
+    }
+
+    pub fn get_plan_subscribers(&self, plan_id: String, from_index: u64, limit: u64) -> Vec<SubscriptionRecord> {
+        let subs = self.plan_subscribers.get(&plan_id).unwrap_or_default();
+        page(&subs, from_index, limit)
+            .iter()
+            .filter_map(|s| self.subscriptions.get(&format!("{}:{}", plan_id, s)))
+            .collect()
+    }
+
     pub fn is_subscription_due(&self, plan_id: String, subscriber_id: AccountId) -> bool {
         self.get_subscription(plan_id, subscriber_id)
             .is_some_and(|s| s.is_active && env::block_timestamp() >= s.next_epoch_timestamp_ns.0)
@@ -111,6 +132,7 @@ impl TidePayContract {
         match parsed.action.as_str() {
             "subscribe" => {
                 require!(plan.is_active, ERR_PLAN_INACTIVE);
+                let was_subscribed = existing.is_some();
                 require!(existing.map_or(true, |s| !s.is_active), ERR_SUBSCRIPTION_EXISTS);
                 require!(amount.0 >= plan.amount.0, ERR_INSUFFICIENT_PAYMENT);
 
@@ -125,6 +147,11 @@ impl TidePayContract {
                     is_active: true,
                     deposited_balance: U128(amount.0 - plan.amount.0),
                 };
+                if !was_subscribed {
+                    let mut subs = self.plan_subscribers.get(&parsed.plan_id).unwrap_or_default();
+                    subs.push(sender_id.clone());
+                    self.plan_subscribers.insert(&parsed.plan_id, &subs);
+                }
                 self.subscriptions.insert(&sub_key, &sub);
                 env::log_str(&format!("EVENT_SUBSCRIBED: plan={}, subscriber={}", parsed.plan_id, sender_id));
 
@@ -214,4 +241,11 @@ impl TidePayContract {
             Promise::new(subscriber_id) // no-op promise; nothing to refund
         }
     }
+}
+
+/// Window of `items` starting at `from_index`, at most MAX_PAGE_SIZE long; empty past the end.
+fn page<T>(items: &[T], from_index: u64, limit: u64) -> &[T] {
+    let start = (from_index as usize).min(items.len());
+    let end = start.saturating_add(limit.min(MAX_PAGE_SIZE) as usize).min(items.len());
+    &items[start..end]
 }
