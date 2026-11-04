@@ -162,7 +162,12 @@ export function PrivyAppProvider({ children }: { children: ReactNode }) {
           accentColor: "#00BFB3",
           walletChainType: "solana-only",
           walletList: ["phantom", "solflare", "backpack"],
-          showWalletLoginFirst: true,
+          showWalletLoginFirst: false,
+        },
+        // Email and Google logins get an embedded Solana wallet, so no browser extension is needed.
+        loginMethods: ["email", "google", "wallet"],
+        embeddedWallets: {
+          solana: { createOnLogin: "users-without-wallets" },
         },
         externalWallets: {
           solana: {

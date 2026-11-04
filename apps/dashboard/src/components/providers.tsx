@@ -5,6 +5,7 @@ import { Buffer } from "buffer";
 import { ConnectionProvider } from "@solana/wallet-adapter-react";
 import { PrivyAppProvider } from "@/components/wallet/privy-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { NearMerchantProvider } from "@/hooks/use-near-merchant";
 import { RPC_URL } from "@/lib/chain/config";
 
 import { ProjectProvider, useProject } from "@/components/project-context";
@@ -34,9 +35,11 @@ export function Providers({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <PrivyAppProvider>
         <ProjectProvider>
-          <DynamicConnectionProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </DynamicConnectionProvider>
+          <NearMerchantProvider>
+            <DynamicConnectionProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </DynamicConnectionProvider>
+          </NearMerchantProvider>
         </ProjectProvider>
       </PrivyAppProvider>
     </ThemeProvider>

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Account } from "near-api-js";
-import { TOKEN_STORAGE_DEPOSIT_YOCTO, TidePayNearClient } from "../src/client.js";
+import { TOKEN_STORAGE_DEPOSIT_YOCTO, TidePayNearClient } from "../src/index.js";
 
 const mockAccount = () => {
   const callFunction = vi.fn().mockResolvedValue("ok");

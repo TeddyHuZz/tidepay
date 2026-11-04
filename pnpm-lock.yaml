@@ -279,6 +279,9 @@ importers:
       '@tidepay/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@tidepay/sdk-near':
+        specifier: workspace:*
+        version: link:../../packages/sdk-near
       '@tidepay/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -294,6 +297,9 @@ importers:
       lucide-react:
         specifier: ^1.53.0
         version: 1.53.0(@types/react@19.3.0)(react@19.3.0)
+      near-api-js:
+        specifier: ^7.4.0
+        version: 7.4.0
       next:
         specifier: 16.4.0
         version: 16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
