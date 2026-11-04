@@ -5,6 +5,8 @@ use near_sdk::AccountId;
 
 pub const BPS_DENOMINATOR: u128 = 10_000;
 pub const MIN_INTERVAL_SECONDS: u64 = 60; // 60s fast-forward for demo
+pub const DEFAULT_PROTOCOL_FEE_BPS: u16 = 50; // 0.5%
+pub const MAX_PROTOCOL_FEE_BPS: u16 = 500; // 5%
 pub const SECONDS_TO_NANOS: u64 = 1_000_000_000;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]

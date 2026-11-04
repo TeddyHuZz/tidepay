@@ -9,3 +9,4 @@ pub const ERR_INVALID_AMOUNT: &str = "ERR_INVALID_AMOUNT: Amount must be greater
 pub const ERR_INVALID_INTERVAL: &str = "ERR_INVALID_INTERVAL: Interval must be at least 60 seconds";
 pub const ERR_INVALID_TOKEN: &str = "ERR_INVALID_TOKEN: Attached token does not match plan token";
 pub const ERR_INSUFFICIENT_PAYMENT: &str = "ERR_INSUFFICIENT_PAYMENT: Payment amount less than plan price";
+pub const ERR_INVALID_FEE: &str = "ERR_INVALID_FEE: Fee cannot exceed 500 bps (5%)";
