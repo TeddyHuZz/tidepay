@@ -28,7 +28,7 @@ const solanaConnectors = toSolanaWalletConnectors({
 });
 
 function PrivySolanaBridge({ children }: { children: ReactNode }) {
-  const { logout, ready: privyReady } = usePrivy();
+  const { login, logout, authenticated, ready: privyReady } = usePrivy();
   const { connectWallet } = useConnectWallet();
   const { ready: walletsReady, wallets } = usePrivySolanaWallets();
   const { signTransaction: privySignTx } = useSignTransaction();
@@ -118,10 +118,14 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
     disconnecting: false,
     select: () => {},
     connect: async () => {
-      connectWallet({
-        walletList: ["phantom", "solflare", "backpack"],
-        walletChainType: "solana-only",
-      });
+      if (authenticated) {
+        connectWallet({
+          walletList: ["phantom", "solflare", "backpack"],
+          walletChainType: "solana-only",
+        });
+      } else {
+        login();
+      }
     },
     disconnect,
     sendTransaction,
@@ -135,10 +139,14 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
     visible: false,
     setVisible: (visible: boolean) => {
       if (visible) {
-        connectWallet({
-          walletList: ["phantom", "solflare", "backpack"],
-          walletChainType: "solana-only",
-        });
+        if (authenticated) {
+          connectWallet({
+            walletList: ["phantom", "solflare", "backpack"],
+            walletChainType: "solana-only",
+          });
+        } else {
+          login();
+        }
       }
     },
   };
