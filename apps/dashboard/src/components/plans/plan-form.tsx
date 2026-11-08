@@ -92,7 +92,7 @@ function toPlanId(value: string) {
     .slice(0, 32);
 }
 
-export function PlanForm() {
+export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "solana" | "near" }) {
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
   const { connection } = useConnection();
@@ -109,7 +109,7 @@ export function PlanForm() {
   const [customUnit, setCustomUnit] = useState<CustomUnit>("days");
   const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
   const [tokenId, setTokenId] = useState<TokenId>("USDC");
-  const [network, setNetwork] = useState<"solana" | "near">("solana");
+  const [network, setNetwork] = useState<"solana" | "near">(initialNetwork);
   const { prepare, status: nearStatus, accountId: nearAccountId } = useNearMerchant();
 
   const isNear = network === "near";
