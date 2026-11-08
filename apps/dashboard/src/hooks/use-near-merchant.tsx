@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useWallets, useSignMessage } from "@privy-io/react-auth/solana";
 import type { TidePayNearClient } from "@tidepay/sdk-near";
 import { API_URL } from "@/lib/chain/config";
 import { createNearChainOps } from "@/lib/near/chain-ops";
+import { NEAR_CONTRACT_ID } from "@/lib/near/config";
 import { implicitAccountIdFromPublicKey } from "@/lib/near/derive-key";
 import { describeNearError } from "@/lib/near/errors";
 import { prepareNearAccount, type PrepareStatus } from "@/lib/near/prepare";
@@ -111,6 +112,16 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
     inFlight.current = { owner, promise };
     return promise;
   }, [session.client, signMessage, wallet]);
+
+  // Automatically provision the NEAR account in the background for Privy embedded wallets (email/Google),
+  // where signMessage executes silently without prompting the user.
+  useEffect(() => {
+    if (!NEAR_CONTRACT_ID || !walletAddress || !wallet) return;
+    const isEmbedded = (wallet as unknown as { walletClientType?: string })?.walletClientType === "privy";
+    if (isEmbedded && session.status === "idle" && !session.client) {
+      void prepare();
+    }
+  }, [wallet, walletAddress, session.status, session.client, prepare]);
 
   const accountId = session.accountId ?? rememberedAccountId;
   const value = useMemo(
