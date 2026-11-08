@@ -3,23 +3,23 @@
 :root,
 html.dark,
 [data-theme="dark"] {
-  --background: #021a1b;
+  --background: #0f1a1d;
   --foreground: #eaf8f6;
-  --card: #042728;
+  --card: #16262c;
   --card-foreground: #eaf8f6;
-  --popover: #042728;
+  --popover: #16262c;
   --popover-foreground: #eaf8f6;
-  --primary: #00bfb3;
-  --primary-foreground: #022425;
-  --secondary: #083d3f;
+  --primary: #6fdcc3;
+  --primary-foreground: #08201d;
+  --secondary: #1e3a3c;
   --secondary-foreground: #eaf8f6;
-  --muted: #032021;
-  --muted-foreground: #6b9e9b;
-  --accent: #083d3f;
-  --accent-foreground: #00bfb3;
-  --border: #0d5254;
-  --input: #063133;
-  --ring: #00bfb3;
+  --muted: #121f23;
+  --muted-foreground: #9db4b3;
+  --accent: #1e3a3c;
+  --accent-foreground: #6fdcc3;
+  --border: #1f3a40;
+  --input: #1f3a40;
+  --ring: #6fdcc3;
   --destructive: #f87171;
   --destructive-foreground: #ffffff;
   --success: #03b5aa;
@@ -28,7 +28,7 @@ html.dark,
   --warning-soft: #352a0a;
   --neutral-soft: #073537;
   --neutral-soft-foreground: #8db5b3;
-  --radius: 0.5rem;
+  --radius: 0.875rem;
   color-scheme: dark;
 }
 
