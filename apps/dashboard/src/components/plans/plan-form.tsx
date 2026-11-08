@@ -10,13 +10,13 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
-import { ArrowLeft, Info } from "lucide-react";
+import { Check } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { useMerchantData } from "@/components/merchant-data-provider";
 import { useProject } from "@/components/project-context";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
@@ -92,7 +92,13 @@ function toPlanId(value: string) {
     .slice(0, 32);
 }
 
-export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "solana" | "near" }) {
+export function PlanForm({
+  initialNetwork = "solana",
+  preselected = false,
+}: {
+  initialNetwork?: "solana" | "near";
+  preselected?: boolean;
+}) {
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
   const { connection } = useConnection();
@@ -109,6 +115,7 @@ export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "sola
   const [customUnit, setCustomUnit] = useState<CustomUnit>("days");
   const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
   const [tokenId, setTokenId] = useState<TokenId>("USDC");
+  const [step, setStep] = useState(preselected ? 2 : 1);
   const [network, setNetwork] = useState<"solana" | "near">(initialNetwork);
   const { prepare, status: nearStatus, accountId: nearAccountId } = useNearMerchant();
 
@@ -224,65 +231,74 @@ export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "sola
   }
 
   const created = submit.status === "success";
+  const protocolBps = isNear ? NEAR_PROTOCOL_FEE_BPS : PROTOCOL_FEE_BPS;
+  const priceNum = amount !== null && !priceError ? Number(price) : null;
+  const protocolFee = priceNum === null ? null : (priceNum * protocolBps) / 10_000;
+  const netPayout =
+    priceNum === null
+      ? null
+      : isNear
+        ? formatUsdc(nearNetPayout(amount!, crankBountyAmount))
+        : (priceNum - Number(token.renewalFee)).toFixed(token.displayDecimals);
+  const detailsValid = planIdValid && amount !== null && !priceTooLow;
+  const networkLabel = isNear ? "NEAR Testnet" : "Solana Devnet";
+  const optionClass = (selected: boolean) =>
+    cn(
+      "h-11 min-w-24 flex-1 rounded-xl border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
+      selected
+        ? "border-primary bg-success-soft text-success"
+        : "border-input bg-background text-foreground/80 hover:bg-accent",
+    );
+  const selectClass =
+    "h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer";
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 flex-col gap-4">
+        <StepCard
+          n={1}
+          title="Network"
+          current={step}
+          description={networkLabel}
+          idleDescription="Choose where subscribers pay."
+          onChange={created ? undefined : () => setStep(1)}
         >
-          <Link href="/plans">
-            <ArrowLeft className="size-4" />
-            Back to plans
-          </Link>
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-start gap-6">
-        <Card className="min-w-0 flex-[1_1_420px]">
-        <CardContent className="flex flex-col gap-6 p-6">
-          <div>
-            <CardTitle className="text-base">Plan details</CardTitle>
-            <CardDescription className="mt-1">
-              {isNear
-                ? "Subscribers prepay renewals into the TidePay contract and get the unused balance back when they cancel."
-                : "Subscribers approve a one-time delegated allowance. Nothing is held in escrow."}
-            </CardDescription>
+          <div role="group" aria-label="Network" className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "solana", label: "Solana Devnet" },
+                { id: "near", label: "NEAR Testnet" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={option.id === network}
+                onClick={() => selectNetwork(option.id)}
+                className={optionClass(option.id === network)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {isNear
+              ? "Subscribers prepay renewals into the TidePay contract and get the unused balance back when they cancel."
+              : "Subscribers approve a one-time delegated allowance. Nothing is held in escrow."}
+          </p>
+          <Button className="self-start rounded-xl" onClick={() => setStep(2)}>
+            Continue to plan details
+          </Button>
+        </StepCard>
 
-          <fieldset className="flex min-w-0 flex-col gap-3 border-0 p-0">
-            <legend className="mb-1 text-sm font-medium">Network</legend>
-            <div role="group" aria-label="Network" className="flex flex-wrap gap-2">
-              {(
-                [
-                  { id: "solana", label: "Solana Devnet" },
-                  { id: "near", label: "NEAR Testnet" },
-                ] as const
-              ).map((option) => {
-                const selected = option.id === network;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => selectNetwork(option.id)}
-                    className={cn(
-                      "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
-                      selected
-                        ? "border-primary bg-success-soft text-success"
-                        : "border-input bg-background text-foreground/80 hover:bg-accent",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
+        <StepCard
+          n={2}
+          title="Plan details"
+          current={step}
+          description={detailsValid ? `${planId} · ${price.trim()} ${token.symbol}` : undefined}
+          idleDescription="Name your plan and set what subscribers pay."
+          onChange={created ? undefined : () => setStep(2)}
+        >
           <div className="flex flex-col gap-2">
             <Label htmlFor="plan-id">Plan ID</Label>
             <Input
@@ -301,7 +317,7 @@ export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "sola
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <div className="flex min-w-50 flex-1 flex-col gap-2">
+            <div className="flex min-w-40 flex-1 flex-col gap-2">
               <Label htmlFor="plan-price">Price ({token.symbol})</Label>
               <Input
                 id="plan-price"
@@ -323,222 +339,290 @@ export function PlanForm({ initialNetwork = "solana" }: { initialNetwork?: "sola
                     : `Up to ${token.decimals} decimal places.`}
               </p>
             </div>
-            <div className="flex min-w-50 flex-1 flex-col gap-2">
+            <div className="flex min-w-40 flex-1 flex-col gap-2">
               <Label htmlFor="plan-mint">Accepted token</Label>
               <select
                 id="plan-mint"
                 value={tokenId}
                 onChange={(e) => setTokenId(e.target.value as TokenId)}
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                className={selectClass}
               >
                 {(Object.keys(TOKENS) as TokenId[])
                   .filter((id) => !isNear || id === "USDC")
                   .map((id) => (
                     <option key={id} value={id}>
-                      {isNear ? "USDC (NEAR Testnet demo token)" : TOKENS[id].label}
+                      {isNear ? "USDC (NEAR demo)" : TOKENS[id].label}
                     </option>
                   ))}
               </select>
             </div>
           </div>
+          <Button className="self-start rounded-xl" disabled={!detailsValid} onClick={() => setStep(3)}>
+            Continue to billing
+          </Button>
+        </StepCard>
 
-          {/* Network Renewal Fee Callout */}
-          <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-accent/40 p-4">
-            <div className="flex items-center gap-2">
-              <Info className="size-4 shrink-0 text-primary" aria-hidden="true" />
-              <span className="text-sm font-medium text-foreground">Network Renewal Fee</span>
-              <span className="ml-auto font-mono text-xs font-semibold text-primary">{token.renewalFee} {token.symbol}</span>
-            </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              A fixed {token.renewalFee} {token.symbol} network fee is collected per renewal cycle to incentivize decentralized keeper cranks and cover on-chain {isNear ? `NEAR gas fees. A ${NEAR_PROTOCOL_FEE_BPS / 100}% protocol fee also applies` : "Solana gas fees"}.
-            </p>
-          </div>
-
-          <fieldset className="flex min-w-0 flex-col gap-3 border-0 p-0">
-            <legend className="mb-1 text-sm font-medium">Billing interval</legend>
-            <div role="group" aria-label="Billing interval" className="flex flex-wrap gap-2">
-              {INTERVALS.map((option) => {
-                const selected = option.id === intervalId;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setIntervalId(option.id as IntervalId)}
-                    className={cn(
-                      "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
-                      selected
-                        ? "border-primary bg-success-soft text-success"
-                        : "border-input bg-background text-foreground/80 hover:bg-accent",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
+        <StepCard
+          n={3}
+          title="Billing interval"
+          current={step}
+          description={intervalValid ? `Every ${intervalPhrase}` : undefined}
+          idleDescription="Daily, weekly, monthly, yearly or custom."
+          onChange={created ? undefined : () => setStep(3)}
+        >
+          <div role="group" aria-label="Billing interval" className="flex flex-wrap gap-2">
+            {INTERVALS.map((option) => (
               <button
+                key={option.id}
                 type="button"
-                aria-pressed={intervalId === "custom"}
-                onClick={() => setIntervalId("custom")}
-                className={cn(
-                  "h-11 min-w-24 flex-1 rounded-md border px-3.5 text-sm font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer",
-                  intervalId === "custom"
-                    ? "border-primary bg-success-soft text-success"
-                    : "border-input bg-background text-foreground/80 hover:bg-accent",
-                )}
+                aria-pressed={option.id === intervalId}
+                onClick={() => setIntervalId(option.id as IntervalId)}
+                className={optionClass(option.id === intervalId)}
               >
-                Custom
+                {option.label}
               </button>
-            </div>
+            ))}
+            <button
+              type="button"
+              aria-pressed={intervalId === "custom"}
+              onClick={() => setIntervalId("custom")}
+              className={optionClass(intervalId === "custom")}
+            >
+              Custom
+            </button>
+          </div>
 
-            {intervalId === "custom" && (
-              <div className="flex flex-col gap-2 rounded-lg border border-input bg-accent/20 p-3.5">
-                <div className="flex items-center gap-3">
-                  <div className="w-24">
-                    <Input
-                      id="custom-interval-count"
-                      type="number"
-                      min={1}
-                      value={customCount}
-                      onChange={(e) => setCustomCount(e.target.value)}
-                      className="h-11 text-center font-mono"
-                      aria-label="Interval count"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <select
-                      id="custom-interval-unit"
-                      value={customUnit}
-                      onChange={(e) => setCustomUnit(e.target.value as CustomUnit)}
-                      className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
-                      aria-label="Interval unit"
-                    >
-                      <option value="minutes">Minute(s)</option>
-                      <option value="hours">Hour(s)</option>
-                      <option value="days">Day(s)</option>
-                      <option value="months">Month(s) (30 days)</option>
-                      <option value="years">Year(s) (365 days)</option>
-                    </select>
-                  </div>
+          {intervalId === "custom" && (
+            <div className="flex flex-col gap-2 rounded-xl border border-input bg-accent/20 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-24">
+                  <Input
+                    id="custom-interval-count"
+                    type="number"
+                    min={1}
+                    value={customCount}
+                    onChange={(e) => setCustomCount(e.target.value)}
+                    className="h-11 text-center font-mono"
+                    aria-label="Interval count"
+                  />
                 </div>
-                {!intervalValid && (
-                  <p className="text-xs text-destructive">
-                    Custom interval must be at least 1 minute (60 seconds).
-                  </p>
-                )}
+                <div className="flex-1">
+                  <select
+                    id="custom-interval-unit"
+                    value={customUnit}
+                    onChange={(e) => setCustomUnit(e.target.value as CustomUnit)}
+                    className={selectClass}
+                    aria-label="Interval unit"
+                  >
+                    <option value="minutes">Minute(s)</option>
+                    <option value="hours">Hour(s)</option>
+                    <option value="days">Day(s)</option>
+                    <option value="months">Month(s) (30 days)</option>
+                    <option value="years">Year(s) (365 days)</option>
+                  </select>
+                </div>
               </div>
-            )}
-          </fieldset>
-
-          <div className="flex flex-col gap-3 border-t pt-4">
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <Button asChild variant="outline">
-                <Link href="/plans">{created ? "Back to plans" : "Cancel"}</Link>
-              </Button>
-              <Button
-                disabled={!publicKey || !formValid || submit.status === "submitting" || created}
-                onClick={() => void (isNear ? createNearPlan() : createPlan())}
-              >
-                {submit.status === "submitting"
-                  ? isNear && (nearStatus === "deriving" || nearStatus === "funding" || nearStatus === "registering")
-                    ? { deriving: "Unlocking NEAR account…", funding: "Funding NEAR account…", registering: "Registering token…" }[nearStatus]
-                    : "Creating plan…"
-                  : isNear
-                    ? "Create plan on NEAR Testnet"
-                    : "Create plan on Devnet"}
-              </Button>
+              {!intervalValid && (
+                <p className="text-xs text-destructive">Custom interval must be at least 1 minute (60 seconds).</p>
+              )}
             </div>
-            {!publicKey && (
-              <p className="text-right text-xs text-muted-foreground">Connect a wallet to create a plan.</p>
-            )}
-            {submit.status === "error" && (
-              <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
-                {submit.message}
-              </p>
-            )}
-            {submit.status === "success" && (
-              <p role="status" className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-[13px] text-success">
-                Plan created.{" "}
-                <a
-                  href={isNear ? nearExplorerUrl("address", submit.signature) : explorerUrl("tx", submit.signature)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  {isNear ? "View account" : "View transaction"}
-                </a>
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          )}
+          <Button className="self-start rounded-xl" disabled={!intervalValid} onClick={() => setStep(4)}>
+            Continue to review
+          </Button>
+        </StepCard>
 
-      <Card className="min-w-0 flex-[1_1_420px]">
-        <CardContent className="flex flex-col gap-5 p-6">
-          <div>
-            <CardTitle className="text-base">{created ? "Share your plan" : "Share links"}</CardTitle>
-            <CardDescription className="mt-1">
-              {created
-                ? `Your plan is live on ${isNear ? "NEAR Testnet" : "Devnet"}. Share any of these with subscribers.`
-                : "Derived from your wallet and plan ID. They work once the plan is created."}
-            </CardDescription>
-          </div>
-
-          <div className="flex flex-col gap-2.5 rounded-md border bg-background p-4">
-            <div className="text-[13px] text-muted-foreground">Terms</div>
-            <div className="text-lg font-semibold leading-6.5 tabular-nums">
-              {amount !== null && !priceError ? price.trim() : "0.00"} {token.symbol} every {intervalPhrase}
-            </div>
-            {amount !== null && !priceError && (
-              <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
-                <span>Net payout to merchant</span>
-                <span className="font-mono font-medium text-foreground">
-                  {isNear
-                    ? formatUsdc(nearNetPayout(amount, crankBountyAmount))
-                    : (Number(price) - Number(token.renewalFee)).toFixed(token.displayDecimals)}{" "}
-                  {token.symbol} / cycle
-                </span>
+        <StepCard
+          n={4}
+          title="Review & create"
+          current={step}
+          idleDescription="Check terms and fees, then deploy."
+        >
+          <dl className="flex flex-col gap-2 rounded-xl border bg-background p-4 text-sm">
+            {[
+              ["Network", networkLabel],
+              ["Plan ID", planId || "—"],
+              ["Terms", `${price.trim() || "0.00"} ${token.symbol} every ${intervalPhrase}`],
+              ["You receive per cycle", netPayout === null ? "—" : `${netPayout} ${token.symbol}`],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="truncate font-mono text-foreground">{v}</dd>
               </div>
-            )}
+            ))}
+          </dl>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              className="rounded-xl"
+              disabled={!publicKey || !formValid || submit.status === "submitting" || created}
+              onClick={() => void (isNear ? createNearPlan() : createPlan())}
+            >
+              {submit.status === "submitting"
+                ? isNear && (nearStatus === "deriving" || nearStatus === "funding" || nearStatus === "registering")
+                  ? { deriving: "Unlocking NEAR account…", funding: "Funding NEAR account…", registering: "Registering token…" }[nearStatus]
+                  : "Creating plan…"
+                : isNear
+                  ? "Create plan on NEAR Testnet"
+                  : "Create plan on Devnet"}
+            </Button>
+            <Button asChild variant="outline" className="rounded-xl">
+              <Link href="/plans">{created ? "Back to plans" : "Cancel"}</Link>
+            </Button>
           </div>
-
-          {isNear ? (
-            planIdValid ? (
-              <>
-                <OutputField label="Checkout link" value={checkoutUrl(toNearPlanId(planId))} copyLabel="Copy checkout link" />
-                <OutputField
-                  label="Embed snippet"
-                  value={`<iframe src="${checkoutUrl(toNearPlanId(planId))}" width="420" height="520"></iframe>`}
-                  copyLabel="Copy embed snippet"
-                />
-                <OutputField label="Contract" value={NEAR_CONTRACT_ID || "Set NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT"} copyLabel="Copy contract id" />
-              </>
-            ) : (
-              <p className="rounded-md border border-dashed border-input bg-background px-3 py-2.5 text-sm text-muted-foreground">
-                Enter a valid plan ID to see the share links.
-              </p>
-            )
-          ) : planAddress ? (
-            <>
-              <OutputField label="Blink URL" value={blinkUrl(planAddress)} copyLabel="Copy Blink URL" />
-              <OutputField label="Checkout link" value={checkoutUrl(planAddress)} copyLabel="Copy checkout link" />
-              <OutputField
-                label="Embed snippet"
-                value={`<iframe src="${checkoutUrl(planAddress)}" width="420" height="520"></iframe>`}
-                copyLabel="Copy embed snippet"
-              />
-              <OutputField label="Plan PDA" value={planAddress} copyLabel="Copy plan address" />
-            </>
-          ) : (
-            <p className="rounded-md border border-dashed border-input bg-background px-3 py-2.5 text-sm text-muted-foreground">
-              Connect your wallet and enter a valid plan ID to see the plan address and share links.
+          {!publicKey && <p className="text-xs text-muted-foreground">Connect a wallet to create a plan.</p>}
+          {submit.status === "error" && (
+            <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-[13px] text-destructive">
+              {submit.message}
             </p>
           )}
-        </CardContent>
-      </Card>
+          {submit.status === "success" && (
+            <p role="status" className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-[13px] text-success">
+              Plan created.{" "}
+              <a
+                href={isNear ? nearExplorerUrl("address", submit.signature) : explorerUrl("tx", submit.signature)}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                {isNear ? "View account" : "View transaction"}
+              </a>
+            </p>
+          )}
+        </StepCard>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-4">
+        <Card className="p-5 sm:p-6">
+          <div className="text-sm text-muted-foreground">Terms so far</div>
+          <div className="mt-2 text-3xl font-bold tracking-tight tabular-nums">
+            {priceNum === null ? "0.00" : price.trim()} {token.symbol}
+          </div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {step >= 3 && intervalValid ? `Every ${intervalPhrase}` : "Interval not chosen yet"}
+          </div>
+        </Card>
+
+        <Card className="p-5 sm:p-6">
+          <CardTitle className="mb-3 text-lg font-bold">Fees per renewal</CardTitle>
+          <div className="flex flex-col gap-2 text-sm">
+            <Row k="Subscriber pays" v={priceNum === null ? "—" : `${price.trim()} ${token.symbol}`} />
+            <Row k="Network renewal fee" v={`− ${token.renewalFee} ${token.symbol}`} />
+            <Row k="Protocol fee" v={`${protocolBps / 100}%${protocolFee ? ` (− ${protocolFee.toFixed(token.displayDecimals)})` : ""}`} />
+            <div className="mt-1 flex items-center justify-between border-t pt-3 font-semibold">
+              <span>You receive (approx.)</span>
+              <span className="font-mono tabular-nums text-primary">
+                {netPayout === null ? "—" : `${netPayout} ${token.symbol}`}
+              </span>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            The renewal fee pays the keeper that settles each cycle{isNear ? " and NEAR gas" : ""}. Rough estimate, per cycle.
+          </p>
+        </Card>
+
+        <Card className="p-5 sm:p-6">
+          <CardTitle className="mb-1 text-lg font-bold">{created ? "Share your plan" : "Share links"}</CardTitle>
+          {planIdValid && (isNear || planAddress) ? (
+            <div className="mt-3 flex flex-col gap-4">
+              {isNear ? (
+                <>
+                  <OutputField label="Checkout link" value={checkoutUrl(toNearPlanId(planId))} copyLabel="Copy checkout link" />
+                  <OutputField
+                    label="Embed snippet"
+                    value={`<iframe src="${checkoutUrl(toNearPlanId(planId))}" width="420" height="520"></iframe>`}
+                    copyLabel="Copy embed snippet"
+                  />
+                  <OutputField label="Contract" value={NEAR_CONTRACT_ID || "Set NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT"} copyLabel="Copy contract id" />
+                </>
+              ) : (
+                <>
+                  <OutputField label="Blink URL" value={blinkUrl(planAddress!)} copyLabel="Copy Blink URL" />
+                  <OutputField label="Checkout link" value={checkoutUrl(planAddress!)} copyLabel="Copy checkout link" />
+                  <OutputField
+                    label="Embed snippet"
+                    value={`<iframe src="${checkoutUrl(planAddress!)}" width="420" height="520"></iframe>`}
+                    copyLabel="Copy embed snippet"
+                  />
+                  <OutputField label="Plan PDA" value={planAddress!} copyLabel="Copy plan address" />
+                </>
+              )}
+              {!created && <p className="text-xs text-muted-foreground">Links work once the plan is created.</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {isNear || publicKey ? "Available after you create the plan." : "Connect your wallet and enter a plan ID to preview links."}
+            </p>
+          )}
+        </Card>
+      </div>
     </div>
-  </div>
-);
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="font-mono tabular-nums text-foreground/90">{v}</span>
+    </div>
+  );
+}
+
+/** One step of the guided flow: expanded when current, a summary with "Change" once passed, muted until reached. */
+function StepCard({
+  n,
+  title,
+  current,
+  description,
+  idleDescription,
+  onChange,
+  children,
+}: {
+  n: number;
+  title: string;
+  current: number;
+  description?: string;
+  idleDescription: string;
+  onChange?: () => void;
+  children: React.ReactNode;
+}) {
+  const active = current === n;
+  const done = current > n;
+  return (
+    <section
+      aria-current={active ? "step" : undefined}
+      className={cn(
+        "rounded-2xl border bg-card p-5 transition-colors",
+        active && "border-primary/70",
+        !active && !done && "opacity-60",
+      )}
+    >
+      <div className="flex items-start gap-4">
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
+            done ? "border-primary bg-primary text-primary-foreground" : active ? "border-primary text-primary" : "text-muted-foreground",
+          )}
+        >
+          {done ? <Check className="size-5" aria-hidden="true" /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold leading-snug">{done || active ? `${n} · ${title}` : title}</h2>
+              <p className="text-sm text-muted-foreground">{done && description ? description : idleDescription}</p>
+            </div>
+            {done && onChange && (
+              <button type="button" onClick={onChange} className="shrink-0 text-sm font-medium text-primary hover:underline">
+                Change
+              </button>
+            )}
+          </div>
+          {active && <div className="mt-5 flex flex-col gap-4">{children}</div>}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function OutputField({ label, value, copyLabel }: { label: string; value: string; copyLabel: string }) {

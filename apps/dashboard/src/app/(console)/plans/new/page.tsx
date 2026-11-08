@@ -9,5 +9,5 @@ export default async function NewPlanPage({
   searchParams: Promise<{ network?: string }>;
 }) {
   const { network } = await searchParams;
-  return <PlanForm initialNetwork={network === "near" ? "near" : "solana"} />;
+  return <PlanForm initialNetwork={network === "near" ? "near" : "solana"} preselected={network === "near" || network === "solana"} />;
 }
