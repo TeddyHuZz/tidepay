@@ -33,7 +33,7 @@ export function MerchantGate({
       <Card className="flex flex-col items-center gap-4 px-6 py-14 text-center">
         <h2 className="text-[15px] font-semibold">Connect your merchant wallet</h2>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Your plans, subscribers and revenue are read from Solana Devnet for the connected wallet.
+          Your plans, subscribers and revenue are read from Solana Devnet and NEAR Testnet for the connected wallet.
         </p>
         <WalletButton />
       </Card>

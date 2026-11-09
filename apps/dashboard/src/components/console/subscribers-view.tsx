@@ -329,7 +329,7 @@ function SubscribersContent({
                   </Button>
                 </div>
               ) : loadingEvents ? (
-                "Loading subscriber history from Solana Devnet…"
+                "Loading subscriber history on-chain…"
               ) : (
                 "No subscribers found yet. Share your Blink URL on X or send your checkout link to start collecting subscriptions!"
               )}

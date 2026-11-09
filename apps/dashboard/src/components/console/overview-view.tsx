@@ -505,7 +505,7 @@ function OverviewContent({
             <CardContent className="p-0">
               {onChainEvents.length === 0 ? (
                 <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
-                  {loadingEvents ? "Loading on-chain events from Solana Devnet…" : "No on-chain activity yet."}
+                  {loadingEvents ? `Loading on-chain events from ${isNear ? "NEAR Testnet" : "Solana Devnet"}…` : "No on-chain activity yet."}
                 </div>
               ) : (
                 <Table className="min-w-145 md:min-w-full">

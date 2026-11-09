@@ -81,7 +81,13 @@ function PlanDetailContent({
   const [planDbStats, setPlanDbStats] = useState<{ totalSettlements: number; totalEarnedNet: string; totalGrossBilled: string } | null>(null);
 
   const decodedParam = decodeURIComponent(planId);
-  const plan = plans.find((p) => p.name === decodedParam || p.id === decodedParam);
+  const plan = plans.find(
+    (p) =>
+      p.id === decodedParam ||
+      p.name === decodedParam ||
+      (isNearPlanId(decodedParam) && (p.id === decodedParam || p.name === fromNearPlanId(decodedParam))) ||
+      (isNearPlanId(p.id) && fromNearPlanId(p.id) === decodedParam),
+  );
 
   useEffect(() => {
     if (!plan?.id) return;
@@ -177,6 +183,24 @@ function PlanDetailContent({
   };
 
   if (!plan) {
+    if (isRefreshing) {
+      return (
+        <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading plan details">
+          <div className="h-9 w-28 animate-pulse rounded border bg-card" />
+          <div className="h-24 w-full animate-pulse rounded-xl border bg-card" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-lg border bg-card" />
+            ))}
+          </div>
+          <div className="h-64 w-full animate-pulse rounded-xl border bg-card" />
+        </div>
+      );
+    }
+
+    const isNearTarget = isNearPlanId(decodedParam);
+    const targetCluster = isNearTarget ? "NEAR Testnet" : "Solana Devnet";
+
     return (
       <div className="flex flex-col gap-6">
         <div>
@@ -190,7 +214,7 @@ function PlanDetailContent({
         <Card className="p-8 text-center">
           <CardTitle className="text-lg">Plan not found</CardTitle>
           <CardDescription className="mt-2">
-            Could not find a plan matching &quot;{decodedParam}&quot;. It might still be indexing on Solana Devnet.
+            Could not find a plan matching &quot;{decodedParam}&quot;. It might still be indexing on {targetCluster}.
           </CardDescription>
           <div className="mt-6 flex justify-center gap-3">
             <Button asChild variant="outline">
@@ -426,7 +450,7 @@ function PlanDetailContent({
                 <Card className="w-full min-w-0">
                   <CardHeader className="flex flex-col items-start gap-1 pb-3 px-4 sm:px-6 pt-4 sm:pt-6">
                     <CardTitle className="text-base">Plan Specifications</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">On-chain parameters settled on Solana Devnet.</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">On-chain parameters settled on {isNear ? "NEAR Testnet" : "Solana Devnet"}.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col divide-y text-sm px-4 sm:px-6">
                     <div className="flex justify-between py-2.5 text-xs sm:text-sm">
@@ -574,7 +598,7 @@ function PlanDetailContent({
                     {onChainEvents.length === 0 && planActivity.length === 0 ? (
                       <div className="p-6 sm:p-8 text-center text-sm text-muted-foreground">
                         {loadingEvents
-                          ? "Loading on-chain events from Solana Devnet..."
+                          ? `Loading on-chain events from ${isNear ? "NEAR Testnet" : "Solana Devnet"}...`
                           : "No transactions recorded for this plan yet. Renewals will log here automatically once subscribers are billed."}
                       </div>
                     ) : onChainEvents.length > 0 ? (

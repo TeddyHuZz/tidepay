@@ -70,10 +70,12 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   const { activeProject } = useProject();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSolanaRefreshing, setIsSolanaRefreshing] = useState(false);
+  const [isNearRefreshing, setIsNearRefreshing] = useState(false);
+  const isRefreshing = isSolanaRefreshing || isNearRefreshing;
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
   const { accountId: nearAccountId } = useNearMerchant();
-  const [nearResult, setNearResult] = useState<{ key: string; data?: MerchantData; error?: string } | null>(null);
+  const [nearResult, setNearResult] = useState<{ accountId: string; data?: MerchantData; error?: string } | null>(null);
 
   const merchant = publicKey?.toBase58() ?? null;
   const requestKey = merchant ? `${merchant}:${version}` : null;
@@ -81,7 +83,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (USE_SAMPLE_DATA || !merchant || !requestKey) return;
     let cancelled = false;
-    setIsRefreshing(true);
+    setIsSolanaRefreshing(true);
     loadMerchantData(connection, new PublicKey(merchant))
       .then(
         (data) => {
@@ -152,7 +154,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
         },
       )
       .finally(() => {
-        if (!cancelled) setIsRefreshing(false);
+        if (!cancelled) setIsSolanaRefreshing(false);
       });
     return () => {
       cancelled = true;
@@ -160,23 +162,40 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
   }, [connection, merchant, requestKey, activeProject.environment]);
 
   // NEAR plans are read with the remembered public account id, so no signature is needed to view them.
-  const nearKey = nearAccountId && NEAR_CONTRACT_ID ? `${nearAccountId}:${version}` : null;
   useEffect(() => {
-    if (!nearAccountId || !nearKey) return;
+    if (!nearAccountId || !NEAR_CONTRACT_ID) return;
     let cancelled = false;
-    fetchNearMerchantData(createNearReader(), nearAccountId, Math.floor(Date.now() / 1000)).then(
-      (data) => !cancelled && setNearResult({ key: nearKey, data }),
-      (error: unknown) => {
-        console.error("[TidePay] Failed to load NEAR data:", error);
-        if (!cancelled) setNearResult({ key: nearKey, error: describeNearError(error) });
-      },
-    );
+    setIsNearRefreshing(true);
+    fetchNearMerchantData(createNearReader(), nearAccountId, Math.floor(Date.now() / 1000))
+      .then(
+        (data) => {
+          if (!cancelled) {
+            setNearResult({ accountId: nearAccountId, data, error: undefined });
+          }
+        },
+        (error: unknown) => {
+          console.error("[TidePay] Failed to load NEAR data:", error);
+          if (!cancelled) {
+            setNearResult((prev) => ({
+              accountId: nearAccountId,
+              data: prev?.accountId === nearAccountId ? prev.data : undefined,
+              error: describeNearError(error),
+            }));
+          }
+        },
+      )
+      .finally(() => {
+        if (!cancelled) setIsNearRefreshing(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [nearAccountId, nearKey]);
-  const nearData = nearKey && nearResult?.key === nearKey ? (nearResult.data ?? null) : null;
-  const nearError = nearKey && nearResult?.key === nearKey ? (nearResult.error ?? null) : null;
+  }, [nearAccountId, version]);
+
+  // Preserve cached nearData and nearError during background refetches as long as nearAccountId matches
+  const nearData = nearAccountId && nearResult?.accountId === nearAccountId ? (nearResult.data ?? null) : null;
+  const nearError = nearAccountId && nearResult?.accountId === nearAccountId ? (nearResult.error ?? null) : null;
+  const nearPendingInitialLoad = !!(nearAccountId && NEAR_CONTRACT_ID && !nearResult);
 
   // Visibility-aware auto-polling: polls every 20s while active; pauses when tab is hidden
   useEffect(() => {
@@ -211,7 +230,7 @@ export function MerchantDataProvider({ children }: { children: ReactNode }) {
     state = { status: "ready", data: getSampleMerchantData(), isSample: true };
   } else if (!requestKey) {
     state = { status: "disconnected" };
-  } else if (result?.data) {
+  } else if (result?.data && !nearPendingInitialLoad) {
     // Scope data by active project
     const rawData = mergeMerchantData(result.data, nearData);
     const allowed = activeProject.planIds || [];
