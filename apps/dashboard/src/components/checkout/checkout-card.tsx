@@ -165,12 +165,6 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
                       : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full animate-pulse",
-                      lookup.status === "past_due" ? "bg-amber-500" : "bg-emerald-500",
-                    )}
-                  />
                   <span>{lookup.status === "past_due" ? "Renewal Overdue" : "Active Subscription"}</span>
                 </div>
 

@@ -228,7 +228,6 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
             <div className="rounded-xl border border-border bg-muted/30 p-4.5 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-xs font-semibold">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span>{state === "past-due" ? "Renewal Overdue" : "Active Subscription"}</span>
                 </div>
 
