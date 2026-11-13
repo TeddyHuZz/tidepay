@@ -1,23 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Minus, MoveRight, Plus } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, MoveRight } from "lucide-react";
 import type { SubscriptionRecord } from "@tidepay/sdk-near";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
+import { CycleStepper } from "@/components/checkout/cycle-stepper";
 import { Button } from "@/components/ui/button";
 import { useNearSubscriber } from "@/hooks/use-near-subscriber";
 import { formatUsdc, parseUsdc } from "@/lib/chain/derive";
-import { formatDateTimeUtc } from "@/lib/format";
+import { formatCountdown, shortAddress } from "@/lib/format";
 import { tryCreateNearReader } from "@/lib/near/chain-ops";
 import {
   DEFAULT_PREPAID_CYCLES,
-  MAX_PREPAID_CYCLES,
-  MIN_PREPAID_CYCLES,
   nearCheckoutState,
   prepaidAmount,
 } from "@/lib/near/checkout-state";
 import { NEAR_CONTRACT_ID, NEAR_USDC_TOKEN_ID, nearExplorerUrl } from "@/lib/near/config";
 import { describeNearError } from "@/lib/near/errors";
+import { intervalUnit } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface NearCheckoutCardProps {
@@ -45,22 +45,28 @@ const ONE_YOCTO = BigInt(1);
 const REREAD_DELAY_MS = 2_000;
 const CANCEL_GAS = BigInt(60) * BigInt(10) ** BigInt(12);
 const PRESET_CYCLES = [1, 3, 5, 10];
-const TOPUP_PRESETS = [1, 2, 3, 5];
 
 export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSeconds, active }: NearCheckoutCardProps) {
   const wallet = useNearSubscriber();
   const [cycles, setCycles] = useState(DEFAULT_PREPAID_CYCLES);
-  const [topUpCycles, setTopUpCycles] = useState(2);
+  const [topUpCycles, setTopUpCycles] = useState(5);
   const [action, setAction] = useState<Action>({ status: "idle" });
   const [view, setView] = useState<{ owner: string; version: number; data: ChainView } | null>(null);
   const [version, setVersion] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Real-time 1s ticker for live countdown
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const accountId = wallet.accountId;
   const required = prepaidAmount(priceUsdc, cycles);
   const topUpRequired = prepaidAmount(priceUsdc, topUpCycles);
   const reader = useMemo(() => tryCreateNearReader(), []);
 
-  // Reads what this wallet has on chain.
+  // Reads on-chain state
   useEffect(() => {
     if (!accountId || !reader) return;
     let cancelled = false;
@@ -140,10 +146,21 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const userBalance = data?.balance ?? BigInt(0);
   const userBalanceUsdc = loaded ? formatUsdc(userBalance) : "0.00";
   const totalDueUsdc = formatUsdc(required);
+  const topUpDueUsdc = formatUsdc(topUpRequired);
   const futureCycles = Math.max(0, cycles - 1);
   const unitPriceParsed = parseUsdc(priceUsdc.replace(/,/g, "")) ?? BigInt(0);
   const runwayUsdc = formatUsdc(unitPriceParsed * BigInt(futureCycles));
   const isSubscribed = state === "subscribed" || state === "past-due";
+  const unit = intervalUnit(intervalSeconds);
+
+  // Calculation for active subscription runway & countdown
+  const depositedBalanceAmt = BigInt(subscription?.deposited_balance ?? "0");
+  const depositedBalanceUsdc = formatUsdc(depositedBalanceAmt);
+  const remainingCycles = unitPriceParsed > 0n ? Number(depositedBalanceAmt / unitPriceParsed) : 0;
+  const nextEpochNs = BigInt(subscription?.next_epoch_timestamp_ns ?? "0");
+  const nextEpochMs = Number(nextEpochNs / BigInt(1_000_000));
+  const isDue = nextEpochMs <= nowMs;
+  const countdownText = formatCountdown(nextEpochMs, nowMs);
 
   const handleChangeWallet = async () => {
     try {
@@ -162,7 +179,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
         </p>
       )}
       {action.status === "done" && (
-        <p role="status" className="text-xs text-zinc-400">
+        <p role="status" className="text-xs text-muted-foreground">
           {action.kind === "subscribe" && "Subscribed successfully. "}
           {action.kind === "deposit" && "Prepaid balance topped up successfully. "}
           {action.kind === "cancel" && "Subscription cancelled; unused balance refunded to your wallet. "}
@@ -170,7 +187,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
             href={nearExplorerUrl("tx", action.hash)}
             target="_blank"
             rel="noreferrer"
-            className="text-emerald-400 hover:underline inline-flex items-center gap-1 font-medium ml-1"
+            className="text-primary hover:underline inline-flex items-center gap-1 font-medium ml-1"
           >
             View transaction ↗
           </a>
@@ -187,8 +204,9 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       priceUsdc={priceUsdc}
       intervalSeconds={intervalSeconds}
       tokenLabel="USDC (NEAR Testnet)"
-      cycles={isSubscribed ? (subscription ? subscription.cycle_count : 1) : cycles}
-      totalDueUsdc={isSubscribed ? priceUsdc : totalDueUsdc}
+      cycles={isSubscribed ? topUpCycles : cycles}
+      totalDueUsdc={isSubscribed ? topUpDueUsdc : totalDueUsdc}
+      summaryMode={isSubscribed ? "topup" : "subscribe"}
       protectionText="Prepaid cycles stay under your contract allowance. Cancel anytime on-chain to immediately reclaim unused USDC."
       wallet={{
         connected: Boolean(accountId),
@@ -200,77 +218,79 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       }}
       ownerNotice={ownerNotice}
     >
-      <div className="rounded-2xl border border-white/10 bg-[#0e1317]/90 backdrop-blur-md p-6 flex flex-col justify-between shadow-2xl min-h-[460px]">
+      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-xl min-h-[470px] transition-colors">
         {isSubscribed ? (
           /* ========================================================= */
-          /* ACTIVE SUBSCRIBER VIEW (Automatic via on-chain state)      */
+          /* ACTIVE SUBSCRIBER VIEW (Image 2 sample design)             */
           /* ========================================================= */
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">Manage subscription</h2>
-                <p className="text-xs text-zinc-400 mt-1">Your subscription is active on-chain. Top up or cancel anytime.</p>
+          <div className="flex flex-col gap-5">
+            {/* Top Status Card */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4.5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-xs font-semibold">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{state === "past-due" ? "Renewal Overdue" : "Active Subscription"}</span>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-background/80 text-xs text-muted-foreground font-mono">
+                  <Clock className="size-3.5 text-muted-foreground" />
+                  <span>{isDue ? "Next pull: Due now" : `Next pull in ${countdownText}`}</span>
+                </div>
               </div>
-              <span className="text-xs text-zinc-400">
-                Balance: <strong className="text-zinc-200 font-semibold tabular-nums">{userBalanceUsdc} USDC</strong>
+
+              <div className="flex items-end justify-between pt-1">
+                <div>
+                  <div className="text-[11px] text-muted-foreground font-medium">Prepaid Runway Balance</div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-2xl font-extrabold tracking-tight tabular-nums text-foreground">
+                      {depositedBalanceUsdc} USDC
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({remainingCycles} cycle{remainingCycles === 1 ? "" : "s"} remaining)
+                    </span>
+                  </div>
+                </div>
+                <div className="text-[11px] text-muted-foreground font-medium mb-1">Auto-renews</div>
+              </div>
+
+              {/* Segmented Runway Progress Bar */}
+              <div className="flex items-center gap-1.5 w-full mt-1.5">
+                {Array.from({ length: Math.max(5, remainingCycles) }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-1.5 flex-1 rounded-full transition-colors",
+                      i < remainingCycles ? "bg-emerald-500 dark:bg-emerald-400 shadow-xs" : "bg-border/60",
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Extend Prepaid Runway Section */}
+            <div className="flex items-center justify-between pt-1">
+              <h3 className="text-sm font-semibold text-foreground">Extend prepaid runway</h3>
+              <span className="text-xs text-muted-foreground">
+                Wallet: <strong className="text-foreground font-semibold tabular-nums">{userBalanceUsdc} USDC</strong>
               </span>
             </div>
 
-            {/* Status Banner */}
-            {state === "past-due" ? (
-              <div className="flex flex-col gap-1 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3.5 text-warning">
-                <span className="font-semibold text-sm">Prepaid balance depleted · Renewal overdue</span>
-                <span className="text-xs leading-relaxed">
-                  Your prepaid balance is {formatUsdc(BigInt(subscription?.deposited_balance ?? "0"))} USDC. Top up now to renew and maintain your subscription.
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
-                <CheckCircle2 className="size-5 shrink-0 mt-0.5 text-emerald-400" />
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-bold text-sm text-emerald-400">You&apos;re subscribed</span>
-                  <span className="text-xs text-zinc-300">
-                    {subscription && BigInt(subscription.next_epoch_timestamp_ns) <= BigInt(Date.now()) * BigInt(1_000_000)
-                      ? "Renewal due"
-                      : `Next renewal ${formatDateTimeUtc(new Date(Number(BigInt(subscription?.next_epoch_timestamp_ns ?? "0") / BigInt(1_000_000_000)) * 1000).toISOString())}`}
-                    {" · "}
-                    <strong className="text-emerald-300 font-semibold">{formatUsdc(BigInt(subscription?.deposited_balance ?? "0"))} USDC</strong> prepaid
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Top-up cycles box */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-4">
+            {/* Stepper + Presets Box */}
+            <div className="rounded-xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-zinc-200">Top-up prepaid cycles</span>
-                  <span className="text-[11px] text-zinc-400">Add runway to prevent subscription lapse</span>
+                  <span className="text-xs font-semibold text-foreground">Add billing cycles</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {priceUsdc} USDC per {unit} cycle
+                  </span>
                 </div>
-                <div className="flex items-center rounded-lg border border-white/10 bg-black/40 p-1">
-                  <button
-                    type="button"
-                    disabled={topUpCycles <= MIN_PREPAID_CYCLES || pending}
-                    onClick={() => setTopUpCycles((c) => Math.max(MIN_PREPAID_CYCLES, c - 1))}
-                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
-                  >
-                    <Minus className="size-3.5" />
-                  </button>
-                  <span className="w-9 text-center font-bold text-sm tabular-nums text-white">{topUpCycles}</span>
-                  <button
-                    type="button"
-                    disabled={topUpCycles >= MAX_PREPAID_CYCLES || pending}
-                    onClick={() => setTopUpCycles((c) => Math.min(MAX_PREPAID_CYCLES, c + 1))}
-                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
+
+                <CycleStepper value={topUpCycles} onChange={setTopUpCycles} disabled={pending} />
               </div>
 
-              {/* Preset buttons */}
+              {/* Quick Presets */}
               <div className="grid grid-cols-4 gap-2">
-                {TOPUP_PRESETS.map((preset) => (
+                {PRESET_CYCLES.map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -279,39 +299,45 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                     className={cn(
                       "py-2 px-1 text-center text-xs rounded-lg border transition-all cursor-pointer font-medium",
                       topUpCycles === preset
-                        ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400 shadow-sm"
-                        : "border-white/10 bg-black/20 hover:border-white/20 text-zinc-400 hover:text-zinc-200",
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 shadow-xs"
+                        : "border-border bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {preset} cycle{preset > 1 ? "s" : ""}
                   </button>
                 ))}
               </div>
-
-              <Button
-                size="lg"
-                variant="secondary"
-                disabled={pending || topUpRequired === BigInt(0)}
-                onClick={() => void deposit()}
-                className="w-full font-semibold border border-white/10 bg-[#161d24] text-white hover:bg-[#1d2731] transition-all cursor-pointer"
-              >
-                {pending && action.kind === "deposit"
-                  ? "Confirm in your wallet…"
-                  : `Top up ${formatUsdc(topUpRequired)} USDC${state === "past-due" ? " to renew" : ""}`}
-              </Button>
             </div>
 
-            {/* Cancel Subscription */}
-            <div className="flex flex-col gap-2 pt-2">
-              <Button
-                variant="outline"
+            {/* Top Up CTA Button */}
+            <button
+              type="button"
+              disabled={pending || topUpRequired === BigInt(0)}
+              onClick={() => void deposit()}
+              className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#34d399] hover:bg-[#2ecc71] active:scale-[0.99] text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.3)] disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {pending && action.kind === "deposit" ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Confirm in your wallet…
+                </>
+              ) : (
+                <>
+                  Top up {topUpDueUsdc} USDC <MoveRight className="size-4" />
+                </>
+              )}
+            </button>
+
+            {/* Bottom Account & Cancel Link */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 px-0.5">
+              <span>Connected: <strong className="font-mono text-foreground font-medium">{shortAddress(accountId ?? "", 6)}</strong></span>
+              <button
+                type="button"
                 disabled={pending}
                 onClick={() => void cancel()}
-                className="border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white transition-colors font-medium cursor-pointer"
+                className="text-destructive/80 hover:text-destructive hover:underline font-medium transition-colors cursor-pointer disabled:opacity-50"
               >
-                {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
-              </Button>
-              <p className="text-[11px] text-zinc-500 text-center">Instant on-chain cancel · Returns your unused prepaid balance</p>
+                {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription & refund unused USDC"}
+              </button>
             </div>
 
             {footerNotices}
@@ -321,43 +347,25 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
           /* NEW CHECKOUT VIEW (Configurable prepaid cycles)            */
           /* ========================================================= */
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">Configure prepaid cycles</h2>
-                <p className="text-xs text-zinc-400 mt-1">Choose how many billing cycles to pre-fund. Unused balance is refundable anytime.</p>
+                <h2 className="text-xl font-bold tracking-tight text-foreground">Configure prepaid cycles</h2>
+                <p className="text-xs text-muted-foreground mt-1">Choose how many billing cycles to pre-fund. Unused balance is refundable anytime.</p>
               </div>
-              <span className="text-xs text-zinc-400">
-                Balance: <strong className="text-zinc-200 font-semibold tabular-nums">{userBalanceUsdc} USDC</strong>
+              <span className="text-xs text-muted-foreground">
+                Balance: <strong className="text-foreground font-semibold tabular-nums">{userBalanceUsdc} USDC</strong>
               </span>
             </div>
 
             {/* Stepper + Presets Box */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4.5 flex flex-col gap-4">
+            <div className="rounded-xl border border-border bg-muted/20 p-4.5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-zinc-200">Initial prepaid cycles</span>
-                  <span className="text-[11px] text-zinc-400">1st cycle settles immediately</span>
+                  <span className="text-xs font-semibold text-foreground">Initial prepaid cycles</span>
+                  <span className="text-[11px] text-muted-foreground">1st cycle settles immediately</span>
                 </div>
 
-                <div className="flex items-center rounded-lg border border-white/10 bg-black/40 p-1">
-                  <button
-                    type="button"
-                    disabled={cycles <= MIN_PREPAID_CYCLES || pending}
-                    onClick={() => setCycles((c) => Math.max(MIN_PREPAID_CYCLES, c - 1))}
-                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
-                  >
-                    <Minus className="size-3.5" />
-                  </button>
-                  <span className="w-9 text-center font-bold text-sm tabular-nums text-white">{cycles}</span>
-                  <button
-                    type="button"
-                    disabled={cycles >= MAX_PREPAID_CYCLES || pending}
-                    onClick={() => setCycles((c) => Math.min(MAX_PREPAID_CYCLES, c + 1))}
-                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
+                <CycleStepper value={cycles} onChange={setCycles} disabled={pending} />
               </div>
 
               {/* Quick Presets */}
@@ -371,8 +379,8 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                     className={cn(
                       "py-2 px-1 text-center text-xs rounded-lg border transition-all cursor-pointer font-medium",
                       cycles === preset
-                        ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400 shadow-sm"
-                        : "border-white/10 bg-black/20 hover:border-white/20 text-zinc-400 hover:text-zinc-200",
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 shadow-xs"
+                        : "border-border bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {preset} cycle{preset > 1 ? "s" : ""}
@@ -382,14 +390,14 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
             </div>
 
             {/* Breakdown */}
-            <div className="flex flex-col gap-2.5 text-xs border-y border-white/10 py-3.5">
+            <div className="flex flex-col gap-2.5 text-xs border-y border-border py-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400">First charge (Epoch 1)</span>
-                <span className="font-semibold text-zinc-200 tabular-nums">{priceUsdc} USDC today</span>
+                <span className="text-muted-foreground">First charge (Epoch 1)</span>
+                <span className="font-semibold text-foreground tabular-nums">{priceUsdc} USDC today</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-400">Held in prepaid runway</span>
-                <span className="font-semibold text-zinc-200 tabular-nums">
+                <span className="text-muted-foreground">Held in prepaid runway</span>
+                <span className="font-semibold text-foreground tabular-nums">
                   {runwayUsdc} USDC ({futureCycles} future cycle{futureCycles === 1 ? "" : "s"})
                 </span>
               </div>
@@ -405,7 +413,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                 type="button"
                 onClick={() => void wallet.connect()}
                 disabled={wallet.connecting}
-                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#34d399] hover:bg-[#2ecc71] active:scale-[0.99] text-zinc-950 shadow-[0_0_25px_rgba(52,211,153,0.35)] disabled:opacity-50"
+                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#34d399] hover:bg-[#2ecc71] active:scale-[0.99] text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.3)] disabled:opacity-50"
               >
                 {wallet.connecting ? "Connecting NEAR wallet…" : "Connect NEAR wallet to subscribe"} <MoveRight className="size-4" />
               </button>
@@ -418,11 +426,11 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                 <button
                   type="button"
                   disabled
-                  className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base bg-white/10 text-zinc-400 cursor-not-allowed"
+                  className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base bg-muted text-muted-foreground cursor-not-allowed border border-border"
                 >
                   Insufficient USDC balance (have {userBalanceUsdc} USDC)
                 </button>
-                <p className="text-[11px] text-zinc-400 text-center">
+                <p className="text-[11px] text-muted-foreground text-center">
                   You need {totalDueUsdc} USDC to pre-fund {cycles} cycle{cycles === 1 ? "" : "s"}.
                 </p>
               </div>
@@ -431,7 +439,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                 type="button"
                 disabled={pending || required === BigInt(0)}
                 onClick={() => void subscribe()}
-                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#34d399] hover:bg-[#2ecc71] active:scale-[0.99] text-zinc-950 shadow-[0_0_25px_rgba(52,211,153,0.35)] disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full py-3.5 px-6 rounded-xl font-bold text-sm md:text-base transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#34d399] hover:bg-[#2ecc71] active:scale-[0.99] text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.3)] disabled:opacity-50 disabled:pointer-events-none"
               >
                 {pending && action.kind === "subscribe" ? (
                   <>

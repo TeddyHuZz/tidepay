@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTimeUtc, formatTimeUtc, shortAddress, slugify } from "./format";
+import { formatCountdown, formatDateTimeUtc, formatTimeUtc, shortAddress, slugify } from "./format";
 
 describe("slugify", () => {
   it("lowercases and hyphenates", () => {
@@ -33,5 +33,24 @@ describe("UTC formatting", () => {
   it("formats date and time in UTC", () => {
     expect(formatDateTimeUtc("2026-11-08T12:41:08Z")).toContain("12:41");
     expect(formatDateTimeUtc("2026-11-08T12:41:08Z")).toMatch(/UTC$/);
+  });
+});
+
+describe("formatCountdown", () => {
+  it("formats mm:ss for durations under an hour", () => {
+    expect(formatCountdown(36_000, 0)).toBe("00:36");
+    expect(formatCountdown(125_000, 0)).toBe("02:05");
+  });
+
+  it("formats hh:mm:ss for durations under a day", () => {
+    expect(formatCountdown(3665_000, 0)).toBe("01:01:05");
+  });
+
+  it("formats days and hours for longer durations", () => {
+    expect(formatCountdown(86400_000 * 2 + 3600_000 * 5, 0)).toBe("2d 5h");
+  });
+
+  it("returns 00:00 when past", () => {
+    expect(formatCountdown(0, 1000)).toBe("00:00");
   });
 });
