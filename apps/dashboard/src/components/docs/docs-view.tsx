@@ -41,6 +41,7 @@ import { PdaConfigViewer } from "@/components/developers/pda-config-viewer";
 import { ErrorReferenceTable } from "@/components/developers/error-reference-table";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 import { RPC_URL, USDC_MINT } from "@/lib/chain/config";
+import { NEAR_CONTRACT_ID, NEAR_RPC_URL, NEAR_USDC_TOKEN_ID } from "@/lib/near/config";
 
 // Docs Article Identifiers
 export type DocTopicId =
@@ -52,6 +53,8 @@ export type DocTopicId =
   | "sdk-gating"
   | "sdk-plans"
   | "sdk-cancel"
+  | "near-protocol"
+  | "near-intents"
   | "actions-spec"
   | "actions-blinks"
   | "crank-keeper"
@@ -148,6 +151,24 @@ const DOC_TREE: DocGroup[] = [
         title: "Sharing on X & Dial.to",
         description: "Unfurling interactive subscription cards on Twitter, Telegram, and Dial.to.",
         keywords: ["dial.to", "twitter", "unfurl", "share", "card"],
+      },
+    ],
+  },
+  {
+    name: "NEAR Protocol & Intents",
+    defaultOpen: true,
+    items: [
+      {
+        id: "near-protocol",
+        title: "NEAR Contract & @tidepay/sdk-near",
+        description: "Prepaid NEP-141 recurring billing on NEAR Testnet with permissionless process_epoch settlement.",
+        keywords: ["near", "testnet", "sdk-near", "nep-141", "ft_transfer_call", "prepaid", "process_epoch"],
+      },
+      {
+        id: "near-intents",
+        title: "NEAR Gas Sponsor & 1Click Intents",
+        description: "Fund embedded merchant accounts and quote cross-chain USDC deposits into NEAR.",
+        keywords: ["near", "intents", "1click", "sponsor", "quote", "deposit", "cross-chain"],
       },
     ],
   },
@@ -960,14 +981,118 @@ const blinkUrl = "https://dial.to/?action=solana-action:" + encodeURIComponent(a
               <>
                 <section id="part-1" className="flex flex-col gap-3">
                   <h2 className="text-xl font-bold text-foreground tracking-tight">
-                    Running the Decentralized Crank Bot
+                    Running the Unified Solana + NEAR Crank
                   </h2>
                   <p>
-                    The keeper crank scans for subscribers where `clock.unix_timestamp &gt;= next_epoch_timestamp` and submits `process_epoch` transactions.
+                    The keeper crank runs both Solana (<code className="font-mono text-foreground">TidePayCrankWorker</code>) and NEAR (<code className="font-mono text-foreground">startNearCrankFromEnv()</code> from <code className="font-mono text-foreground">@tidepay/crank-near</code>) in a single worker process.
+                  </p>
+                  <p>
+                    On Solana it scans for active PDAs where <code className="font-mono text-foreground">clock.unix_timestamp &gt;= next_epoch_timestamp</code>. On NEAR it auto-discovers subscriber keys via RPC <code className="font-mono text-foreground">view_state</code> (<code className="font-mono text-foreground">b&quot;s&quot;</code> prefix), skips depleted prepaid balances, auto-registers keeper token storage for bounties, and submits <code className="font-mono text-foreground">process_epoch</code> calls.
                   </p>
                   <CodeBlock
                     filename="Terminal"
-                    singleCode="pnpm --filter @tidepay/crank dev"
+                    tabs={[
+                      {
+                        label: "Unified (Solana + NEAR)",
+                        code: "pnpm --filter @tidepay/crank start",
+                      },
+                      {
+                        label: "NEAR Standalone",
+                        code: "pnpm --filter @tidepay/crank-near start",
+                      },
+                    ]}
+                  />
+                </section>
+              </>
+            )}
+
+            {/* TOPIC: NEAR Protocol & SDK */}
+            {activeTopic === "near-protocol" && (
+              <>
+                <section id="part-1" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    1. NEAR Prepaid NEP-141 Architecture
+                  </h2>
+                  <p>
+                    TidePay on NEAR (<code className="font-mono text-foreground">packages/contracts-near</code>) implements recurring billing using prepaid NEP-141 balances held in the TidePay contract. On subscribe, epoch 0 settles immediately via <code className="font-mono text-foreground">ft_transfer_call</code> and remaining cycles stay in <code className="font-mono text-foreground">deposited_balance</code>. After each interval, anyone can call <code className="font-mono text-foreground">process_epoch</code> when <code className="font-mono text-foreground">block_timestamp &gt;= next_epoch_timestamp_ns</code>.
+                  </p>
+                  <div className="rounded-lg border bg-muted/35 p-4 text-xs font-mono space-y-1.5">
+                    <div>Contract ID: <span className="text-foreground">{NEAR_CONTRACT_ID || "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet"}</span></div>
+                    <div>Testnet Token: <span className="text-foreground">{NEAR_USDC_TOKEN_ID}</span></div>
+                    <div>NEAR RPC: <span className="text-foreground">{NEAR_RPC_URL}</span></div>
+                  </div>
+                </section>
+
+                <section id="part-2" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    2. Using TidePayNearClient (@tidepay/sdk-near)
+                  </h2>
+                  <CodeBlock
+                    filename="near-subscription.ts"
+                    singleCode={`import { TidePayNearClient } from "@tidepay/sdk-near";
+
+const client = new TidePayNearClient(nearAccount, "${NEAR_CONTRACT_ID || "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet"}");
+
+// 1. Create a plan (1.00 USDC every 60s, 0.05 USDC keeper bounty)
+await client.createPlan({
+  planId: "claude-pro",
+  tokenId: "${NEAR_USDC_TOKEN_ID}",
+  amount: 1_000_000n,
+  intervalSeconds: 60,
+});
+
+// 2. Subscribe with 3 cycles prepaid (epoch 0 + 2 future renewals)
+await client.subscribe({
+  planId: "claude-pro",
+  tokenId: "${NEAR_USDC_TOKEN_ID}",
+  depositAmount: 3_000_000n,
+});
+
+// 3. Top up, check due status, or cancel & refund unused prepaid USDC
+await client.deposit({ planId: "claude-pro", tokenId: "${NEAR_USDC_TOKEN_ID}", amount: 2_000_000n });
+const due = await client.isSubscriptionDue("claude-pro", nearAccount.accountId);
+await client.cancelSubscription("claude-pro");`}
+                  />
+                </section>
+              </>
+            )}
+
+            {/* TOPIC: NEAR Sponsor & Intents */}
+            {activeTopic === "near-intents" && (
+              <>
+                <section id="part-1" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    1. Embedded Merchant Account Sponsor
+                  </h2>
+                  <p>
+                    Merchants logged in via Solana/Privy derive a deterministic 64-character hex NEAR implicit account in the browser. Call <code className="text-emerald-600 dark:text-emerald-400 font-mono">POST /api/near/sponsor</code> on Testnet to fund new accounts with 0.5 NEAR for storage and gas.
+                  </p>
+                  <CodeBlock
+                    filename="cURL"
+                    singleCode={`curl -X POST https://api.tidepay.xyz/api/near/sponsor \\
+  -H "Content-Type: application/json" \\
+  -d '{ "accountId": "<64-char-hex-implicit-account>" }'`}
+                  />
+                </section>
+
+                <section id="part-2" className="flex flex-col gap-3">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    2. Cross-Chain USDC Funding via NEAR Intents (1Click)
+                  </h2>
+                  <p>
+                    Quote cross-chain USDC funding from Solana, Ethereum, or Base into a subscriber&apos;s NEAR account via <code className="text-emerald-600 dark:text-emerald-400 font-mono">POST /api/near/intents/quote</code>, then submit or poll status via <code className="text-emerald-600 dark:text-emerald-400 font-mono">/api/near/intents/deposit</code>.
+                  </p>
+                  <CodeBlock
+                    filename="cURL"
+                    singleCode={`curl -X POST https://api.tidepay.xyz/api/near/intents/quote \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "originAsset": "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near",
+    "amount": "10000000",
+    "refundTo": "<solana-address>",
+    "recipient": "alice.near",
+    "dry": true
+  }'`}
                   />
                 </section>
               </>

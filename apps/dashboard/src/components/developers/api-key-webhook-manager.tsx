@@ -27,13 +27,74 @@ export const WEBHOOK_EVENTS = [
 ] as const;
 
 export type EventKey = (typeof WEBHOOK_EVENTS)[number];
+export type PayloadChain = "solana" | "near";
 
-function buildSamplePayload(event: EventKey, epochSeconds: number) {
+function buildSamplePayload(event: EventKey, chain: PayloadChain, epochSeconds: number) {
+  if (chain === "near") {
+    switch (event) {
+      case "subscription.created":
+        return {
+          id: "evt_01JCH9X4M2P8Q7R5V1W3Z6B9N0",
+          type: "subscription.created",
+          chain: "near",
+          created: epochSeconds,
+          livemode: false,
+          data: {
+            contract_id: "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet",
+            plan_id: "claude-pro",
+            subscriber_id: "alice.testnet",
+            token_id: "usdc.fakes.testnet",
+            epoch: 1,
+            amount_usdc: "1.00",
+            deposited_balance: "9000000",
+            crank_bounty_usdc: "0.05",
+            net_merchant_usdc: "0.95",
+          },
+        };
+      case "epoch.settled":
+        return {
+          id: "evt_01JCH9Y8A4K2L9M1N3P5Q7R9T2",
+          type: "epoch.settled",
+          chain: "near",
+          created: epochSeconds,
+          livemode: false,
+          data: {
+            contract_id: "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet",
+            plan_id: "claude-pro",
+            subscriber_id: "alice.testnet",
+            token_id: "usdc.fakes.testnet",
+            epoch: 2,
+            amount_usdc: "1.00",
+            deposited_balance: "8000000",
+            crank_bounty_usdc: "0.05",
+            net_merchant_usdc: "0.95",
+            tx_hash: "9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M",
+          },
+        };
+      case "subscription.cancelled":
+        return {
+          id: "evt_01JCH9Z2F6H8J1K3M5N7P9R2T4",
+          type: "subscription.cancelled",
+          chain: "near",
+          created: epochSeconds,
+          livemode: false,
+          data: {
+            contract_id: "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet",
+            plan_id: "claude-pro",
+            subscriber_id: "alice.testnet",
+            token_id: "usdc.fakes.testnet",
+            refunded_prepaid_usdc: "8.00",
+          },
+        };
+    }
+  }
+
   switch (event) {
     case "subscription.created":
       return {
         id: "evt_01JCH9X4M2P8Q7R5V1W3Z6B9N0",
         type: "subscription.created",
+        chain: "solana",
         created: epochSeconds,
         livemode: false,
         data: {
@@ -50,6 +111,7 @@ function buildSamplePayload(event: EventKey, epochSeconds: number) {
       return {
         id: "evt_01JCH9Y8A4K2L9M1N3P5Q7R9T2",
         type: "epoch.settled",
+        chain: "solana",
         created: epochSeconds,
         livemode: false,
         data: {
@@ -67,6 +129,7 @@ function buildSamplePayload(event: EventKey, epochSeconds: number) {
       return {
         id: "evt_01JCH9Z2F6H8J1K3M5N7P9R2T4",
         type: "subscription.cancelled",
+        chain: "solana",
         created: epochSeconds,
         livemode: false,
         data: {
@@ -114,6 +177,7 @@ export function ApiKeyWebhookManager({
   const setEnabledEvents = onEnabledEventsChange ?? setLocalEvents;
 
   const [codeTab, setCodeTab] = useState<"payload" | "verify">("payload");
+  const [payloadChain, setPayloadChain] = useState<PayloadChain>("solana");
   const [selectedEvent, setSelectedEvent] = useState<EventKey>("subscription.created");
   const [epochNow, setEpochNow] = useState<number>(1763030000);
   const [isPinging, setIsPinging] = useState(false);
@@ -199,7 +263,7 @@ export function ApiKeyWebhookManager({
     }, 350);
   };
 
-  const payloadJson = JSON.stringify(buildSamplePayload(selectedEvent, epochNow), null, 2);
+  const payloadJson = JSON.stringify(buildSamplePayload(selectedEvent, payloadChain, epochNow), null, 2);
   const verifySnippet = `import crypto from "node:crypto";
 
 export function verifyTidePaySignature(
@@ -504,22 +568,41 @@ export function verifyTidePaySignature(
           </div>
 
           {codeTab === "payload" && (
-            <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-4 py-2.5">
-              {WEBHOOK_EVENTS.map((ev) => (
-                <button
-                  key={ev}
-                  type="button"
-                  onClick={() => setSelectedEvent(ev)}
-                  className={cn(
-                    "rounded-md border px-2.5 py-1 font-mono text-[11px] transition-colors",
-                    selectedEvent === ev
-                      ? "border-success/40 bg-success-soft text-success font-medium"
-                      : "border-border bg-background/60 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {ev}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/20 px-4 py-2.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {WEBHOOK_EVENTS.map((ev) => (
+                  <button
+                    key={ev}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1 font-mono text-[11px] transition-colors",
+                      selectedEvent === ev
+                        ? "border-success/40 bg-success-soft text-success font-medium"
+                        : "border-border bg-background/60 text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {ev}
+                  </button>
+                ))}
+              </div>
+              <div className="inline-flex items-center gap-0.5 rounded-md border bg-muted/50 p-0.5">
+                {(["solana", "near"] as PayloadChain[]).map((chain) => (
+                  <button
+                    key={chain}
+                    type="button"
+                    onClick={() => setPayloadChain(chain)}
+                    className={cn(
+                      "rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                      payloadChain === chain
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {chain}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

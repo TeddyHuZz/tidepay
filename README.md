@@ -57,11 +57,10 @@ A merchant signs in once (email, Google, or a Solana wallet) and can create and 
 - **Subscribers** use their own wallet: a NEAR wallet (NEAR Connect) on the NEAR checkout page, a Solana wallet on the Solana one. On testnet the NEAR checkout has a **Get test USDC** button.
 - **Setup.** Set `NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT` in `apps/dashboard/.env.local` (deploy your own with `./scripts/deploy-near-contract.sh`), and `NEAR_SPONSOR_ACCOUNT_ID` / `NEAR_SPONSOR_PRIVATE_KEY` in `apps/api/.env.local`. Email and Google sign-in must also be enabled in the Privy dashboard for the app id in use.
 - **Plan IDs are global on NEAR.** Two merchants cannot use the same plan ID; the second gets "A plan with this ID already exists on NEAR".
-- The contract now exposes `get_merchant_plans` and `get_plan_subscribers`, so a keeper could discover what to settle; the bundled keeper still reads `NEAR_CRANK_WATCH`.
+- **Keeper discovery:** `@tidepay/crank-near` automatically discovers active subscriptions via NEAR RPC `view_state` (`b"s"` prefix), skips depleted prepaid balances, registers keeper token storage once when `crank_bounty > 0`, and runs inside the unified `@tidepay/crank` worker alongside Solana (`NEAR_CRANK_WATCH` remains supported as an optional override).
 
 ### Known limits
 - A failed token payout (for example a receiver not registered on the token) does not roll back the subscription state. A `ft_resolve_transfer` callback is not implemented.
-- The keeper watches subscriptions listed in `NEAR_CRANK_WATCH`. The contract can now list them, but the keeper does not use that yet.
 - The dashboard's NEAR browser flows (embedded-account setup, plan form, NEAR Connect checkout) were verified by replaying their exact chain calls against testnet and by unit tests, not by a person clicking through them in a browser.
 - The 1Click routes deliver USDC to the subscriber's NEAR account. The subscriber then calls `subscribe`; it is not one atomic step. Executing a real swap was not tested.
 - Not audited. Testnet only.

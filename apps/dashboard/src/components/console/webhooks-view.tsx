@@ -25,6 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
 import { API_URL, getRpcUrl } from "@/lib/chain/config";
 import { shortAddress } from "@/lib/format";
+import { NEAR_CONTRACT_ID } from "@/lib/near/config";
 import { cn } from "@/lib/utils";
 
 export interface WebhookDelivery {
@@ -105,21 +106,45 @@ function WebhooksContent({
   const API_ENDPOINTS = [
     {
       method: "POST",
+      chain: "Solana",
       path: "/api/v1/checkout/sessions",
       url: `${API_URL}/api/v1/checkout/sessions`,
-      desc: "Creates a pre-configured checkout URL with client reference metadata",
+      desc: "Creates a pre-configured Solana checkout URL & Blink with client reference metadata",
     },
     {
       method: "GET",
+      chain: "Solana",
       path: "/api/v1/subscriptions/:wallet?plan=:planAddress",
       url: `${API_URL}/api/v1/subscriptions/WALLET_ADDRESS?plan=PLAN_ADDRESS`,
-      desc: "Queries real-time on-chain subscription and active entitlement status",
+      desc: "Queries real-time on-chain Solana subscription and active entitlement status",
     },
     {
       method: "POST",
+      chain: "Solana",
       path: "/api/v1/subscriptions/cancel",
       url: `${API_URL}/api/v1/subscriptions/cancel`,
-      desc: "Prepares cancellation transaction and refunds closed account rent to subscriber",
+      desc: "Prepares Solana cancellation transaction and refunds closed account rent to subscriber",
+    },
+    {
+      method: "POST",
+      chain: "NEAR",
+      path: "/api/near/sponsor",
+      url: `${API_URL}/api/near/sponsor`,
+      desc: "Funds a newly derived 64-hex embedded NEAR implicit account on testnet (0.5 NEAR)",
+    },
+    {
+      method: "POST",
+      chain: "NEAR",
+      path: "/api/near/intents/quote",
+      url: `${API_URL}/api/near/intents/quote`,
+      desc: "Requests a NEAR Intents 1Click cross-chain swap quote delivering USDC to a NEAR account",
+    },
+    {
+      method: "GET/POST",
+      chain: "NEAR",
+      path: "/api/near/intents/deposit",
+      url: `${API_URL}/api/near/intents/deposit`,
+      desc: "Submits an origin-chain deposit hash (POST) or polls swap status by depositAddress (GET)",
     },
   ];
 
@@ -135,7 +160,8 @@ function WebhooksContent({
 
         <div className="flex flex-wrap items-center gap-3">
           <span className="hidden md:inline font-mono text-xs text-muted-foreground">
-            Anchor Program {shortAddress(TIDEPAY_PROGRAM_ID, 4)}
+            Solana {shortAddress(TIDEPAY_PROGRAM_ID, 4)}
+            {NEAR_CONTRACT_ID ? ` · NEAR ${shortAddress(NEAR_CONTRACT_ID, 6)}` : ""}
           </span>
           <Button
             variant="outline"
@@ -288,6 +314,9 @@ function WebhooksContent({
                 <div className="flex items-center gap-2">
                   <span className="rounded bg-primary/15 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                     {ep.method}
+                  </span>
+                  <span className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground">
+                    {ep.chain}
                   </span>
                   <code className="truncate font-mono text-xs font-semibold text-foreground">{ep.path}</code>
                 </div>
