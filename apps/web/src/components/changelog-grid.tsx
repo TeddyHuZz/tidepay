@@ -10,11 +10,25 @@ interface ChangelogItem {
 
 const changelogItems: ChangelogItem[] = [
   {
+    date: "NOV 14, 2026",
+    title: "Multi-Chain Keeper Crank & Console",
+    description:
+      "Unified Solana + NEAR crank auto-discovery via contract view_state, redesigned Subscribers & Webhooks views, and updated docs.",
+    isLatest: true,
+    commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/205e03e",
+  },
+  {
+    date: "NOV 13, 2026",
+    title: "NEAR Prepaid Protocol & 1Click Intents",
+    description:
+      "Shipped Rust NEAR subscription contract, @tidepay/sdk-near, gasless relayer onboarding, and cross-chain NEAR Intents checkout.",
+    commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/3b61e09",
+  },
+  {
     date: "OCT 11, 2026",
     title: "On-Chain Plan State Controls",
     description:
       "Toggle plan status instructions allowing merchants to pause, resume, and close subscription tiers on-chain.",
-    isLatest: true,
     commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/c3f061e",
   },
   {
@@ -23,20 +37,6 @@ const changelogItems: ChangelogItem[] = [
     description:
       "Project-level API key authorization and HMAC-SHA256 signature verification for automated recurring dunning webhooks.",
     commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/10daa96",
-  },
-  {
-    date: "OCT 10, 2026",
-    title: "Cluster & Custom RPC Switcher",
-    description:
-      "Environment engine supporting seamless cluster switching between Solana Devnet and Mainnet with dedicated RPCs.",
-    commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/a706ffc",
-  },
-  {
-    date: "OCT 09, 2026",
-    title: "Non-Custodial Checkout & Rent Cleanup",
-    description:
-      "Dialect Blink actions, checkout sessions, and deterministic cancellation handlers closing accounts to refund rent.",
-    commitUrl: "https://github.com/TeddyHuZz/tidepay/commit/283956b",
   },
 ];
 

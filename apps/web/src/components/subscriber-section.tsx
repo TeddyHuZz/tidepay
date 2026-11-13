@@ -140,8 +140,8 @@ export function SubscriberSection() {
           </h2>
           <div>
             <p className="text-base leading-relaxed text-zinc-400 sm:text-lg">
-              Monitor active delegated pull allowances, upcoming renewal epochs, and full cancellation histories.
-              When a subscriber churns, their on-chain account closes cleanly and rent lamports return to their wallet.
+              Monitor delegated Solana allowances, prepaid NEAR epochs, upcoming renewals, and full cancellation
+              histories. Churned subscribers automatically reclaim Solana rent lamports or unused prepaid USDC.
             </p>
             <a
               href={`${DASHBOARD_URL}/subscribers`}

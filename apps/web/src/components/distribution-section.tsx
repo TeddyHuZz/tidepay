@@ -81,8 +81,8 @@ export function DistributionSection() {
           </h2>
           <div>
             <p className="text-base leading-relaxed text-zinc-400 sm:text-lg">
-              Launch a plan in one transaction, then share it anywhere as a Solana Blink or checkout link.
-              Every renewal settles on-chain and lands in your dashboard.
+              Launch a Solana or NEAR plan in one transaction, then share it as a Solana Blink, hosted
+              checkout link, or cross-chain NEAR Intents flow. Every renewal settles on-chain.
             </p>
             <a
               href={`${DASHBOARD_URL}/plans/new`}

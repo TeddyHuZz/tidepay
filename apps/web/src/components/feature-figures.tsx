@@ -112,21 +112,21 @@ const figures = [
     label: "FIG 0.1",
     title: "Non-custodial",
     description:
-      "Funds never leave the subscriber's wallet. Each cycle is pulled through a delegated program authority.",
+      "Solana pulls use delegated Token-2022/SPL authority; NEAR subscriptions lock prepaid NEP-141 balances with instant cancel refunds.",
     scene: <IsoScene boxes={walletSlabs} discs={walletCoins} />,
   },
   {
     label: "FIG 0.2",
-    title: "Built for Blinks",
+    title: "Built for Blinks & Intents",
     description:
-      "Plans unfurl as Solana Actions across X, Discord, and Telegram. One click to subscribe.",
+      "Plans unfurl as Solana Blinks across X and Discord, or accept cross-chain deposits via NEAR Intents 1Click.",
     scene: <IsoScene boxes={blinkCubes} />,
   },
   {
     label: "FIG 0.3",
     title: "Settled automatically",
     description:
-      "Keeper cranks settle every due epoch on-chain. No invoices, no reminders, no missed renewals.",
+      "Unified keeper cranks settle due Solana and NEAR epochs on-chain. No invoices, no reminders, no missed renewals.",
     scene: <IsoScene boxes={epochPanels} />,
   },
 ];
@@ -138,8 +138,8 @@ export function FeatureFigures() {
         <h2 className="max-w-4xl text-[28px] font-medium leading-[1.15] tracking-tight text-white sm:text-[36px] md:text-[44px]">
           A new species of payment rail.{" "}
           <span className="text-zinc-500">
-            Purpose-built for recurring revenue on Solana, TidePay replaces custodial escrow with delegated
-            pull billing and autonomous on-chain settlement.
+            Purpose-built for multi-chain recurring revenue, TidePay brings delegated pull billing on Solana
+            and prepaid NEP-141 subscriptions on NEAR into one unified console.
           </span>
         </h2>
 

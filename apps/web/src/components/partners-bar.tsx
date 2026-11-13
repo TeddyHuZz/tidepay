@@ -1,10 +1,10 @@
 export function PartnersBar() {
   const partners = [
-    { name: "Solana", label: "SOLANA FOUNDATION" },
-    { name: "Token-2022", label: "TOKEN EXTENSIONS" },
+    { name: "Solana", label: "SOLANA & TOKEN-2022" },
+    { name: "NEAR Protocol", label: "PREPAID NEP-141" },
+    { name: "NEAR Intents", label: "1CLICK CROSS-CHAIN" },
     { name: "Dialect", label: "SOLANA ACTIONS & BLINKS" },
     { name: "Phantom", label: "DELEGATED SESSIONS" },
-    { name: "Backpack", label: "WALLET STANDARD" },
     { name: "Colosseum", label: "COLOSSEUM 2026" },
   ];
 

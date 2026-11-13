@@ -169,9 +169,8 @@ export function DeveloperGuideSection() {
           </h2>
           <div>
             <p className="text-base leading-relaxed text-zinc-400 sm:text-lg">
-              Streamline subscription engineering with step-by-step guides, verified Anchor
-              IDL interfaces, and interactive developer sandboxes. Keep integration code
-              lean without custodial escrow overhead.
+              Streamline subscription engineering with multi-chain quickstarts, Anchor IDL &amp; NEAR
+              NEP-141 references, and NEAR Intents cross-chain checkout flows without custodial overhead.
             </p>
             <a
               href={`${DASHBOARD_URL}/docs`}

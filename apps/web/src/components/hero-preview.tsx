@@ -9,13 +9,14 @@ export function HeroPreview() {
         {/* Headline */}
         <h1 className="max-w-4xl text-[40px] font-medium leading-[1.05] tracking-tight text-white sm:text-[52px] md:text-[64px]">
           The recurring billing engine
-          <br className="hidden sm:block" /> for Solana merchants
+          <br className="hidden sm:block" /> for Solana &amp; NEAR
         </h1>
 
         {/* Subline + announcement */}
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl text-base leading-relaxed text-zinc-400">
-            Non-custodial subscriptions with delegated pull billing. Designed for Solana Blinks.
+            Non-custodial subscriptions across Solana delegated pulls, NEAR prepaid NEP-141 epochs,
+            and cross-chain NEAR Intents.
           </p>
           <a
             href={DASHBOARD_URL}

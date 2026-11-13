@@ -15,12 +15,13 @@ export function DeveloperApiSection() {
           </h2>
           <div>
             <p className="text-base leading-relaxed text-zinc-400 sm:text-lg">
-              Integrate automated non-custodial recurring billing into your stack in minutes.
-              Listen for on-chain crank settlements via HMAC-SHA256 signed webhooks,
-              and query subscription states using type-safe TypeScript SDKs.
+              Integrate automated multi-chain recurring billing in minutes. Listen for Solana and NEAR
+              crank settlements via HMAC-SHA256 webhooks, fund checkouts via NEAR Intents, and query
+              state using <code className="text-zinc-200">@tidepay/sdk</code> and{" "}
+              <code className="text-zinc-200">@tidepay/sdk-near</code>.
             </p>
             <a
-              href={`${DASHBOARD_URL}/webhooks-api`}
+              href={`${DASHBOARD_URL}/webhooks`}
               target="_blank"
               rel="noopener noreferrer"
               className="group mt-6 inline-flex items-center gap-1.5 text-sm text-zinc-400 transition hover:text-white"
