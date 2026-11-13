@@ -160,7 +160,6 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const walletBar = accountId ? (
     <div className="flex items-center justify-between text-xs text-muted-foreground pt-0.5 px-0.5">
       <span className="flex items-center gap-1.5 min-w-0">
-        <span className="size-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
         <span className="text-muted-foreground shrink-0">Wallet:</span>
         <span className="font-mono text-foreground font-medium truncate" title={accountId}>
           {shortAddress(accountId, 6)}
