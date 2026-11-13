@@ -6,6 +6,7 @@ import type { SubscriptionRecord } from "@tidepay/sdk-near";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { Button } from "@/components/ui/button";
 import { useNearSubscriber } from "@/hooks/use-near-subscriber";
+import { API_URL } from "@/lib/chain/config";
 import { formatUsdc } from "@/lib/chain/derive";
 import { formatDateTimeUtc } from "@/lib/format";
 import { tryCreateNearReader } from "@/lib/near/chain-ops";
@@ -120,6 +121,25 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     run("mint", async () => {
       if (!accountId) throw new Error("Connect a NEAR wallet first.");
       if (!reader) throw new Error("NEAR checkout is not configured.");
+
+      // Ensure the account exists on-chain and has testnet NEAR for storage deposit and gas.
+      try {
+        const response = await fetch(`${API_URL}/api/near/sponsor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId }),
+        });
+        if (response.ok) {
+          const body = (await response.json().catch(() => ({}))) as { funded?: boolean };
+          if (body.funded) {
+            // Give block inclusion a moment to settle the access key on-chain
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+          }
+        }
+      } catch (err) {
+        console.warn("[TidePay] Automatic sponsor check failed:", err);
+      }
+
       if (!(await reader.isStorageRegistered(NEAR_USDC_TOKEN_ID, accountId))) {
         await wallet.callFunction({
           contractId: NEAR_USDC_TOKEN_ID,

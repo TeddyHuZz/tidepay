@@ -5,6 +5,8 @@ const KNOWN: [code: string, message: string][] = [
   ["ERR_INVALID_FEE", "The protocol fee is above the 5% maximum."],
   ["ERR_PLAN_NOT_FOUND", "This plan does not exist on NEAR."],
   ["ERR_UNAUTHORIZED", "Only the plan's merchant can do this."],
+  ["access key", "Your NEAR account has no on-chain access key yet. Click 'Get test USDC' to auto-fund it with testnet gas."],
+  ["does not exist", "Your NEAR account does not exist on-chain yet. Click 'Get test USDC' to auto-fund it with testnet gas."],
 ];
 
 /** Turns a NEAR/contract error into text a merchant can act on. */
