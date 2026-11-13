@@ -96,14 +96,20 @@ export function deriveMerchantData(
   }));
 
   const subscriberRows: SubscriberRow[] = subscriptions
-    .map((sub) => ({
-      id: sub.address,
-      wallet: sub.subscriber,
-      plan: planByAddress.get(sub.plan)?.planId ?? sub.plan,
-      lastBilledAt: isoFromUnix(sub.lastEpochTimestamp),
-      nextDueAt: isoFromUnix(sub.nextEpochTimestamp),
-      status: statusOf.get(sub.address) ?? "Active",
-    }))
+    .map((sub) => {
+      const plan = planByAddress.get(sub.plan);
+      return {
+        id: sub.address,
+        wallet: sub.subscriber,
+        plan: plan?.planId ?? sub.plan,
+        startedAt: isoFromUnix(sub.startTimestamp),
+        lastBilledAt: isoFromUnix(sub.lastEpochTimestamp),
+        nextDueAt: isoFromUnix(sub.nextEpochTimestamp),
+        status: statusOf.get(sub.address) ?? "Active",
+        cycleCount: Number(sub.cycleCount),
+        totalPaidUsdc: plan ? formatUsdc(sub.cycleCount * plan.amount) : undefined,
+      };
+    })
     .sort((a, b) => b.lastBilledAt.localeCompare(a.lastBilledAt));
 
   const active = subscriptions.filter((sub) => statusOf.get(sub.address) === "Active");

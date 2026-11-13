@@ -26,7 +26,10 @@ export function formatTimeUtc(iso: string) {
 }
 
 export function formatDateTimeUtc(iso: string) {
-  return `${dateTimeFormat.format(new Date(iso))} UTC`;
+  if (!iso || iso === "—") return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${dateTimeFormat.format(date)} UTC`;
 }
 
 export function formatCountdown(targetMs: number, nowMs: number): string {

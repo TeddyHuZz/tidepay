@@ -34,6 +34,11 @@ describe("UTC formatting", () => {
     expect(formatDateTimeUtc("2026-11-08T12:41:08Z")).toContain("12:41");
     expect(formatDateTimeUtc("2026-11-08T12:41:08Z")).toMatch(/UTC$/);
   });
+
+  it("returns placeholder for missing or invalid date strings", () => {
+    expect(formatDateTimeUtc("—")).toBe("—");
+    expect(formatDateTimeUtc("not-a-date")).toBe("—");
+  });
 });
 
 describe("formatCountdown", () => {

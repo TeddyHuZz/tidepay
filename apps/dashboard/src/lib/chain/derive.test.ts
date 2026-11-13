@@ -112,7 +112,7 @@ describe("deriveMerchantData", () => {
 
   it("derives statuses and plan names for subscriber rows", () => {
     const byId = Object.fromEntries(data.subscribers.map((row) => [row.id, row]));
-    expect(byId.A).toMatchObject({ plan: "pro", status: "Active" });
+    expect(byId.A).toMatchObject({ plan: "pro", status: "Active", cycleCount: 3, totalPaidUsdc: "87.00" });
     expect(byId.C.status).toBe("PastDue");
   });
 

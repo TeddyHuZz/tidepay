@@ -228,7 +228,8 @@ export interface PlanOnChainEvent {
 
 const parsedTxCache = new Map<string, { kind: PlanOnChainEvent["kind"]; label: string; subscriber?: string }>();
 const activityCache = new Map<string, { data: PlanOnChainEvent[]; timestamp: number }>();
-const ACTIVITY_CACHE_TTL_MS = 30_000; // 30 seconds TTL per plan
+const inFlightActivityRequests = new Map<string, Promise<PlanOnChainEvent[]>>();
+const ACTIVITY_CACHE_TTL_MS = 120_000; // 2-minute TTL to avoid public Devnet 429 rate limits across tabs
 
 export const DEFAULT_ACTIVITY_LIMIT = 50;
 
@@ -246,89 +247,101 @@ export async function fetchPlanActivity(
     return cachedActivity.data;
   }
 
-  try {
-    const sigs = await connection.getSignaturesForAddress(planPubkey, { limit });
-    if (sigs.length === 0) {
-      activityCache.set(cacheKey, { data: [], timestamp: Date.now() });
-      return [];
-    }
-
-    const priceNum = parseFloat(priceUsdc) || 0;
-    const feeNum = parseFloat(keeperFeeUsdc) || 0;
-    const netNum = Math.max(0, priceNum - feeNum).toFixed(2);
-
-    // Inspect uncached signatures in a single batch request (up to 20 signatures per batch)
-    const uncached = sigs.filter((s) => !parsedTxCache.has(s.signature)).slice(0, 20);
-    if (uncached.length > 0) {
-      try {
-        const txs = await connection.getParsedTransactions(
-          uncached.map((s) => s.signature),
-          { maxSupportedTransactionVersion: 0 },
-        );
-        for (let i = 0; i < uncached.length; i++) {
-          const sig = uncached[i];
-          const tx = txs[i];
-          if (!tx) continue;
-
-          const logs = tx.meta?.logMessages ?? [];
-          const accountKeys = tx.transaction.message.accountKeys ?? [];
-          const signerKey = accountKeys.find((k: any) => k.signer)?.pubkey.toBase58();
-
-          if (logs.some((l) => l.includes("Instruction: CancelSubscription"))) {
-            parsedTxCache.set(sig.signature, { kind: "cancelled", label: "Subscription Cancelled", subscriber: signerKey });
-          } else if (logs.some((l) => l.includes("Instruction: Subscribe"))) {
-            parsedTxCache.set(sig.signature, { kind: "subscribed", label: "New Subscription", subscriber: signerKey });
-          } else if (logs.some((l) => l.includes("Instruction: ProcessEpoch"))) {
-            parsedTxCache.set(sig.signature, { kind: "settled", label: "On-chain Settlement" });
-          } else if (logs.some((l) => l.includes("Instruction: InitializePlan"))) {
-            parsedTxCache.set(sig.signature, { kind: "created", label: "Plan Initialized" });
-          }
-        }
-      } catch {
-        // Silently skip if RPC rate limits or delays; heuristic fallback applies cleanly
-      }
-    }
-
-    const events: PlanOnChainEvent[] = sigs.map((sig, idx) => {
-      const isInitial = idx === sigs.length - 1;
-      const blockTime = sig.blockTime ? sig.blockTime * 1000 : Date.now();
-      const isFailed = Boolean(sig.err);
-
-      const cached = parsedTxCache.get(sig.signature);
-      const kind: PlanOnChainEvent["kind"] = cached?.kind ?? (isInitial ? "created" : "settled");
-      const label = cached?.label ?? (isInitial ? "Plan Initialized" : "On-chain Settlement");
-
-      const isTransfer = kind === "settled" || kind === "subscribed";
-
-      return {
-        signature: sig.signature,
-        kind,
-        label,
-        timestamp: blockTime,
-        timeFormatted: new Date(blockTime).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        amountUsdc: isTransfer ? `+${netNum}` : undefined,
-        amountNetUsdc: isTransfer ? `+${netNum}` : undefined,
-        amountGrossUsdc: isTransfer ? priceUsdc : undefined,
-        keeperFeeUsdc: isTransfer ? keeperFeeUsdc : undefined,
-        subscriber: cached?.subscriber,
-        planName,
-        planAddress: planPubkey.toBase58(),
-        err: isFailed,
-      };
-    });
-
-    activityCache.set(cacheKey, { data: events, timestamp: Date.now() });
-    // Non-blocking background sync to Neon Postgres indexer
-    syncSettlementsToDatabase(events);
-    return events;
-  } catch (error) {
-    console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
-    return cachedActivity?.data ?? [];
+  const existing = inFlightActivityRequests.get(cacheKey);
+  if (existing) {
+    return existing;
   }
+
+  const request = (async (): Promise<PlanOnChainEvent[]> => {
+    try {
+      const sigs = await connection.getSignaturesForAddress(planPubkey, { limit });
+      if (sigs.length === 0) {
+        activityCache.set(cacheKey, { data: [], timestamp: Date.now() });
+        return [];
+      }
+
+      const priceNum = parseFloat(priceUsdc) || 0;
+      const feeNum = parseFloat(keeperFeeUsdc) || 0;
+      const netNum = Math.max(0, priceNum - feeNum).toFixed(2);
+
+      // Inspect uncached signatures in a single batch request (up to 20 signatures per batch)
+      const uncached = sigs.filter((s) => !parsedTxCache.has(s.signature)).slice(0, 20);
+      if (uncached.length > 0) {
+        try {
+          const txs = await connection.getParsedTransactions(
+            uncached.map((s) => s.signature),
+            { maxSupportedTransactionVersion: 0 },
+          );
+          for (let i = 0; i < uncached.length; i++) {
+            const sig = uncached[i];
+            const tx = txs[i];
+            if (!tx) continue;
+
+            const logs = tx.meta?.logMessages ?? [];
+            const accountKeys = tx.transaction.message.accountKeys ?? [];
+            const signerKey = accountKeys.find((k: any) => k.signer)?.pubkey.toBase58();
+
+            if (logs.some((l) => l.includes("Instruction: CancelSubscription"))) {
+              parsedTxCache.set(sig.signature, { kind: "cancelled", label: "Subscription Cancelled", subscriber: signerKey });
+            } else if (logs.some((l) => l.includes("Instruction: Subscribe"))) {
+              parsedTxCache.set(sig.signature, { kind: "subscribed", label: "New Subscription", subscriber: signerKey });
+            } else if (logs.some((l) => l.includes("Instruction: ProcessEpoch"))) {
+              parsedTxCache.set(sig.signature, { kind: "settled", label: "On-chain Settlement" });
+            } else if (logs.some((l) => l.includes("Instruction: InitializePlan"))) {
+              parsedTxCache.set(sig.signature, { kind: "created", label: "Plan Initialized" });
+            }
+          }
+        } catch {
+          // Silently skip if RPC rate limits or delays; heuristic fallback applies cleanly
+        }
+      }
+
+      const events: PlanOnChainEvent[] = sigs.map((sig, idx) => {
+        const isInitial = idx === sigs.length - 1;
+        const blockTime = sig.blockTime ? sig.blockTime * 1000 : Date.now();
+        const isFailed = Boolean(sig.err);
+
+        const cached = parsedTxCache.get(sig.signature);
+        const kind: PlanOnChainEvent["kind"] = cached?.kind ?? (isInitial ? "created" : "settled");
+        const label = cached?.label ?? (isInitial ? "Plan Initialized" : "On-chain Settlement");
+
+        const isTransfer = kind === "settled" || kind === "subscribed";
+
+        return {
+          signature: sig.signature,
+          kind,
+          label,
+          timestamp: blockTime,
+          timeFormatted: new Date(blockTime).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          amountUsdc: isTransfer ? `+${netNum}` : undefined,
+          amountNetUsdc: isTransfer ? `+${netNum}` : undefined,
+          amountGrossUsdc: isTransfer ? priceUsdc : undefined,
+          keeperFeeUsdc: isTransfer ? keeperFeeUsdc : undefined,
+          subscriber: cached?.subscriber,
+          planName,
+          planAddress: planPubkey.toBase58(),
+          err: isFailed,
+        };
+      });
+
+      activityCache.set(cacheKey, { data: events, timestamp: Date.now() });
+      // Non-blocking background sync to Neon Postgres indexer
+      syncSettlementsToDatabase(events);
+      return events;
+    } catch (error) {
+      console.warn("[TidePay] RPC fetchPlanActivity notice:", error);
+      return cachedActivity?.data ?? [];
+    } finally {
+      inFlightActivityRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightActivityRequests.set(cacheKey, request);
+  return request;
 }
 
 export async function fetchAllMerchantPlansActivity(
@@ -338,14 +351,21 @@ export async function fetchAllMerchantPlansActivity(
   limitPerPlan = DEFAULT_ACTIVITY_LIMIT,
 ): Promise<PlanOnChainEvent[]> {
   try {
-    const eventsPerPlan = await Promise.all(
-      plans.map(async (plan) => {
-        const pubkey = parseAddress(plan.id);
-        if (!pubkey) return [];
-        return fetchPlanActivity(connection, pubkey, plan.priceUsdc, keeperFeeUsdc, limitPerPlan, plan.name);
-      }),
-    );
-    return eventsPerPlan.flat().sort((a, b) => b.timestamp - a.timestamp);
+    // Sequence plan lookups instead of Promise.all to avoid bursting public Devnet RPC 429s
+    const allEvents: PlanOnChainEvent[] = [];
+    for (let i = 0; i < plans.length; i++) {
+      const plan = plans[i];
+      const pubkey = parseAddress(plan.id);
+      if (!pubkey) continue;
+      const started = Date.now();
+      const events = await fetchPlanActivity(connection, pubkey, plan.priceUsdc, keeperFeeUsdc, limitPerPlan, plan.name);
+      allEvents.push(...events);
+      // Stagger only when an actual uncached RPC call occurred
+      if (i < plans.length - 1 && Date.now() - started > 20) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+    return allEvents.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     console.warn("[TidePay] RPC fetchAllMerchantPlansActivity notice:", error);
     return [];
@@ -379,6 +399,17 @@ export async function fetchDatabaseSettlements(
     if (!res.ok) return null;
     const json = await res.json();
     if (!json.success) return null;
+    if (Array.isArray(json.events)) {
+      json.events = json.events.map((e: PlanOnChainEvent & { timestamp?: number | string }) => {
+        const ms = Number(e.timestamp);
+        const safeMs = Number.isFinite(ms) && ms > 0 ? ms : Date.now();
+        return {
+          ...e,
+          timestamp: safeMs,
+          timeFormatted: e.timeFormatted || new Date(safeMs).toISOString().slice(11, 19),
+        };
+      });
+    }
     return json;
   } catch {
     return null;

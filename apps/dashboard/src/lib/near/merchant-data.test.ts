@@ -39,7 +39,16 @@ describe("deriveNearMerchantData", () => {
       { id: "near:pro", name: "pro", priceUsdc: "10.00", intervalSeconds: 2_592_000, subscribers: 1, active: true, network: "near" },
     ]);
     expect(data.subscribers).toHaveLength(1);
-    expect(data.subscribers[0]).toMatchObject({ wallet: "alice.testnet", plan: "pro", status: "Active", network: "near", cycleCount: 1 });
+    expect(data.subscribers[0]).toMatchObject({
+      wallet: "alice.testnet",
+      plan: "pro",
+      status: "Active",
+      network: "near",
+      cycleCount: 1,
+      prepaidLeftUsdc: "20.00",
+      prepaidCyclesLeft: 2,
+      totalPaidUsdc: "10.00",
+    });
     expect(data.metrics.find((m) => m.label === "Active MRR")?.value).toBe("10.00 USDC");
     expect(data.metrics.find((m) => m.label === "Total subscribers")?.value).toBe("1");
   });

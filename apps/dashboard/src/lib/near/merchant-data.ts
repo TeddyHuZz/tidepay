@@ -38,16 +38,24 @@ export function deriveNearMerchantData(
   }
 
   const subscribers: SubscriberRow[] = rows
-    .map(({ sub, status }) => ({
-      id: `${sub.plan_id}:${sub.subscriber_id}`,
-      wallet: sub.subscriber_id,
-      plan: sub.plan_id,
-      lastBilledAt: isoOf(sub.last_epoch_timestamp_ns),
-      nextDueAt: isoOf(sub.next_epoch_timestamp_ns),
-      status,
-      network: "near" as const,
-      cycleCount: sub.cycle_count,
-    }))
+    .map(({ sub, plan, status }) => {
+      const planAmount = BigInt(plan.amount);
+      const depositedBalance = BigInt(sub.deposited_balance || "0");
+      return {
+        id: `${sub.plan_id}:${sub.subscriber_id}`,
+        wallet: sub.subscriber_id,
+        plan: sub.plan_id,
+        startedAt: isoOf(sub.start_timestamp_ns),
+        lastBilledAt: isoOf(sub.last_epoch_timestamp_ns),
+        nextDueAt: isoOf(sub.next_epoch_timestamp_ns),
+        status,
+        network: "near" as const,
+        cycleCount: sub.cycle_count,
+        prepaidLeftUsdc: formatUsdc(depositedBalance),
+        prepaidCyclesLeft: planAmount > BigInt(0) ? Number(depositedBalance / planAmount) : 0,
+        totalPaidUsdc: formatUsdc(BigInt(sub.cycle_count) * planAmount),
+      };
+    })
     .sort((a, b) => b.lastBilledAt.localeCompare(a.lastBilledAt));
 
   const active = rows.filter((r) => r.status === "Active");

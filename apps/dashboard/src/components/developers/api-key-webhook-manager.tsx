@@ -1,137 +1,192 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  Key,
+  Check,
+  Copy,
   Eye,
   EyeOff,
-  RefreshCw,
-  Copy,
-  Check,
-  Radio,
-  Send,
-  ShieldCheck,
-  CheckCircle2,
-  Sparkles,
   Globe,
-  Sliders,
+  Key,
+  Radio,
+  RefreshCw,
+  Send,
+  Terminal,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { generateRandomHex, useProject } from "@/components/project-context";
 import { cn } from "@/lib/utils";
-import { CodeBlock } from "./code-block";
-import { useProject, generateRandomHex } from "@/components/project-context";
 
-const SAMPLE_PAYLOADS = {
-  "subscription.created": {
-    id: "evt_sub_01HM98V2W",
-    type: "subscription.created",
-    created: new Date().toISOString(),
-    data: {
-      planId: "google-pro",
-      planAddress: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
-      subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
-      amountGross: "0.10",
-      currency: "USDC",
-      cycleCount: 0,
-      nextEpochTimestamp: Math.floor(Date.now() / 1000) + 60,
-    },
-  },
-  "epoch.settled": {
-    id: "evt_epoch_01HM98V9A",
-    type: "epoch.settled",
-    created: new Date().toISOString(),
-    data: {
-      planId: "google-pro",
-      planAddress: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
-      subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
-      amountGross: "0.10",
-      amountNet: "0.05",
-      keeperBounty: "0.05",
-      currency: "USDC",
-      cycleCount: 1,
-      signature: "4Kc53LoHzLo7SwWneGeR7Fk2eswjrnhe58cKssMNW4rFe55aNacEmbP9Aj6aR8zJXcfr2WT2wL4mD24yj3ePNyNe",
-      nextEpochTimestamp: Math.floor(Date.now() / 1000) + 120,
-    },
-  },
-  "subscription.cancelled": {
-    id: "evt_cancel_01HM98W1F",
-    type: "subscription.cancelled",
-    created: new Date().toISOString(),
-    data: {
-      planId: "google-pro",
-      planAddress: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
-      subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
-      reason: "subscriber_closed",
-      rentRefundedLamports: 1845120,
-    },
-  },
-} as const;
+export const WEBHOOK_EVENTS = [
+  "subscription.created",
+  "epoch.settled",
+  "subscription.cancelled",
+] as const;
 
-type EventKey = keyof typeof SAMPLE_PAYLOADS;
+export type EventKey = (typeof WEBHOOK_EVENTS)[number];
 
-export function ApiKeyWebhookManager() {
+function buildSamplePayload(event: EventKey, epochSeconds: number) {
+  switch (event) {
+    case "subscription.created":
+      return {
+        id: "evt_01JCH9X4M2P8Q7R5V1W3Z6B9N0",
+        type: "subscription.created",
+        created: epochSeconds,
+        livemode: false,
+        data: {
+          plan_id: "claude-pro",
+          plan_address: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+          subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
+          epoch: 1,
+          amount_usdc: "1.00",
+          crank_bounty_usdc: "0.05",
+          net_merchant_usdc: "0.95",
+        },
+      };
+    case "epoch.settled":
+      return {
+        id: "evt_01JCH9Y8A4K2L9M1N3P5Q7R9T2",
+        type: "epoch.settled",
+        created: epochSeconds,
+        livemode: false,
+        data: {
+          plan_id: "claude-pro",
+          plan_address: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+          subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
+          epoch: 2,
+          amount_usdc: "1.00",
+          crank_bounty_usdc: "0.05",
+          net_merchant_usdc: "0.95",
+          tx_signature: "4Kc53LoHzLo7SwWneGeR7Fk2eswjrnhe58cKssMNW4rFe55aNacEmbP9",
+        },
+      };
+    case "subscription.cancelled":
+      return {
+        id: "evt_01JCH9Z2F6H8J1K3M5N7P9R2T4",
+        type: "subscription.cancelled",
+        created: epochSeconds,
+        livemode: false,
+        data: {
+          plan_id: "claude-pro",
+          plan_address: "4g6EF4q95h1pbVG3Gv7AspaZQ6PujFCYCr3eu63RdC6P",
+          subscriber: "BZKYKouLsptzcP9Vb4aABEBEzBFZuPpSxpaDjwPGgQio",
+          reason: "subscriber_closed",
+          rent_refunded_lamports: 1845120,
+        },
+      };
+  }
+}
+
+interface PingResult {
+  event: EventKey;
+  url: string;
+  status: number;
+  latencyMs: number;
+  timestamp: number;
+  signaturePreview: string;
+}
+
+export function ApiKeyWebhookManager({
+  enabledEvents: controlledEvents,
+  onEnabledEventsChange,
+}: {
+  enabledEvents?: EventKey[];
+  onEnabledEventsChange?: (next: EventKey[]) => void;
+} = {}) {
   const { activeProject, updateActiveProject } = useProject();
 
   const secretKey = activeProject.secretKey || "";
   const publishableKey = activeProject.publishableKey || "";
   const signingSecret = activeProject.signingSecret || "";
-  const webhookUrl = activeProject.webhookUrl || "https://api.yourdomain.com/webhooks/tidepay";
+  const savedWebhookUrl = activeProject.webhookUrl || "https://api.yourdomain.com/webhooks/tidepay";
 
-  // UI state
+  const [urlDraft, setUrlDraft] = useState(savedWebhookUrl);
+  const [urlSaved, setUrlSaved] = useState(false);
   const [revealSecret, setRevealSecret] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [revealSigningSecret, setRevealSigningSecret] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventKey>("subscription.created");
-  const [isPinging, setIsPinging] = useState(false);
-  const [pingResult, setPingResult] = useState<{ status: number; message: string; latencyMs: number } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const handleUrlChange = (val: string) => {
-    updateActiveProject({ webhookUrl: val });
+  const [localEvents, setLocalEvents] = useState<EventKey[]>([...WEBHOOK_EVENTS]);
+  const enabledEvents = controlledEvents ?? localEvents;
+  const setEnabledEvents = onEnabledEventsChange ?? setLocalEvents;
+
+  const [codeTab, setCodeTab] = useState<"payload" | "verify">("payload");
+  const [selectedEvent, setSelectedEvent] = useState<EventKey>("subscription.created");
+  const [epochNow, setEpochNow] = useState<number>(1763030000);
+  const [isPinging, setIsPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<PingResult | null>(null);
+
+  useEffect(() => {
+    setUrlDraft(savedWebhookUrl);
+  }, [savedWebhookUrl]);
+
+  useEffect(() => {
+    setEpochNow(Math.floor(Date.now() / 1000));
+  }, []);
+
+  const handleSaveUrl = () => {
+    const trimmed = urlDraft.trim();
+    if (!trimmed) return;
+    updateActiveProject({ webhookUrl: trimmed });
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 1800);
   };
 
   const handleRollApiKey = () => {
-    const randomHex = generateRandomHex(24);
     const prefix = activeProject.environment === "live" ? "live" : "dev";
-    updateActiveProject({ secretKey: `tp_${prefix}_sec_${randomHex}` });
+    updateActiveProject({ secretKey: `tp_${prefix}_sec_${generateRandomHex(24)}` });
     setCopiedKey(null);
   };
 
   const handleRollSigningSecret = () => {
-    const randomHex = generateRandomHex(20);
-    updateActiveProject({ signingSecret: `whsec_${randomHex}` });
+    updateActiveProject({ signingSecret: `whsec_${generateRandomHex(20)}` });
     setCopiedKey(null);
+  };
+
+  const toggleEventTrigger = (ev: EventKey) => {
+    const next = enabledEvents.includes(ev)
+      ? enabledEvents.filter((item) => item !== ev)
+      : [...enabledEvents, ev];
+    setEnabledEvents(next);
   };
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(label);
-    setTimeout(() => setCopiedKey(null), 2000);
+    setTimeout(() => setCopiedKey(null), 1800);
   };
 
   const handleSendTestPing = () => {
+    const targetUrl = urlDraft.trim() || savedWebhookUrl;
+    if (targetUrl !== savedWebhookUrl) {
+      updateActiveProject({ webhookUrl: targetUrl });
+    }
     setIsPinging(true);
-    setPingResult(null);
     const start = performance.now();
 
     setTimeout(() => {
-      const latency = Math.round(performance.now() - start + 45);
+      const latency = Math.max(24, Math.round(performance.now() - start + 42));
+      const ts = Math.floor(Date.now() / 1000);
       setIsPinging(false);
       setPingResult({
+        event: selectedEvent,
+        url: targetUrl,
         status: 200,
         latencyMs: latency,
-        message: `HTTP 200 OK — Successfully dispatched ${selectedEvent} with HMAC signature`,
+        timestamp: ts,
+        signaturePreview: generateRandomHex(32),
       });
 
       try {
         const newDelivery = {
           id: `evt_${Date.now().toString(36).toUpperCase()}`,
           event: selectedEvent,
-          plan: "google-pro",
+          plan: "claude-pro",
           status: 200,
-          statusText: "OK",
+          statusText: "OK (Simulated)",
           latency: `${latency}ms`,
           timeAgo: "Just now",
         };
@@ -141,251 +196,390 @@ export function ApiKeyWebhookManager() {
       } catch (err) {
         console.error("[TidePay] Failed to save delivery:", err);
       }
-    }, 550);
+    }, 350);
   };
 
-  const activePayload = JSON.stringify(SAMPLE_PAYLOADS[selectedEvent], null, 2);
+  const payloadJson = JSON.stringify(buildSamplePayload(selectedEvent, epochNow), null, 2);
+  const verifySnippet = `import crypto from "node:crypto";
+
+export function verifyTidePaySignature(
+  rawBody: string,
+  header: string,
+  secret = "${signingSecret}"
+): boolean {
+  const parts = Object.fromEntries(
+    header.split(",").map((p) => p.split("="))
+  );
+  const signedPayload = \`\${parts.t}.\${rawBody}\`;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload)
+    .digest("hex");
+  return crypto.timingSafeEqual(
+    Buffer.from(parts.v1 || ""),
+    Buffer.from(expected)
+  );
+}`;
+
+  const activeCodeText = codeTab === "payload" ? payloadJson : verifySnippet;
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* 1. API Keys Section */}
-      <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Key className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-base font-bold">API Secret &amp; Publishable Keys</CardTitle>
-              <CardDescription className="text-xs">
-                Keys for authenticating server and client API requests.
-              </CardDescription>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRollApiKey}
-            className="h-8 shrink-0 gap-1.5 text-xs self-start sm:self-auto sm:ml-auto"
-          >
-            <RefreshCw className="size-3.5" />
-            Roll Secret Key
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {/* Secret Key Field */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-background/50 p-3.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-foreground flex items-center gap-2">
-                Secret Key
-                <Badge variant="neutral" className="text-[10px] font-mono py-0">Server-Side Only</Badge>
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRevealSecret(!revealSecret)}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {revealSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  <span>{revealSecret ? "Hide" : "Reveal"}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyText(secretKey, "secret")}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {copiedKey === "secret" ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-                  <span>{copiedKey === "secret" ? "Copied" : "Copy"}</span>
-                </Button>
+    <div className="grid gap-6 xl:grid-cols-12 items-start">
+      {/* Left Column: Credentials & Webhook Configuration */}
+      <div className="xl:col-span-7 flex flex-col gap-6">
+        {/* API Secret & Publishable Keys */}
+        <Card>
+          <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-success/30 bg-success-soft text-success">
+                <Key className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base">API Secret &amp; Publishable Keys</CardTitle>
+                <CardDescription className="text-xs">
+                  Keys for authenticating server API requests and client Blink widgets.
+                </CardDescription>
               </div>
             </div>
-            <code className="font-mono text-xs text-primary/90 break-all select-all pt-1">
-              {revealSecret ? secretKey : `${secretKey.slice(0, 11)}${"•".repeat(22)}`}
-            </code>
-          </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRollApiKey}
+              className="h-8 shrink-0 gap-1.5 text-xs"
+            >
+              <RefreshCw className="size-3.5" />
+              Roll Secret Key
+            </Button>
+          </CardHeader>
 
-          {/* Publishable Key Field */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-background/50 p-3.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-foreground flex items-center gap-2">
-                Publishable Key
-                <Badge variant="neutral" className="text-[10px] font-mono py-0">Frontend Client Safe</Badge>
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyText(publishableKey, "publishable")}
-                className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+          <CardContent className="flex flex-col gap-3.5">
+            {/* Secret Key */}
+            <div className="rounded-xl border bg-muted/35 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">Secret Key</span>
+                  <Badge variant="neutral" className="text-[10px] font-mono">
+                    Server-Side Only
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRevealSecret((v) => !v)}
+                    className="h-7 gap-1 px-2.5 text-[11px]"
+                  >
+                    {revealSecret ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                    {revealSecret ? "Hide" : "Reveal"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyText(secretKey, "secret")}
+                    className="h-7 gap-1 px-2.5 text-[11px]"
+                  >
+                    {copiedKey === "secret" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                    {copiedKey === "secret" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+              <code className="mt-2 block break-all select-all font-mono text-xs text-primary">
+                {revealSecret ? secretKey : `${secretKey.slice(0, 11)}${"•".repeat(24)}`}
+              </code>
+            </div>
+
+            {/* Publishable Key */}
+            <div className="rounded-xl border bg-muted/35 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">Publishable Key</span>
+                  <Badge variant="success" className="text-[10px] font-mono">
+                    Frontend Client Safe
+                  </Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyText(publishableKey, "publishable")}
+                  className="h-7 gap-1 px-2.5 text-[11px]"
+                >
+                  {copiedKey === "publishable" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                  {copiedKey === "publishable" ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <code className="mt-2 block break-all select-all font-mono text-xs text-foreground/85">
+                {publishableKey}
+              </code>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Webhook Endpoints & Signing Secret */}
+        <Card>
+          <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-success/30 bg-success-soft text-success">
+                <Radio className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base">Webhook Endpoints &amp; Signing Secret</CardTitle>
+                <CardDescription className="text-xs">
+                  Receive real-time HTTP POST notifications when keeper cranks settle epochs.
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRollSigningSecret}
+              className="h-8 shrink-0 gap-1.5 text-xs"
+            >
+              <RefreshCw className="size-3.5" />
+              Roll Signing Secret
+            </Button>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-5">
+            {/* Endpoint URL */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label htmlFor="webhook-endpoint-url" className="font-medium text-foreground">
+                  Endpoint Destination URL
+                </label>
+                <span className="text-[11px] text-muted-foreground">Receives HTTP POST</span>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1 min-w-0">
+                  <Globe className="pointer-events-none absolute left-3 top-3 size-3.5 text-muted-foreground" />
+                  <Input
+                    id="webhook-endpoint-url"
+                    value={urlDraft}
+                    onChange={(e) => setUrlDraft(e.target.value)}
+                    placeholder="https://api.yourdomain.com/webhooks/tidepay"
+                    className="h-9.5 pl-8 font-mono text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveUrl}
+                    disabled={!urlDraft.trim() || urlDraft.trim() === savedWebhookUrl}
+                    className="h-9.5 px-3 text-xs"
+                  >
+                    {urlSaved ? "Saved" : "Save"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSendTestPing}
+                    disabled={isPinging}
+                    className="h-9.5 gap-1.5 px-3.5 text-xs font-semibold"
+                  >
+                    <Send className={cn("size-3.5", isPinging && "animate-pulse")} />
+                    {isPinging ? "Sending…" : "Send Test Ping"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscribed Events Checkboxes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Subscribed Events</span>
+                <span className="text-[11px] text-muted-foreground">Toggle active triggers</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {WEBHOOK_EVENTS.map((ev) => {
+                  const checked = enabledEvents.includes(ev);
+                  return (
+                    <button
+                      key={ev}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={checked}
+                      onClick={() => toggleEventTrigger(ev)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-left font-mono text-[11px] transition-colors",
+                        checked
+                          ? "border-success/40 bg-success-soft/60 text-foreground"
+                          : "border-border bg-muted/25 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+                          checked
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background",
+                        )}
+                      >
+                        {checked && <Check className="size-3 stroke-[3]" />}
+                      </span>
+                      <span className="truncate">{ev}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Webhook Signing Secret */}
+            <div className="rounded-xl border bg-muted/35 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">Webhook Signing Secret</span>
+                  <Badge variant="success" className="text-[10px] font-mono">
+                    HMAC-SHA256
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRevealSigningSecret((v) => !v)}
+                    className="h-7 gap-1 px-2.5 text-[11px]"
+                  >
+                    {revealSigningSecret ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                    {revealSigningSecret ? "Hide" : "Reveal"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyText(signingSecret, "whsec")}
+                    className="h-7 gap-1 px-2.5 text-[11px]"
+                  >
+                    {copiedKey === "whsec" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                    {copiedKey === "whsec" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+              <code className="mt-2 block break-all select-all font-mono text-xs text-primary">
+                {revealSigningSecret ? signingSecret : `${signingSecret.slice(0, 8)}${"•".repeat(20)}`}
+              </code>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Column: Payload / Verify Viewer & Live Test Ping Console */}
+      <div className="xl:col-span-5 flex flex-col gap-6">
+        {/* Payload JSON / Verify Signature Viewer */}
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+            <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setCodeTab("payload")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  codeTab === "payload"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
-                {copiedKey === "publishable" ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-                <span>{copiedKey === "publishable" ? "Copied" : "Copy"}</span>
-              </Button>
-            </div>
-            <code className="font-mono text-xs text-foreground/80 break-all select-all pt-1">
-              {publishableKey}
-            </code>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 2. Webhook Endpoints & Live Simulator */}
-      <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-              <Radio className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-base font-bold">Webhook Endpoints &amp; Signing Secret</CardTitle>
-              <CardDescription className="text-xs">
-                Receive automated webhooks for subscription renewals and events.
-              </CardDescription>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRollSigningSecret}
-            className="h-8 shrink-0 gap-1.5 text-xs self-start sm:self-auto sm:ml-auto"
-          >
-            <RefreshCw className="size-3.5" />
-            Roll Signing Secret
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {/* Webhook URL Input */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-foreground flex items-center justify-between">
-              <span>Endpoint Destination URL</span>
-              <span className="text-[11px] text-muted-foreground">Receives HTTP POST</span>
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                value={webhookUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="https://api.yourdomain.com/webhooks/tidepay"
-                className="font-mono text-xs"
-              />
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSendTestPing}
-                disabled={isPinging}
-                className="shrink-0 gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                Payload JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodeTab("verify")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  codeTab === "verify"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
-                <Send className={cn("size-3.5", isPinging && "animate-pulse")} />
-                {isPinging ? "Dispatching…" : "Send Test Ping"}
-              </Button>
+                Verify Signature (TS)
+              </button>
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyText(activeCodeText, "code")}
+              className="h-7 gap-1 px-2.5 text-[11px]"
+            >
+              {copiedKey === "code" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+              {copiedKey === "code" ? "Copied" : codeTab === "payload" ? "Copy JSON" : "Copy TS"}
+            </Button>
           </div>
 
-          {/* Webhook Signing Secret */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-background/50 p-3.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-foreground flex items-center gap-2">
-                Webhook Signing Secret
-                <Badge variant="outline" className="text-[10px] font-mono py-0 border-emerald-500/40 text-emerald-400">
-                  HMAC-SHA256
-                </Badge>
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRevealSigningSecret(!revealSigningSecret)}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {revealSigningSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  <span>{revealSigningSecret ? "Hide" : "Reveal"}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyText(signingSecret, "whsec")}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {copiedKey === "whsec" ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-                  <span>{copiedKey === "whsec" ? "Copied" : "Copy"}</span>
-                </Button>
-              </div>
-            </div>
-            <code className="font-mono text-xs text-emerald-300 break-all select-all pt-1">
-              {revealSigningSecret ? signingSecret : `${signingSecret.slice(0, 8)}${"•".repeat(16)}`}
-            </code>
-          </div>
-
-          {/* Test Ping Status Banner */}
-          {pingResult && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-400 font-mono flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>{pingResult.message}</span>
-              </div>
-              <Badge variant="neutral" className="text-[10px] font-mono">
-                {pingResult.latencyMs}ms
-              </Badge>
-            </div>
-          )}
-
-          {/* Event Type Selectors */}
-          <div className="flex flex-col gap-2 pt-1">
-            <span className="text-xs font-semibold text-foreground">Select Event Payload to Preview</span>
-            <div role="group" aria-label="Event types" className="flex flex-wrap gap-2">
-              {(Object.keys(SAMPLE_PAYLOADS) as EventKey[]).map((key) => (
+          {codeTab === "payload" && (
+            <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-4 py-2.5">
+              {WEBHOOK_EVENTS.map((ev) => (
                 <button
-                  key={key}
+                  key={ev}
                   type="button"
-                  onClick={() => {
-                    setSelectedEvent(key);
-                    setPingResult(null);
-                  }}
+                  onClick={() => setSelectedEvent(ev)}
                   className={cn(
-                    "rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors",
-                    selectedEvent === key
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-400 font-semibold"
-                      : "border-border/60 bg-background/50 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    "rounded-md border px-2.5 py-1 font-mono text-[11px] transition-colors",
+                    selectedEvent === ev
+                      ? "border-success/40 bg-success-soft text-success font-medium"
+                      : "border-border bg-background/60 text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {key}
+                  {ev}
                 </button>
               ))}
             </div>
+          )}
+
+          <pre className="max-h-96 overflow-auto bg-muted/35 p-4 font-mono text-[11.5px] leading-relaxed text-foreground/90">
+            <code>{activeCodeText}</code>
+          </pre>
+        </Card>
+
+        {/* Live Test Ping Console */}
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Terminal className="size-4 text-muted-foreground" />
+              <h3 className="text-xs font-semibold text-foreground">Live Test Ping Console</h3>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Badge variant={pingResult ? "success" : "neutral"} className="font-mono text-[10px]">
+                {pingResult ? `${pingResult.status} OK` : "Simulated"}
+              </Badge>
+              <Badge variant="outline" className="font-mono text-[10px]">
+                5s Timeout
+              </Badge>
+            </div>
           </div>
 
-          {/* Payload JSON Viewer */}
-          <CodeBlock
-            filename={`${selectedEvent}.json`}
-            language="json"
-            singleCode={activePayload}
-          />
+          <CardContent className="p-4">
+            {pingResult ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-success/30 bg-success-soft/50 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="success" className="font-mono text-[10px] shrink-0">
+                      {pingResult.status} OK · {pingResult.latencyMs}ms
+                    </Badge>
+                    <span className="truncate font-mono text-foreground">{pingResult.event}</span>
+                  </div>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">Just now</span>
+                </div>
 
-          {/* Verifying Signatures Code Snippet */}
-          <div className="flex flex-col gap-2 pt-2">
-            <span className="text-xs font-semibold text-foreground">
-              Verifying Webhook Signatures in Node.js / Next.js
-            </span>
-            <CodeBlock
-              filename="verify-webhook.ts"
-              language="typescript"
-              singleCode={`import crypto from "crypto";
-
-export function verifyTidePayWebhook(
-  rawBody: string,
-  signatureHeader: string,
-  secret: string = "${signingSecret}"
-): boolean {
-  const hmac = crypto.createHmac("sha256", secret);
-  const digest = hmac.update(rawBody).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(digest));
-}`}
-            />
-          </div>
-        </CardContent>
-      </Card>
+                <div className="rounded-lg border bg-muted/35 p-3 font-mono text-[11px] leading-relaxed">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Request Headers
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-foreground/85 break-all">
+                    <div>POST {pingResult.url}</div>
+                    <div className="text-muted-foreground">
+                      X-TidePay-Signature: t={pingResult.timestamp},v1={pingResult.signaturePreview}
+                    </div>
+                    <div className="text-muted-foreground">Content-Type: application/json</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">
+                Click <span className="font-medium text-foreground">Send Test Ping</span> to dispatch a signed{" "}
+                <code className="font-mono text-foreground">{selectedEvent}</code> payload to your endpoint URL and inspect the headers here.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -91,8 +91,16 @@ export interface SubscriberRow {
   status: SubscriptionStatus;
   /** Absent means Solana. */
   network?: "solana" | "near";
-  /** Paid cycles so far (NEAR only; Solana activity comes from chain events). */
+  /** Paid cycles so far. */
   cycleCount?: number;
+  /** Remaining prepaid runway (NEAR prepaid subscriptions). */
+  prepaidLeftUsdc?: string;
+  /** Remaining prepaid cycles (NEAR prepaid subscriptions). */
+  prepaidCyclesLeft?: number;
+  /** Cumulative USDC settled so far. */
+  totalPaidUsdc?: string;
+  /** Initial subscription timestamp (ISO). */
+  startedAt?: string;
 }
 
 export interface MerchantData {

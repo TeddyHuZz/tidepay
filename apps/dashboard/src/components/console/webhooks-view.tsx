@@ -1,29 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Webhook,
-  Key,
+  Check,
+  Copy,
   ExternalLink,
-  ShieldCheck,
+  Layers,
   Radio,
-  Send,
   RefreshCw,
   Server,
-  Layers,
-  CheckCircle2,
-  AlertCircle,
-  Copy,
-  Check,
 } from "lucide-react";
+import { MerchantGate } from "@/components/console/merchant-gate";
+import {
+  ApiKeyWebhookManager,
+  WEBHOOK_EVENTS,
+  type EventKey,
+} from "@/components/developers/api-key-webhook-manager";
+import { useProject } from "@/components/project-context";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MerchantGate } from "@/components/console/merchant-gate";
-import { ApiKeyWebhookManager } from "@/components/developers/api-key-webhook-manager";
-import { API_URL } from "@/lib/chain/config";
+import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
+import { API_URL, getRpcUrl } from "@/lib/chain/config";
+import { shortAddress } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export interface WebhookDelivery {
   id: string;
@@ -35,10 +37,19 @@ export interface WebhookDelivery {
   timeAgo: string;
 }
 
+function summarizeHost(url: string, fallback: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.host || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function WebhooksView() {
   return (
     <MerchantGate>
-      {(data, { refresh, isRefreshing }) => (
+      {(_data, { refresh, isRefreshing }) => (
         <WebhooksContent onRefresh={refresh} isRefreshing={isRefreshing} />
       )}
     </MerchantGate>
@@ -52,8 +63,10 @@ function WebhooksContent({
   onRefresh: () => void;
   isRefreshing: boolean;
 }) {
+  const { activeProject } = useProject();
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [enabledEvents, setEnabledEvents] = useState<EventKey[]>([...WEBHOOK_EVENTS]);
 
   useEffect(() => {
     const loadDeliveries = () => {
@@ -76,8 +89,18 @@ function WebhooksContent({
   const copyUrl = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedEndpoint(id);
-    setTimeout(() => setCopiedEndpoint(null), 2000);
+    setTimeout(() => setCopiedEndpoint(null), 1800);
   };
+
+  const isLive = activeProject.environment === "live";
+  const apiHost = summarizeHost(API_URL, "localhost:3001");
+  const rpcUrl = getRpcUrl(activeProject.environment, activeProject);
+  const rpcLabel = rpcUrl.includes("helius") ? "Helius RPC" : summarizeHost(rpcUrl, "Solana RPC");
+  const shortEventNames = enabledEvents.map((e) => e.split(".")[1] ?? e).join(" · ") || "none selected";
+  const hasDeliveries = deliveries.length > 0;
+  const successRatePct = hasDeliveries
+    ? Math.round((deliveries.filter((d) => d.status >= 200 && d.status < 300).length / deliveries.length) * 100)
+    : null;
 
   const API_ENDPOINTS = [
     {
@@ -96,21 +119,24 @@ function WebhooksContent({
       method: "POST",
       path: "/api/v1/subscriptions/cancel",
       url: `${API_URL}/api/v1/subscriptions/cancel`,
-      desc: "Prepares cancellation transaction and refunds ~0.0015 SOL rent lamports to subscriber",
+      desc: "Prepares cancellation transaction and refunds closed account rent to subscriber",
     },
   ];
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header */}
+    <div className="flex flex-col gap-6">
+      {/* Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="space-y-0.5">
           <p className="text-sm text-muted-foreground">
             Configure server-side credentials and register automated event listeners for recurring renewals.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="hidden md:inline font-mono text-xs text-muted-foreground">
+            Anchor Program {shortAddress(TIDEPAY_PROGRAM_ID, 4)}
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -118,11 +144,10 @@ function WebhooksContent({
             disabled={isRefreshing}
             className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
-            <RefreshCw className="size-3.5" />
+            <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
             {isRefreshing ? "Syncing…" : "Refresh"}
           </Button>
-
-          <Button asChild size="sm" variant="default" className="gap-1.5 text-xs">
+          <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
             <Link href="/developers?topic=api-rest">
               Full API Docs
               <ExternalLink className="size-3" />
@@ -133,74 +158,81 @@ function WebhooksContent({
 
       {/* Top 3 KPI Status Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-4 border-border/60 bg-card/50">
+        <Card className="p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Webhook Status</span>
-            <Radio className="size-4 text-emerald-400" />
+            <Radio className="size-4 text-success" />
           </div>
-          <div className="mt-2 text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-            Active
+          <div className="mt-2.5 flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
+            <span className="size-2 rounded-full bg-success" aria-hidden="true" />
+            {enabledEvents.length > 0 ? "Active" : "Paused"}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-muted-foreground">
             Listening for on-chain crank renewals
           </p>
         </Card>
 
-        <Card className="p-4 border-border/60 bg-card/50">
+        <Card className="p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Subscribed Events</span>
             <Layers className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-xl font-bold tracking-tight text-foreground">
-            3 Event Types
+          <div className="mt-2.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+            {enabledEvents.length} Event Type{enabledEvents.length === 1 ? "" : "s"}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            created · settled · cancelled
+          <p className="mt-1.5 text-xs text-muted-foreground font-mono">
+            {shortEventNames}
           </p>
         </Card>
 
-        <Card className="p-4 border-border/60 bg-card/50">
+        <Card className="p-5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">REST API Gateway</span>
             <Server className="size-4 text-primary" />
           </div>
-          <div className="mt-2 text-xl font-bold tracking-tight text-foreground">
-            Devnet v1
+          <div className="mt-2.5 flex items-center gap-2.5">
+            <span className="text-2xl font-bold tracking-tight text-foreground">
+              {isLive ? "Mainnet v1" : "Devnet v1"}
+            </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Port 3001 · Helius RPC Cluster
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {apiHost} · {rpcLabel}
           </p>
         </Card>
       </div>
 
-      {/* Interactive API Keys & Webhook Config Component */}
-      <ApiKeyWebhookManager />
+      {/* Interactive 2-Column API Keys & Webhook Workbench */}
+      <ApiKeyWebhookManager
+        enabledEvents={enabledEvents}
+        onEnabledEventsChange={setEnabledEvents}
+      />
 
       {/* Recent Deliveries Table */}
-      <Card className="border-border/70 bg-card/50">
-        <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <Card>
+        <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <CardTitle className="text-base font-bold">Recent Webhook Deliveries</CardTitle>
+            <CardTitle className="text-base">Recent Webhook Deliveries</CardTitle>
             <CardDescription className="text-xs">
-              Log of automated events dispatched to your registered server endpoint.
+              Log of events dispatched to your configured endpoint destination.
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-400 shrink-0 self-start sm:self-auto sm:ml-auto">
-            100% Delivery Success
-          </Badge>
+          {successRatePct !== null && (
+            <Badge variant="success" className="font-mono text-[11px] shrink-0">
+              {successRatePct}% Delivery Success
+            </Badge>
+          )}
         </CardHeader>
         <CardContent>
           {deliveries.length === 0 ? (
-            <div className="rounded-lg border border-border/50 bg-background/30 p-8 text-center flex flex-col items-center justify-center gap-2">
-              <Server className="size-8 text-muted-foreground/60" />
-              <div className="font-semibold text-xs text-foreground">No Webhook Deliveries Logged Yet</div>
-              <p className="text-[11px] text-muted-foreground max-w-sm">
-                When your server endpoint receives automated events or you click &quot;Send Test Ping&quot; above, real delivery records will appear here.
+            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20 p-8 text-center">
+              <Server className="size-7 text-muted-foreground/60" />
+              <div className="text-xs font-semibold text-foreground">No Webhook Deliveries Logged Yet</div>
+              <p className="max-w-sm text-[11px] text-muted-foreground">
+                Click &quot;Send Test Ping&quot; above to inspect simulated delivery logs, or receive automated events on renewal.
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border border-border/60 overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border">
               <Table className="min-w-160 text-xs">
                 <TableHeader>
                   <TableRow className="border-t-0 bg-muted/40 hover:bg-muted/40">
@@ -214,12 +246,10 @@ function WebhooksContent({
                 </TableHeader>
                 <TableBody>
                   {deliveries.map((d) => (
-                    <TableRow key={d.id} className="hover:bg-accent/40">
-                      <TableCell className="font-mono text-[11px] text-muted-foreground">
-                        {d.id}
-                      </TableCell>
-                      <TableCell className="font-mono font-medium text-foreground">
-                        <span className="rounded bg-primary/10 border border-primary/20 px-2 py-0.5 text-primary text-[11px]">
+                    <TableRow key={d.id}>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground">{d.id}</TableCell>
+                      <TableCell className="font-mono font-medium">
+                        <span className="rounded border border-success/30 bg-success-soft px-2 py-0.5 text-[11px] text-success">
                           {d.event}
                         </span>
                       </TableCell>
@@ -229,8 +259,8 @@ function WebhooksContent({
                           {d.status} {d.statusText}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-muted-foreground text-[11px]">{d.latency}</TableCell>
-                      <TableCell className="text-right text-muted-foreground text-[11px]">{d.timeAgo}</TableCell>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground">{d.latency}</TableCell>
+                      <TableCell className="text-right text-[11px] text-muted-foreground">{d.timeAgo}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -241,39 +271,37 @@ function WebhooksContent({
       </Card>
 
       {/* REST API Endpoints Reference Card */}
-      <Card className="border-border/70 bg-card/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-base font-bold">Available REST API Endpoints</CardTitle>
+          <CardTitle className="text-base">Available REST API Endpoints</CardTitle>
           <CardDescription className="text-xs">
-            Server-to-server endpoints ready for immediate integration.
+            Server-to-server endpoints ready for integration.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {API_ENDPOINTS.map((ep) => (
-            <div key={ep.path} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-border/50 bg-background/50 p-3">
-              <div className="flex flex-col gap-1 min-w-0">
+            <div
+              key={ep.path}
+              className="flex flex-col justify-between gap-2 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center"
+            >
+              <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <span className="rounded bg-primary/15 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                     {ep.method}
                   </span>
-                  <code className="font-mono text-xs text-foreground font-semibold truncate">
-                    {ep.path}
-                  </code>
+                  <code className="truncate font-mono text-xs font-semibold text-foreground">{ep.path}</code>
                 </div>
                 <p className="text-[11px] text-muted-foreground">{ep.desc}</p>
               </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyUrl(ep.url, ep.path)}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                >
-                  {copiedEndpoint === ep.path ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
-                  <span>{copiedEndpoint === ep.path ? "Copied" : "Copy URL"}</span>
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyUrl(ep.url, ep.path)}
+                className="h-7 shrink-0 self-start gap-1 px-2.5 text-xs sm:self-auto"
+              >
+                {copiedEndpoint === ep.path ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                {copiedEndpoint === ep.path ? "Copied" : "Copy URL"}
+              </Button>
             </div>
           ))}
         </CardContent>
