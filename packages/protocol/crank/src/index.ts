@@ -12,6 +12,7 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { TidePayClient } from "@tidepay/sdk";
 import { TIDEPAY_PROGRAM_ID } from "@tidepay/types";
+import { startNearCrankFromEnv } from "@tidepay/crank-near";
 import * as fs from "fs";
 import * as path from "path";
 import * as http from "http";
@@ -220,6 +221,12 @@ export class TidePayCrankWorker {
 // Run as standalone worker when executed directly
 if (process.argv[1] && process.argv[1].includes("crank")) {
   const worker = new TidePayCrankWorker();
+  const nearHandle = startNearCrankFromEnv();
+  if (!nearHandle) {
+    console.log(
+      "[NEAR-CRANK] Disabled (set NEAR_CRANK_ACCOUNT_ID, NEAR_CRANK_PRIVATE_KEY, and TIDEPAY_NEAR_CONTRACT_ID to enable)",
+    );
+  }
 
   // Lightweight HTTP health check server for free tier hosts (Render, Koyeb, etc.)
   const port = process.env.PORT || 8080;
@@ -229,6 +236,7 @@ if (process.argv[1] && process.argv[1].includes("crank")) {
       JSON.stringify({
         status: "ok",
         worker: "TidePay Keeper Crank",
+        nearCrankEnabled: Boolean(nearHandle),
         uptimeSeconds: Math.floor(process.uptime()),
       })
     );
@@ -239,11 +247,13 @@ if (process.argv[1] && process.argv[1].includes("crank")) {
 
   process.on("SIGINT", () => {
     worker.stop();
+    nearHandle?.stop();
     server.close();
     process.exit(0);
   });
   process.on("SIGTERM", () => {
     worker.stop();
+    nearHandle?.stop();
     server.close();
     process.exit(0);
   });
