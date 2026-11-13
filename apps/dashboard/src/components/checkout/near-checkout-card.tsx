@@ -182,7 +182,9 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       <div className="flex flex-col gap-1 rounded-md border border-success/30 bg-success-soft px-4 py-3 text-success">
         <span className="font-semibold">You&apos;re subscribed</span>
         <span className="text-[13px]">
-          Next renewal {formatDateTimeUtc(new Date(Number(BigInt(subscription!.next_epoch_timestamp_ns) / BigInt(1_000_000_000)) * 1000).toISOString())}
+          {BigInt(subscription!.next_epoch_timestamp_ns) <= BigInt(Date.now()) * BigInt(1_000_000)
+            ? "Renewal due"
+            : `Next renewal ${formatDateTimeUtc(new Date(Number(BigInt(subscription!.next_epoch_timestamp_ns) / BigInt(1_000_000_000)) * 1000).toISOString())}`}
           {" · "}
           {formatUsdc(BigInt(subscription!.deposited_balance))} USDC prepaid
         </span>
@@ -211,7 +213,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       <div className="flex flex-col gap-1 rounded-md border border-warning/40 bg-warning-soft px-4 py-3 text-warning">
         <span className="font-semibold">Prepaid balance depleted · Renewal overdue</span>
         <span className="text-[13px]">
-          Your prepaid balance is 0.00 USDC. Top up now to renew and maintain your subscription.
+          Your prepaid balance is {formatUsdc(BigInt(subscription?.deposited_balance ?? "0"))} USDC. Top up now to renew and maintain your subscription.
         </span>
       </div>
       <Button size="lg" disabled={pending || required === BigInt(0)} onClick={() => void deposit()}>

@@ -12,7 +12,7 @@ const NANOS_PER_SECOND = BigInt(1_000_000_000);
 /** What the NEAR checkout card should offer, given what the chain says. */
 export function nearCheckoutState(input: {
   plan: { active: boolean } | null;
-  subscription: { is_active: boolean; next_epoch_timestamp_ns: string } | null;
+  subscription: { is_active: boolean; next_epoch_timestamp_ns: string; deposited_balance?: string } | null;
   balance: bigint;
   required: bigint;
   nowNs: bigint;
@@ -21,6 +21,8 @@ export function nearCheckoutState(input: {
 
   // An existing subscriber can always see and cancel, even if the plan is paused or their wallet is empty.
   if (input.subscription?.is_active) {
+    const hasPrepaid = BigInt(input.subscription.deposited_balance ?? "0") > 0n;
+    if (hasPrepaid) return "subscribed";
     const lateNs = input.nowNs - BigInt(input.subscription.next_epoch_timestamp_ns);
     return lateNs > BigInt(PAST_DUE_GRACE_SECONDS) * NANOS_PER_SECOND ? "past-due" : "subscribed";
   }

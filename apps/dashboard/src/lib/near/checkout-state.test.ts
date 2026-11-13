@@ -5,9 +5,10 @@ const NS = BigInt(1_000_000_000);
 const at = (seconds: number) => String(BigInt(seconds) * NS);
 const NOW_NS = BigInt(10_000) * NS;
 const active = { active: true };
-const sub = (over: Partial<{ is_active: boolean; next_epoch_timestamp_ns: string }> = {}) => ({
+const sub = (over: Partial<{ is_active: boolean; next_epoch_timestamp_ns: string; deposited_balance?: string }> = {}) => ({
   is_active: true,
   next_epoch_timestamp_ns: at(10_500),
+  deposited_balance: "0",
   ...over,
 });
 const base = { plan: active, subscription: null, balance: BigInt(60), required: BigInt(30), nowNs: NOW_NS };
@@ -39,6 +40,15 @@ describe("nearCheckoutState", () => {
 
   it("past-due once the renewal is more than the grace period late", () => {
     expect(nearCheckoutState({ ...base, subscription: sub({ next_epoch_timestamp_ns: at(10_000 - 500) }) })).toBe("past-due");
+  });
+
+  it("subscribed when renewal is late but prepaid balance is deposited", () => {
+    expect(
+      nearCheckoutState({
+        ...base,
+        subscription: sub({ next_epoch_timestamp_ns: at(10_000 - 500), deposited_balance: "2000000" }),
+      }),
+    ).toBe("subscribed");
   });
 
   it("a cancelled subscription is treated as no subscription", () => {
