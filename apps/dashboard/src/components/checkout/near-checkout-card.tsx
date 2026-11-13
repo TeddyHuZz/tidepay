@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useNearSubscriber } from "@/hooks/use-near-subscriber";
 import { API_URL } from "@/lib/chain/config";
 import { formatUsdc } from "@/lib/chain/derive";
-import { formatDateTimeUtc } from "@/lib/format";
+import { formatDateTimeUtc, shortAddress } from "@/lib/format";
 import { tryCreateNearReader } from "@/lib/near/chain-ops";
 import {
   DEFAULT_PREPAID_CYCLES,
@@ -157,7 +157,30 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     </p>
   ) : null;
 
-  const actions = !reader ? (
+  const walletBar = accountId ? (
+    <div className="flex items-center justify-between text-xs text-muted-foreground pt-0.5 px-0.5">
+      <span className="flex items-center gap-1.5 min-w-0">
+        <span className="size-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
+        <span className="text-muted-foreground shrink-0">Wallet:</span>
+        <span className="font-mono text-foreground font-medium truncate" title={accountId}>
+          {shortAddress(accountId, 6)}
+        </span>
+      </span>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          await wallet.disconnect();
+          void wallet.connect();
+        }}
+        className="text-primary hover:underline font-medium hover:text-foreground cursor-pointer transition-colors disabled:opacity-50 shrink-0 ml-2"
+      >
+        Change wallet
+      </button>
+    </div>
+  ) : null;
+
+  const actionNode = !reader ? (
     <Button size="lg" disabled>
       NEAR checkout is not configured
     </Button>
@@ -215,6 +238,13 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     <Button size="lg" disabled={pending || required === BigInt(0)} onClick={() => void subscribe()}>
       {pending && action.kind === "subscribe" ? "Confirm in your wallet…" : "1-Click Subscribe"}
     </Button>
+  );
+
+  const actions = (
+    <div className="flex flex-col gap-2.5">
+      {actionNode}
+      {walletBar}
+    </div>
   );
 
   const footer = (
