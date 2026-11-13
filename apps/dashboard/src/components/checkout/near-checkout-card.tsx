@@ -6,7 +6,6 @@ import type { SubscriptionRecord } from "@tidepay/sdk-near";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { Button } from "@/components/ui/button";
 import { useNearSubscriber } from "@/hooks/use-near-subscriber";
-import { API_URL } from "@/lib/chain/config";
 import { formatUsdc } from "@/lib/chain/derive";
 import { formatDateTimeUtc, shortAddress } from "@/lib/format";
 import { tryCreateNearReader } from "@/lib/near/chain-ops";
@@ -19,7 +18,6 @@ import {
 } from "@/lib/near/checkout-state";
 import { NEAR_CONTRACT_ID, NEAR_USDC_TOKEN_ID, nearExplorerUrl } from "@/lib/near/config";
 import { describeNearError } from "@/lib/near/errors";
-import { TOKEN_STORAGE_DEPOSIT_YOCTO } from "@tidepay/sdk-near";
 
 interface NearCheckoutCardProps {
   planId: string;
@@ -30,7 +28,7 @@ interface NearCheckoutCardProps {
   active: boolean;
 }
 
-type Action = { status: "idle" } | { status: "pending"; kind: "subscribe" | "cancel" | "mint" } | { status: "done"; kind: "subscribe" | "cancel" | "mint"; hash: string } | { status: "error"; message: string };
+type Action = { status: "idle" } | { status: "pending"; kind: "subscribe" | "cancel" } | { status: "done"; kind: "subscribe" | "cancel"; hash: string } | { status: "error"; message: string };
 
 interface ChainView {
   subscription: SubscriptionRecord | null;
@@ -85,7 +83,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const pending = action.status === "pending";
 
   const run = useCallback(
-    async (kind: "subscribe" | "cancel" | "mint", send: () => Promise<string>) => {
+    async (kind: "subscribe" | "cancel", send: () => Promise<string>) => {
       setAction({ status: "pending", kind });
       try {
         const hash = await send();
@@ -115,41 +113,6 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     run("cancel", () =>
       wallet.callFunction({ contractId: NEAR_CONTRACT_ID, methodName: "cancel_subscription", args: { plan_id: planId }, gas: CANCEL_GAS }),
     );
-
-  // Testnet only: the demo token has an open `mint`. It must register the account first or the mint is rejected.
-  const getTestUsdc = () =>
-    run("mint", async () => {
-      if (!accountId) throw new Error("Connect a NEAR wallet first.");
-      if (!reader) throw new Error("NEAR checkout is not configured.");
-
-      // Ensure the account exists on-chain and has testnet NEAR for storage deposit and gas.
-      try {
-        const response = await fetch(`${API_URL}/api/near/sponsor`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId }),
-        });
-        if (response.ok) {
-          const body = (await response.json().catch(() => ({}))) as { funded?: boolean };
-          if (body.funded) {
-            // Give block inclusion a moment to settle the access key on-chain
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-          }
-        }
-      } catch (err) {
-        console.warn("[TidePay] Automatic sponsor check failed:", err);
-      }
-
-      if (!(await reader.isStorageRegistered(NEAR_USDC_TOKEN_ID, accountId))) {
-        await wallet.callFunction({
-          contractId: NEAR_USDC_TOKEN_ID,
-          methodName: "storage_deposit",
-          args: { account_id: accountId, registration_only: true },
-          deposit: TOKEN_STORAGE_DEPOSIT_YOCTO,
-        });
-      }
-      return wallet.callFunction({ contractId: NEAR_USDC_TOKEN_ID, methodName: "mint", args: { account_id: accountId, amount: required.toString() } });
-    });
 
   const ownerNotice = isOwner ? (
     <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
@@ -227,10 +190,10 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   ) : state === "needs-funds" ? (
     <div className="flex flex-col gap-3">
       <p className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px] text-warning">
-        You have {formatUsdc(data?.balance ?? BigInt(0))} USDC and need {formatUsdc(required)} USDC for {cycles} cycle{cycles === 1 ? "" : "s"}.
+        Insufficient USDC balance. You have {formatUsdc(data?.balance ?? BigInt(0))} USDC and need {formatUsdc(required)} USDC for {cycles} cycle{cycles === 1 ? "" : "s"}.
       </p>
-      <Button size="lg" disabled={pending} onClick={() => void getTestUsdc()}>
-        {pending && action.kind === "mint" ? "Confirm in your wallet…" : `Get ${formatUsdc(required)} test USDC`}
+      <Button size="lg" disabled>
+        Insufficient USDC balance
       </Button>
     </div>
   ) : (
