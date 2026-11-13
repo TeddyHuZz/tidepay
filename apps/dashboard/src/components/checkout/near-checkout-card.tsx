@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import type { SubscriptionRecord } from "@tidepay/sdk-near";
 import { CheckoutShell } from "@/components/checkout/checkout-shell";
 import { Button } from "@/components/ui/button";
@@ -235,18 +236,50 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
               {
                 label: "Prepaid cycles",
                 value: (
-                  <select
-                    aria-label="Prepaid cycles"
-                    value={cycles}
-                    onChange={(e) => setCycles(Number(e.target.value))}
-                    className="h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
-                  >
-                    {Array.from({ length: MAX_PREPAID_CYCLES - MIN_PREPAID_CYCLES + 1 }, (_, i) => i + MIN_PREPAID_CYCLES).map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center rounded-md border border-input bg-background/80 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background transition-all">
+                      <button
+                        type="button"
+                        onClick={() => setCycles((c) => Math.max(MIN_PREPAID_CYCLES, c - 1))}
+                        disabled={cycles <= MIN_PREPAID_CYCLES}
+                        className="flex size-7 items-center justify-center rounded-l-md text-muted-foreground hover:text-foreground hover:bg-muted/80 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        aria-label="Decrease cycles"
+                      >
+                        <Minus className="size-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min={MIN_PREPAID_CYCLES}
+                        max={MAX_PREPAID_CYCLES}
+                        value={cycles || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setCycles(1);
+                            return;
+                          }
+                          const parsed = parseInt(val, 10);
+                          if (!isNaN(parsed)) {
+                            setCycles(Math.max(MIN_PREPAID_CYCLES, Math.min(MAX_PREPAID_CYCLES, parsed)));
+                          }
+                        }}
+                        className="w-10 h-7 bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        aria-label="Prepaid cycles"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCycles((c) => Math.min(MAX_PREPAID_CYCLES, c + 1))}
+                        disabled={cycles >= MAX_PREPAID_CYCLES}
+                        className="flex size-7 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground hover:bg-muted/80 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        aria-label="Increase cycles"
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      cycle{cycles === 1 ? "" : "s"}
+                    </span>
+                  </div>
                 ),
               },
             ]

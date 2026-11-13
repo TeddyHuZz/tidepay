@@ -60,8 +60,9 @@ describe("prepaidAmount", () => {
     expect(prepaidAmount("abc", 3)).toBe(BigInt(0));
   });
 
-  it("rejects cycle counts outside 1 to 12", () => {
+  it("rejects cycle counts outside 1 to 100", () => {
     expect(prepaidAmount("1.00", 0)).toBe(BigInt(0));
-    expect(prepaidAmount("1.00", 13)).toBe(BigInt(0));
+    expect(prepaidAmount("1.00", 101)).toBe(BigInt(0));
+    expect(prepaidAmount("1.00", 50)).toBe(BigInt(50_000_000));
   });
 });

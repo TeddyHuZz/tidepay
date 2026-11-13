@@ -4,7 +4,7 @@ import { parseUsdc } from "@/lib/chain/derive";
 export type NearCheckoutState = "no-plan" | "paused" | "needs-funds" | "ready" | "subscribed" | "past-due";
 
 export const MIN_PREPAID_CYCLES = 1;
-export const MAX_PREPAID_CYCLES = 12;
+export const MAX_PREPAID_CYCLES = 100;
 export const DEFAULT_PREPAID_CYCLES = 3;
 
 const NANOS_PER_SECOND = BigInt(1_000_000_000);
