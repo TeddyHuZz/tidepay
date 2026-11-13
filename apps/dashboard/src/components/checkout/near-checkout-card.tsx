@@ -28,7 +28,11 @@ interface NearCheckoutCardProps {
   active: boolean;
 }
 
-type Action = { status: "idle" } | { status: "pending"; kind: "subscribe" | "cancel" } | { status: "done"; kind: "subscribe" | "cancel"; hash: string } | { status: "error"; message: string };
+type Action =
+  | { status: "idle" }
+  | { status: "pending"; kind: "subscribe" | "cancel" | "deposit" }
+  | { status: "done"; kind: "subscribe" | "cancel" | "deposit"; hash: string }
+  | { status: "error"; message: string };
 
 interface ChainView {
   subscription: SubscriptionRecord | null;
@@ -83,7 +87,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const pending = action.status === "pending";
 
   const run = useCallback(
-    async (kind: "subscribe" | "cancel", send: () => Promise<string>) => {
+    async (kind: "subscribe" | "cancel" | "deposit", send: () => Promise<string>) => {
       setAction({ status: "pending", kind });
       try {
         const hash = await send();
@@ -105,6 +109,16 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
         contractId: NEAR_USDC_TOKEN_ID,
         methodName: "ft_transfer_call",
         args: { receiver_id: NEAR_CONTRACT_ID, amount: required.toString(), msg: JSON.stringify({ action: "subscribe", plan_id: planId }) },
+        deposit: ONE_YOCTO,
+      }),
+    );
+
+  const deposit = () =>
+    run("deposit", () =>
+      wallet.callFunction({
+        contractId: NEAR_USDC_TOKEN_ID,
+        methodName: "ft_transfer_call",
+        args: { receiver_id: NEAR_CONTRACT_ID, amount: required.toString(), msg: JSON.stringify({ action: "deposit", plan_id: planId }) },
         deposit: ONE_YOCTO,
       }),
     );
@@ -163,16 +177,25 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     <Button size="lg" disabled>
       Checking subscription…
     </Button>
-  ) : state === "subscribed" || state === "past-due" ? (
+  ) : state === "subscribed" ? (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1 rounded-md border border-success/30 bg-success-soft px-4 py-3 text-success">
-        <span className="font-semibold">{state === "past-due" ? "Subscribed, renewal overdue" : "You're subscribed"}</span>
+        <span className="font-semibold">You&apos;re subscribed</span>
         <span className="text-[13px]">
           Next renewal {formatDateTimeUtc(new Date(Number(BigInt(subscription!.next_epoch_timestamp_ns) / BigInt(1_000_000_000)) * 1000).toISOString())}
           {" · "}
           {formatUsdc(BigInt(subscription!.deposited_balance))} USDC prepaid
         </span>
       </div>
+      <Button
+        size="lg"
+        variant="secondary"
+        className="w-full font-medium border border-border/80 bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground shadow-xs"
+        disabled={pending || required === BigInt(0)}
+        onClick={() => void deposit()}
+      >
+        {pending && action.kind === "deposit" ? "Confirm in your wallet…" : `Top up ${formatUsdc(required)} USDC`}
+      </Button>
       <Button
         variant="outline"
         disabled={pending}
@@ -182,6 +205,27 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
         {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
       </Button>
       <p className="text-[11px] text-muted-foreground text-center">Instant on-chain cancel · Returns your unused prepaid balance</p>
+    </div>
+  ) : state === "past-due" ? (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1 rounded-md border border-warning/40 bg-warning-soft px-4 py-3 text-warning">
+        <span className="font-semibold">Prepaid balance depleted · Renewal overdue</span>
+        <span className="text-[13px]">
+          Your prepaid balance is 0.00 USDC. Top up now to renew and maintain your subscription.
+        </span>
+      </div>
+      <Button size="lg" disabled={pending || required === BigInt(0)} onClick={() => void deposit()}>
+        {pending && action.kind === "deposit" ? "Confirm in your wallet…" : `Top up ${formatUsdc(required)} USDC to renew`}
+      </Button>
+      <Button
+        variant="outline"
+        disabled={pending}
+        onClick={() => void cancel()}
+        className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white dark:hover:text-white transition-colors font-medium"
+      >
+        {pending && action.kind === "cancel" ? "Cancelling…" : "Cancel subscription"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground text-center">Cancelling terminates the subscription on-chain</p>
     </div>
   ) : state === "paused" ? (
     <Button size="lg" disabled>
@@ -219,6 +263,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       {action.status === "done" && (
         <p role="status" className="text-xs text-muted-foreground">
           {action.kind === "cancel" && "Subscription cancelled; your unused balance is on its way back. "}
+          {action.kind === "deposit" && "Prepaid balance topped up successfully. "}
           {action.hash && (
             <a
               href={nearExplorerUrl("tx", action.hash)}
@@ -234,20 +279,16 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
     </>
   );
 
-  const showCycles = !subscription?.is_active;
-
   return (
     <CheckoutShell
       name={name}
       priceUsdc={priceUsdc}
       intervalSeconds={intervalSeconds}
       tokenLabel="USDC (NEAR Testnet)"
-      extraRows={
-        showCycles
-          ? [
-              {
-                label: "Prepaid cycles",
-                value: (
+      extraRows={[
+        {
+          label: subscription?.is_active ? "Top-up cycles" : "Prepaid cycles",
+          value: (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center rounded-md border border-input bg-background/80 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background transition-all">
                       <button
@@ -294,9 +335,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
                   </div>
                 ),
               },
-            ]
-          : []
-      }
+            ]}
       ownerNotice={ownerNotice}
       actions={actions}
       explainer="You prepay the cycles above into the TidePay contract. Each renewal is pulled from that balance, and you can cancel any time to get the unused balance back."
