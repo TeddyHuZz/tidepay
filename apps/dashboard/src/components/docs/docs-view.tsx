@@ -657,8 +657,8 @@ function DocsContent() {
                     Part 1: The Recurring Subscription Engine
                   </h2>
                   <p>
-                    TidePay is a decentralized subscription infrastructure engine built for the Colosseum Solana Hackathon.
-                    Traditional Web3 billing forces users to either manually sign transactions every 30 days or lock upfront capital into escrow contracts. TidePay introduces a <strong>non-custodial delegated pull mechanism</strong>.
+                    TidePay is a decentralized multi-chain subscription infrastructure engine for Solana and NEAR.
+                    Traditional Web3 billing forces users to either manually sign transactions every 30 days or lock upfront capital into escrow contracts. TidePay introduces <strong>non-custodial delegated pull billing</strong> on Solana and <strong>prepaid NEP-141 epochs</strong> on NEAR.
                   </p>
 
                   <div className="rounded-lg border border-border bg-muted/40 p-4 text-xs font-mono text-emerald-600 dark:text-emerald-400 flex flex-col gap-1.5">

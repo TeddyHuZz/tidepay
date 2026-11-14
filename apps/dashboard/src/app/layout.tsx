@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "TidePay", template: "%s · TidePay" },
-  description: "Non-custodial recurring payments on Solana.",
+  description: "Non-custodial recurring payments on Solana and NEAR.",
   icons: {
     icon: "/icon.svg",
   },

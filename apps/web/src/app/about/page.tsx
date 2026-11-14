@@ -17,7 +17,7 @@ import {
 export const metadata: Metadata = {
   title: "About Us | TidePay Team & Developers",
   description:
-    "Meet the developers and architects behind TidePay, the non-custodial recurring subscription engine built for the Colosseum Hackathon on Solana.",
+    "Meet the developers and architects behind TidePay, the non-custodial multi-chain recurring subscription engine for Solana and NEAR.",
 };
 
 export default function AboutPage() {
@@ -41,10 +41,10 @@ export default function AboutPage() {
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#00bfb3]/20 bg-[#00bfb3]/10 px-2.5 py-0.5 text-[11px] font-mono font-medium text-[#00bfb3]">
               <Users className="h-3 w-3" /> Core Team & Vision
             </span>
-            <span className="text-xs font-mono text-zinc-500">Colosseum Hackathon 2026</span>
+            <span className="text-xs font-mono text-zinc-500">Solana &amp; NEAR Protocol</span>
           </div>
           <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-white font-display">
-            Building the Recurring Billing Engine for Solana
+            Building the Recurring Billing Engine for Solana &amp; NEAR
           </h1>
           <p className="mt-3 text-base text-zinc-400 max-w-2xl font-sans leading-relaxed">
             TidePay was founded with a singular conviction: recurring commerce on Web3 should never require custodial escrow vaults, wrapped bridge risks, or manual monthly signatures.
@@ -67,14 +67,14 @@ export default function AboutPage() {
             </p>
           </section>
 
-          {/* Hackathon Origins */}
+          {/* Multi-Chain Architecture */}
           <section className="rounded-2xl border border-white/8 bg-[#0f1015]/80 p-6 sm:p-8 space-y-4">
             <div className="flex items-center gap-2 text-xs font-mono text-[#00bfb3]">
-              <Award className="h-4 w-4" /> Colosseum Hackathon 2026
+              <Award className="h-4 w-4" /> NEAR Hackathon 2026 &amp; Multi-Chain Expansion
             </div>
-            <h3 className="text-xl font-semibold text-white font-display">Built for the Global Solana Ecosystem</h3>
+            <h3 className="text-xl font-semibold text-white font-display">Built for Solana &amp; NEAR Ecosystems</h3>
             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-              TidePay was engineered from day one as a production-grade, non-custodial protocol for the Colosseum Hackathon. Every architectural decision—from Anchor 0.30+ program safety, SPL Token-2022 checked transfers, sub-second crank concurrency, and Solana Actions/Blinks compatibility—was made to empower developers, merchants, and creators worldwide.
+              TidePay is engineered as a non-custodial recurring billing protocol across Solana and NEAR. From Anchor 0.30+ SPL Token-2022 checked pulls and Solana Blinks to NEAR prepaid NEP-141 contracts, embedded merchant auth, and NEAR Intents 1Click cross-chain funding, every architectural decision empowers developers, merchants, and creators worldwide.
             </p>
           </section>
 

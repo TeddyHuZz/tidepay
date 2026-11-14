@@ -21,13 +21,13 @@ const khandFont = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL(LANDING_URL),
-  title: "TidePay | Non-Custodial Recurring Subscriptions on Solana",
+  title: "TidePay | Non-Custodial Recurring Subscriptions on Solana & NEAR",
   description:
-    "Purpose-built recurring billing engine for Solana. Zero custodial escrow risk. Time-locked pull payments via Token-2022 and autonomous keeper cranks. Collect subscriptions in-feed with Solana Blinks.",
+    "Purpose-built multi-chain recurring billing engine for Solana and NEAR. Zero custodial lockups, time-locked delegated pulls, prepaid NEP-141 epochs, NEAR Intents 1Click, and Solana Blinks.",
   openGraph: {
-    title: "TidePay | Non-Custodial Recurring Subscriptions on Solana",
+    title: "TidePay | Non-Custodial Recurring Subscriptions on Solana & NEAR",
     description:
-      "Time-locked delegated pull billing and autonomous keeper cranks for Solana.",
+      "Time-locked delegated pull billing on Solana, prepaid NEP-141 subscriptions on NEAR, and autonomous keeper cranks.",
     url: LANDING_URL,
     siteName: "TidePay",
     images: [
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "TidePay - Non-Custodial Recurring Subscriptions on Solana",
+        alt: "TidePay - Non-Custodial Recurring Subscriptions on Solana & NEAR",
       },
     ],
     locale: "en_US",
@@ -43,8 +43,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "TidePay | Recurring Subscriptions on Solana",
-    description: "Zero escrow. 1-click in-feed Blinks. Autonomous keeper cranks.",
+    title: "TidePay | Recurring Subscriptions on Solana & NEAR",
+    description: "Zero custodial lockup. Solana Blinks, NEAR NEP-141 epochs & 1Click Intents.",
     images: ["/og-image.png"],
   },
   icons: {

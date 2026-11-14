@@ -5,7 +5,7 @@ export function PartnersBar() {
     { name: "NEAR Intents", label: "1CLICK CROSS-CHAIN" },
     { name: "Dialect", label: "SOLANA ACTIONS & BLINKS" },
     { name: "Phantom", label: "DELEGATED SESSIONS" },
-    { name: "Colosseum", label: "COLOSSEUM 2026" },
+    { name: "Privy", label: "EMBEDDED AUTH" },
   ];
 
   return (

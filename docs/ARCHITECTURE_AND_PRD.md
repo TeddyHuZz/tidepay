@@ -1,8 +1,8 @@
 # TidePay — Product Requirements Document (PRD) & Technical Architecture Specification
 
 **Project Name:** TidePay  
-**Version:** 1.0.0 (Colosseum Hackathon Edition)  
-**Status:** Live on Solana Devnet  
+**Version:** 2.0.0 (Solana & NEAR Multi-Chain Edition)  
+**Status:** Live on Solana Devnet & NEAR Testnet  
 **Program ID:** `DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ`  
 **Repository:** [github.com/TeddyHuZz/tidepay](https://github.com/TeddyHuZz/tidepay)  
 
@@ -235,6 +235,6 @@ The TidePay repository maintains comprehensive test coverage across both protoco
 
 ## 9. Product Roadmap
 
-* **Phase 1 (Current - Colosseum Hackathon):** Deployed Anchor core protocol, keeper crank, Next.js 15 merchant dashboard, `@tidepay/sdk`, and Solana Blinks checkout.
-* **Phase 2 (Post-Hackathon):** Mainnet-Beta deployment, multi-token collateral pools (EURC, SOL, JitoSOL), and Dialect Actions registry listing.
+* **Phase 1 (Solana Core):** Deployed Anchor core protocol, keeper crank, Next.js 16 merchant dashboard, `@tidepay/sdk`, and Solana Blinks checkout.
+* **Phase 2 (NEAR & Cross-Chain Expansion - Current):** NEAR Rust NEP-141 contract (`packages/contracts-near`), `@tidepay/sdk-near`, `@tidepay/crank-near` unified crank discovery, gasless NEAR onboarding, and NEAR Intents 1Click cross-chain funding.
 * **Phase 3 (Ecosystem Expansion):** Token-2022 Transfer Hook extensions, machine-to-machine AI agent billing SDK plugins, and enterprise Webhook event streams.

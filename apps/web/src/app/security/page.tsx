@@ -16,11 +16,11 @@ import {
 export const metadata: Metadata = {
   title: "Security Architecture & Trust | TidePay",
   description:
-    "Security specifications, non-custodial invariants, and formal on-chain audit guidelines for the TidePay protocol on Solana.",
+    "Security specifications, non-custodial invariants, and formal on-chain safety guidelines for TidePay across Solana and NEAR.",
 };
 
 export default function SecurityPage() {
-  const lastAudited = "Colosseum Hackathon 2026";
+  const lastAudited = "Multi-Chain Release (Solana & NEAR)";
 
   return (
     <div className="relative min-h-screen py-16 sm:py-24">

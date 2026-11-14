@@ -126,8 +126,8 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href={`${DASHBOARD_URL}/webhooks-api`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                  Developer Guide
+                <a href={`${DASHBOARD_URL}/webhooks`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  Webhooks &amp; API
                 </a>
               </li>
               <li>

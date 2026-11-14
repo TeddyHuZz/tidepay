@@ -613,8 +613,8 @@ function RevenueChart({ events }: { events: PlanOnChainEvent[] }) {
   const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
 
   return (
-    <div className="flex flex-1 flex-col justify-between w-full h-full min-h-[220px]">
-      <div className="relative flex flex-1 items-center justify-center w-full my-4 min-h-[170px]">
+    <div className="flex flex-1 flex-col justify-between w-full h-full min-h-55">
+      <div className="relative flex flex-1 items-center justify-center w-full my-4 min-h-42.5">
         {hasData ? (
           <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Revenue over the last 30 days">
             <defs>
@@ -627,7 +627,7 @@ function RevenueChart({ events }: { events: PlanOnChainEvent[] }) {
             <path d={line} fill="none" stroke="var(--primary)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           </svg>
         ) : (
-          <div className="relative flex flex-1 items-center justify-center w-full h-full min-h-[170px]">
+          <div className="relative flex flex-1 items-center justify-center w-full h-full min-h-42.5">
             <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" role="img" aria-label="No revenue yet">
               <line x1="0" y1={H * 0.25} x2={W} y2={H * 0.25} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
               <line x1="0" y1={H * 0.5} x2={W} y2={H * 0.5} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
