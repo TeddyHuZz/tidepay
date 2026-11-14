@@ -4,17 +4,16 @@
 
 # TidePay
 
-**The Non-Custodial Recurring Subscription & Billing Engine for Solana**  
-*Built natively for the Colosseum Solana Hackathon 2026*
+**The Non-Custodial Multi-Chain Recurring Subscription & Billing Engine for Solana & NEAR**
 
 [![Solana Devnet](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat-square&logo=solana&logoColor=black)](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet)
+[![NEAR Testnet](https://img.shields.io/badge/NEAR-Testnet-00EC97?style=flat-square&logo=near&logoColor=black)](https://testnet.nearblocks.io/address/tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet)
 [![Anchor 0.30+](https://img.shields.io/badge/Anchor-0.30+-blue?style=flat-square)](https://www.anchor-lang.com/)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15%20App%20Router-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16%20App%20Router-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Vitest](https://img.shields.io/badge/Vitest-39%2B%20Passing-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-[🌐 Live Landing](https://tidepay.vercel.app) • [📊 Merchant Console](https://app-tidepay.vercel.app) • [⚡ Actions API](https://api-tidepay.vercel.app) • [📑 Architecture & PRD](./docs/ARCHITECTURE_AND_PRD.md)
+[🌐 Live Landing](https://tidepay.vercel.app) • [📊 Merchant Console](https://app-tidepay.vercel.app) • [⚡ Actions & Intents API](https://api-tidepay.vercel.app) • [🚀 Deployment Guide](./DEPLOY.md) • [📑 Architecture & PRD](./docs/ARCHITECTURE_AND_PRD.md)
 
 </div>
 
@@ -69,50 +68,59 @@ A merchant signs in once (email, Google, or a Solana wallet) and can create and 
 
 ## ⚡ The Problem & The TidePay Paradigm
 
-Traditional Web3 subscription implementations force users to lock upfront capital in custodial escrow vaults or manually sign monthly approval popups. 
+Traditional Web3 subscription implementations force users to lock upfront capital in opaque custodial escrow vaults or manually sign monthly approval popups.
 
-* **Custodial Escrows:** Freeze user liquidity, forfeit DeFi staking/yield, and create tempting smart contract hack honeypots.
-* **Monthly Signatures:** Asking users for monthly wallet popups causes catastrophic drop-off (up to 80% churn).
+* **Custodial Escrows:** Freeze user liquidity with no clean deterministic exit, forfeit yield, and create smart contract honeypots.
+* **Monthly Signatures:** Asking users for recurring manual wallet popups causes steep drop-off and churn.
 
-### The TidePay Solution: Non-Custodial Delegated Pull
-TidePay replaces custodial escrow vaults with deterministic, on-chain time-locked pull delegation:
+### The TidePay Solution: Multi-Chain Non-Custodial Subscriptions
 
-1. **Zero Vault Lockups & Non-Custodial:** Subscribers authorize an SPL Token delegation (`approve`) to the Program Authority PDA (`b"tidepay_auth"`). Capital remains in the subscriber's personal wallet earning staking/yield until billing is due.
-2. **Deterministic Time-Locks:** Settlements enforce `clock.unix_timestamp >= record.next_epoch_timestamp` directly on-chain before executing `transfer_checked`.
-3. **Re-Entrancy Immune:** State mutations (`cycle_count`, `next_epoch_timestamp`) occur **before** external CPI token transfers (Checks-Effects-Interactions pattern).
-4. **1-Click Solana Blinks:** Merchants can turn any plan into an interactive Twitter/X or Dial.to checkout card via Solana Actions.
-5. **Decentralized Keeper Network:** Autonomous bots continuously scan for due epochs and trigger settlement transactions for a 0.05 USDC keeper bounty paid directly from merchant revenue.
-6. **Rent Cleanliness:** Cancelling a subscription deletes the `SubscriptionRecord` PDA on-chain and refunds all ~0.0015 SOL rent lamports straight back to the user (`close = subscriber`).
+TidePay unifies recurring billing across **Solana** and **NEAR** using native on-chain time-locks (`clock.unix_timestamp >= next_epoch_timestamp` on Solana; `block_timestamp >= next_epoch_timestamp_ns` on NEAR) and a shared permissionless keeper crank:
+
+1. **Solana — Delegated Pull Billing:** Subscribers authorize an SPL / Token-2022 delegation (`approve`) to the Program Authority PDA (`b"tidepay_auth"`). Funds remain in the subscriber's personal wallet until each billing epoch is due, then `transfer_checked` pulls the exact cycle amount.
+2. **NEAR — Prepaid NEP-141 & 1Click Intents:** Subscribers deposit epoch 0 plus prepaid cycles in a NEP-141 token (`ft_transfer_call`) or fund their NEAR account cross-chain via NEAR Intents 1Click. Unused prepaid balances remain immediately refundable on cancellation.
+3. **Checks-Effects-Interactions:** On both chains, state mutations (`cycle_count`, `next_epoch_timestamp` / `deposited_balance`) occur **before** external token transfer calls.
+4. **Checkout Distribution:** Share Solana plans as interactive **Solana Actions / Blinks** on X and [dial.to](https://dial.to), or send subscribers directly to hosted `/checkout/[planId]` and `/checkout/near/[planId]` pages.
+5. **Unified Keeper Crank Network:** `@tidepay/crank` settles both Solana due PDAs and NEAR active subscriptions (auto-discovered via `@tidepay/crank-near` RPC `view_state`) for a protocol-defined keeper bounty.
+6. **Clean On-Chain Exit:** Cancelling on Solana closes `SubscriptionRecord` and refunds ~0.0015 SOL rent lamports (`close = subscriber`). Cancelling on NEAR marks the subscription inactive and transfers remaining `deposited_balance` back to the subscriber.
 
 ---
 
 ## 📊 Paradigm Comparison
 
-| Feature | Traditional Web2 (Stripe) | Custodial Web3 Escrow | TidePay (Solana) |
-| :--- | :--- | :--- | :--- |
-| **Custody of Funds** | Centralized Merchant/Bank | Smart Contract Vault | **Non-Custodial (User Wallet)** |
-| **Transaction Fees** | 2.9% + $0.30 per charge | Variable Gas + Slippage | **Sub-cent Solana Gas + 0.5% fee** |
-| **Chargeback Risk** | High (Fraud/Disputes) | None | **Zero (Irreversible on-chain)** |
-| **User Drop-off** | Low | High (Upfront Lockup) | **Zero (1-Click Blink Approval)** |
-| **Staking/DeFi Yield** | Lost | Lost in Vault | **Retained by User until Settlement** |
-| **Account Rent** | N/A | Trapped in Protocol | **100% Refunded on Cancellation** |
+| Feature | Traditional Web2 (Stripe) | Custodial Web3 Escrow | TidePay (Solana) | TidePay (NEAR) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Billing Model** | Card Pull (Custodial) | Locked Escrow Vault | **Delegated SPL Pull (`approve`)** | **Prepaid NEP-141 Allowance** |
+| **Distribution** | Hosted Link | dApp Modal | **Solana Blinks & Hosted Checkout** | **Hosted Checkout & 1Click Intents** |
+| **Settlement** | Off-chain Batch | Admin Cron | **Permissionless Keeper (`0.05 USDC` bounty)** | **Permissionless Keeper (`crank_bounty`)** |
+| **Yield / Capital** | Merchant/Bank | Trapped in Protocol | **Stays in Subscriber Wallet** | **Stays Refundable Anytime** |
+| **Cancellation** | Support / Portal | Complex / Timelocked | **Closes PDA + Refunds SOL Rent** | **Instant Unused USDC Refund** |
 
 ---
 
-## 🛰️ Live On-Chain Deployments (Solana Devnet)
+## 🛰️ Live On-Chain Deployments
 
+### Solana Devnet
 | Component | Identifier / Address | Details |
 | :--- | :--- | :--- |
-| **Program ID** | [`DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ`](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet) | Anchor 0.30+ program deployed on Solana Devnet |
+| **Program ID** | [`DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ`](https://explorer.solana.com/address/DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ?cluster=devnet) | Anchor 0.30+ program on Solana Devnet |
 | **Program Authority PDA** | Derived from `[b"tidepay_auth"]` | Non-custodial pull delegate for CPI `transfer_checked` |
-| **Devnet USDC Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) | Official Circle Devnet Mint (6 Decimals) |
-| **RPC Cluster** | `https://api.devnet.solana.com` | High-performance Solana Devnet RPC |
-| **Actions API** | `https://api-tidepay.vercel.app` | Dial.to & Twitter/X Solana Actions specification |
+| **Devnet USDC Mint** | [`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`](https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet) | Circle Devnet USDC (6 decimals) |
+| **Actions & Intents API** | `https://api-tidepay.vercel.app` | Solana Actions/Blinks + NEAR Sponsor & 1Click proxy |
+
+### NEAR Testnet
+| Component | Identifier / Address | Details |
+| :--- | :--- | :--- |
+| **Dashboard Contract** | [`tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet`](https://testnet.nearblocks.io/address/tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet) | Deployed WASM contract used by `apps/dashboard` |
+| **E2E Recorded Contract** | [`tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet`](https://testnet.nearblocks.io/address/tidepay-mw1pwi6c.tidepay-e2e-mw1pwb5j.testnet) | Verified end-to-end keeper settlement ([tx](https://testnet.nearblocks.io/txns/9uSdehPKCX6qFB3YzDzU2fkvVRTQuRrDaQjZrswy813M)) |
+| **Testnet USDC (NEP-141)** | `usdc.fakes.testnet` | 6-decimal faucet token with **Get test USDC** in checkout |
+| **Testnet RPC** | `https://test.rpc.fastnear.com` | FastNEAR Testnet JSON-RPC endpoint |
 
 ---
 
 ## 🏗️ Architecture & Settlement Lifecycle
 
+### Solana: Non-Custodial Delegated Pull
 ```mermaid
 sequenceDiagram
     autonumber
@@ -120,13 +128,13 @@ sequenceDiagram
     participant Blink as Dial.to / Blink / Checkout
     actor Merchant as Merchant ATA
     participant Anchor as TidePay Anchor Program
-    actor Keeper as Crank Keeper Bot
+    actor Keeper as Unified Keeper Crank
 
     Note over Customer,Anchor: 1. Onboarding & Epoch 0
     Customer->>Blink: Clicks "1-Click Subscribe"
     Blink->>Customer: Requests signature (Approve Delegation + Subscribe)
     Customer->>Anchor: Calls subscribe()
-    Anchor->>Merchant: Pulls Epoch 0 payment via transfer_checked
+    Anchor->>Merchant: Pulls Epoch 0 via transfer_checked
     Anchor-->>Customer: Initializes SubscriptionRecord PDA (next_epoch = now + interval)
 
     Note over Anchor,Keeper: 2. Autonomous Epoch Settlements
@@ -134,26 +142,57 @@ sequenceDiagram
         Keeper->>Anchor: process_epoch()
         Anchor->>Anchor: Verify clock.unix_timestamp >= next_epoch_timestamp
         Anchor->>Anchor: Advance next_epoch & increment cycle_count
-        Anchor->>Merchant: Payout (Plan Amount - Crank Bounty)
-        Anchor->>Keeper: Payout Crank Bounty (0.05 USDC)
+        Anchor->>Merchant: Payout (Plan Amount - Crank Bounty - Protocol Fee)
+        Anchor->>Keeper: Payout Crank Bounty
     end
 
-    Note over Customer,Anchor: 3. Instant Non-Custodial Revocation
+    Note over Customer,Anchor: 3. Instant Exit & Rent Refund
     Customer->>Anchor: cancel_subscription()
-    Anchor->>Customer: Close SubscriptionRecord PDA & refund ~0.0015 SOL rent lamports
+    Anchor->>Customer: Close SubscriptionRecord PDA & refund ~0.0015 SOL rent
+```
+
+### NEAR: Prepaid NEP-141 + 1Click Cross-Chain Funding
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Subscriber (NEAR / 1Click)
+    participant Intents as NEAR Intents 1Click API
+    participant NearContract as TidePay NEAR Contract
+    actor Merchant as Merchant NEAR Account
+    actor Keeper as Unified Keeper Crank
+
+    opt Cross-Chain Funding
+        Customer->>Intents: POST /api/near/intents/quote & swap SOL/ETH/Base -> NEAR USDC
+        Intents-->>Customer: Delivers NEP-141 USDC to NEAR account
+    end
+
+    Customer->>NearContract: ft_transfer_call(action: "subscribe", depositAmount)
+    NearContract->>Merchant: Settles Epoch 0 immediately
+    NearContract-->>Customer: Stores prepaid balance & next_epoch_timestamp_ns
+
+    loop Every Billing Epoch (block_timestamp >= next_epoch_timestamp_ns)
+        Keeper->>NearContract: process_epoch(plan_id, subscriber_id)
+        NearContract->>Merchant: Payout (amount - fee - bounty)
+        NearContract->>Keeper: Payout crank_bounty
+    end
+
+    Customer->>NearContract: cancel_subscription(plan_id)
+    NearContract->>Customer: Refunds remaining deposited_balance in USDC
 ```
 
 ---
 
-## 🧪 Judge & Evaluator Quickstart (2-Minute Test)
+## 🧪 End-to-End Quickstart (60-Second Cycles)
 
-Judges can test the entire lifecycle in under two minutes without waiting 30 days:
+Test the complete recurring billing lifecycle on either chain in under two minutes using the **60s Demo** interval:
 
-1. **Connect on Devnet:** Open [app-tidepay.vercel.app](https://app-tidepay.vercel.app) with your wallet set to **Solana Devnet** (with test SOL and test USDC).
-2. **Create Fast-Forward Plan:** Click **Create Plan** and select the **60s Demo** interval slider.
-3. **Subscribe via Blink or Hosted Checkout:** Click **Share Blink** to open on [dial.to](https://dial.to) or open the hosted checkout page. Confirm the transaction.
-4. **Observe Autonomous Renewal:** After 60 seconds, our off-chain keeper crank settles the epoch, triggering automated renewal on-chain.
-5. **Verify Rent Refund:** Cancel the subscription in the console: the `SubscriptionRecord` PDA is instantly closed, and all ~0.0015 SOL rent lamports are returned to your wallet.
+1. **Open the Console:** Visit [app-tidepay.vercel.app](https://app-tidepay.vercel.app) and sign in with Privy (email, Google, or Solana wallet). On your first NEAR plan, the dashboard derives an embedded NEAR account and auto-funds testnet gas via `/api/near/sponsor`.
+2. **Create a 60s Plan:** Go to `/plans/new`, pick **Solana Devnet** or **NEAR Testnet**, and choose the **60s Demo** interval.
+3. **Subscribe:**
+   - **Solana:** Open **Share Blink** on [dial.to](https://dial.to) or `/checkout/[planId]` and approve the delegated pull.
+   - **NEAR:** Open `/checkout/near/[planId]`, click **Get test USDC** if needed, connect a NEAR wallet, and prepay 1+ cycles (or fund via NEAR Intents 1Click).
+4. **Watch Autonomous Renewal:** After 60 seconds, `@tidepay/crank` settles the due epoch on-chain and triggers configured HMAC-SHA256 webhooks.
+5. **Cancel & Verify Refund:** Cancel on `/checkout/[planId]` to reclaim Solana PDA rent (~0.0015 SOL), or on `/checkout/near/[planId]` to immediately reclaim unused prepaid USDC.
 
 ---
 
@@ -162,29 +201,35 @@ Judges can test the entire lifecycle in under two minutes without waiting 30 day
 ```
 tidepay/
 ├── apps/
-│   ├── dashboard/       # Next.js 15 App Router merchant console & checkout (app-tidepay.vercel.app)
-│   ├── api/             # Next.js Solana Actions / Blinks & developer REST API (api-tidepay.vercel.app)
-│   └── web/             # Marketing landing page, docs portal & brand assets (tidepay.vercel.app)
+│   ├── dashboard/          # Next.js 16 App Router console, docs, & Solana/NEAR checkouts
+│   ├── api/                # Next.js 16 Solana Actions/Blinks, NEAR sponsor/Intents, & webhooks API
+│   └── web/                # Marketing landing page & brand assets
 ├── packages/
-│   ├── protocol/        # Anchor 0.30+ Rust program & automated keeper crank daemon
-│   ├── types/           # Shared IDL, TypeScript interfaces, and PDA seed constants
-│   └── sdk/             # @tidepay/sdk integration client library
-└── docs/
-    └── ARCHITECTURE_AND_PRD.md  # Detailed technical specifications & PRD
+│   ├── protocol/           # Solana Anchor 0.30+ Rust program + unified keeper crank (@tidepay/crank)
+│   ├── contracts-near/     # NEAR Rust NEP-141 subscription contract + unit tests
+│   ├── protocol-near/crank # NEAR keeper discovery & e2e runner (@tidepay/crank-near)
+│   ├── types/              # Shared Anchor IDL, TypeScript interfaces, & PDA constants
+│   ├── sdk/                # Solana TypeScript client library (@tidepay/sdk)
+│   └── sdk-near/           # NEAR TypeScript client library (@tidepay/sdk-near)
+├── scripts/
+│   ├── deploy-near-contract.sh  # Build & deploy NEAR WASM contract
+│   └── test-near-flow.sh        # Live NEAR Testnet end-to-end verification script
+├── docs/
+│   └── ARCHITECTURE_AND_PRD.md  # Detailed technical architecture & PRD
+└── DEPLOY.md                    # Vercel (web/api/dashboard) & Render (unified crank) deployment guide
 ```
 
-> **Decoupled Architecture Guarantee:** Apps in `apps/*` interact strictly via `@tidepay/sdk` and `@tidepay/types`. They never import directly from `packages/protocol`.
+> **Decoupled Architecture:** Applications in `apps/*` interact strictly through `@tidepay/sdk`, `@tidepay/sdk-near`, and `@tidepay/types`—never importing directly from `packages/protocol` or `packages/contracts-near`.
 
 ---
 
 ## 💻 Developer SDK Quickstart
 
-### 1. Installation
+### Solana (`@tidepay/sdk`)
 ```bash
 pnpm add @tidepay/sdk @solana/web3.js @coral-xyz/anchor @solana/spl-token
 ```
 
-### 2. Feature Gating in Middleware
 ```typescript
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TidePayClient } from "@tidepay/sdk";
@@ -192,54 +237,74 @@ import { TidePayClient } from "@tidepay/sdk";
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const client = new TidePayClient(connection);
 
-// Verify active subscription status with zero custodial lookups
-export async function isSubscribed(planPda: PublicKey, userWallet: PublicKey): Promise<boolean> {
+export async function isSolanaSubscribed(planPda: PublicKey, userWallet: PublicKey): Promise<boolean> {
   const [subscriptionPda] = client.findSubscriptionRecordPda(planPda, userWallet);
   const record = await client.getSubscriptionRecord(subscriptionPda);
-  
+
   const now = BigInt(Math.floor(Date.now() / 1000));
-  // 120s grace period for crank settlement
-  return Boolean(record?.isActive && now <= (record.nextEpochTimestamp + 120n));
+  return Boolean(record?.isActive && now <= record.nextEpochTimestamp + 120n);
+}
+```
+
+### NEAR (`@tidepay/sdk-near`)
+```bash
+pnpm add @tidepay/sdk-near near-api-js
+```
+
+```typescript
+import { Account } from "near-api-js";
+import { TidePayNearClient } from "@tidepay/sdk-near";
+
+export async function isNearSubscribed(
+  account: Account,
+  contractId: string,
+  planId: string,
+  subscriberId: string,
+): Promise<boolean> {
+  const nearClient = new TidePayNearClient(account, contractId);
+  const record = await nearClient.getSubscription(planId, subscriberId);
+
+  const nowNs = BigInt(Date.now()) * 1_000_000n;
+  const graceNs = 120n * 1_000_000_000n;
+  return Boolean(
+    record?.is_active && nowNs <= BigInt(record.next_epoch_timestamp_ns) + graceNs,
+  );
 }
 ```
 
 ---
 
-## 🚀 Running Locally
+## 🚀 Running Locally & Deploying
 
 ```bash
-# 1. Install dependencies
+# 1. Install workspace dependencies
 pnpm install
 
-# 2. Run all applications concurrently via Turborepo
+# 2. Start all apps & cranks via Turborepo
 pnpm dev
 
 # Dashboard: http://localhost:3000
-# Actions API: http://localhost:3001
-# Web / Docs: http://localhost:3002
+# Actions & Intents API: http://localhost:3001
+# Landing Page: http://localhost:3002
 ```
+
+For production deployment of `apps/web`, `apps/api`, and `apps/dashboard` on Vercel plus the unified Solana + NEAR keeper crank on Render, see [DEPLOY.md](./DEPLOY.md).
 
 ### Running Test Suites
+
 ```bash
-# Run Vitest test suites (39+ passing unit & integration tests)
-pnpm --filter dashboard test
+# NEAR Rust contract unit tests
+cargo test --manifest-path packages/contracts-near/Cargo.toml
 
-# Run Rust Protocol unit tests
+# Solana Rust protocol tests
 cargo test --manifest-path packages/protocol/Cargo.toml
+
+# TypeScript SDK, crank, API, and Dashboard test suites
+pnpm --filter @tidepay/sdk-near test
+pnpm --filter @tidepay/crank-near test
+pnpm --filter api exec vitest run
+pnpm --filter dashboard exec vitest run
 ```
-
----
-
-## 🛡️ Hackathon Submission Status
-
-- [x] Anchor Program deployed on Solana Devnet (`DfAycPzXuSu4EzqfAprZ11S8oQZ6nucuRniFNrNaK5CQ`)
-- [x] Fast-Forward Demo mode (60-second billing interval for live judging demonstrations)
-- [x] Non-custodial pull delegation and instant rent lamports refunds (`close = subscriber`)
-- [x] Autonomous keeper crank worker with in-memory concurrency locks
-- [x] Solana Actions & Blinks spec compliant (`actions.json`, Dial.to preview, CORS headers)
-- [x] Light & Dark theme support across merchant console, docs portal, and hosted checkout
-- [x] Zero custodial escrow vaults invariant enforced on-chain
-- [x] Comprehensive PRD & Technical Architecture specification (`docs/ARCHITECTURE_AND_PRD.md`)
 
 ---
 
