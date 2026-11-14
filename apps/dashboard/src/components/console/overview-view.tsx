@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShareBlinkButton } from "@/components/console/share-blink-button";
+import { buildNearPlanEvents, RevenueChart } from "@/components/console/revenue-chart";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
   explorerUrl,
@@ -83,31 +84,10 @@ function OverviewContent({
     [allSubscribers, isNear],
   );
 
-  const nearEvents: PlanOnChainEvent[] = useMemo(() => {
-    if (!isNear) return [];
-    return subscribers
-      .filter((s) => (s.cycleCount ?? 0) > 0 && s.lastBilledAt)
-      .map((s) => {
-        const p = plans.find((pl) => pl.id === s.plan || pl.name === s.plan);
-        const gross = p ? parseFloat(p.priceUsdc) || 0 : 0;
-        const net = Math.max(0, gross * 0.995 - 0.05).toFixed(2);
-        const at = s.lastBilledAt ? new Date(s.lastBilledAt).getTime() : Date.now();
-        return {
-          signature: s.id,
-          kind: ((s.cycleCount ?? 0) > 1 ? "settled" : "subscribed") as "settled" | "subscribed",
-          label: (s.cycleCount ?? 0) > 1 ? "Subscription Renewal" : "New Subscription",
-          timestamp: at,
-          timeFormatted: new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-          err: false,
-          amountGrossUsdc: gross.toFixed(2),
-          amountNetUsdc: net,
-          keeperFeeUsdc: "0.05",
-          subscriber: s.wallet,
-          planName: p?.name || s.plan,
-          planAddress: s.plan,
-        };
-      });
-  }, [isNear, subscribers, plans]);
+  const nearEvents: PlanOnChainEvent[] = useMemo(
+    () => (isNear ? buildNearPlanEvents(subscribers, plans) : []),
+    [isNear, subscribers, plans],
+  );
 
   const onChainEvents = isNear ? nearEvents : rawEvents;
   const dbSummary = isNear ? null : rawDbSummary;
@@ -589,63 +569,6 @@ function OverviewContent({
           </Link>
         </Button>
       </div>
-    </div>
-  );
-}
-
-const DAY_MS = 86_400_000;
-
-function RevenueChart({ events }: { events: PlanOnChainEvent[] }) {
-  // Block times arrive in ms; treat small values as seconds.
-  const [now] = useState(() => Date.now());
-  const start = now - 30 * DAY_MS;
-  const daily = new Array<number>(30).fill(0);
-  for (const e of events) {
-    const t = e.timestamp < 1e12 ? e.timestamp * 1000 : e.timestamp;
-    const day = Math.floor((t - start) / DAY_MS);
-    if (day >= 0 && day < 30) daily[day] += parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0;
-  }
-  const hasData = daily.some((v) => v > 0);
-  const max = Math.max(...daily, 1);
-  const W = 600;
-  const H = 200;
-  const pts = daily.map((v, i) => [(i / (daily.length - 1)) * W, H - 10 - (v / max) * (H - 30)]);
-  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-
-  return (
-    <div className="flex flex-1 flex-col justify-between w-full h-full min-h-55">
-      <div className="relative flex flex-1 items-center justify-center w-full my-4 min-h-42.5">
-        {hasData ? (
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Revenue over the last 30 days">
-            <defs>
-              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-            <path d={`${line} L${W},${H} L0,${H} Z`} fill="url(#revenueGradient)" />
-            <path d={line} fill="none" stroke="var(--primary)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-          </svg>
-        ) : (
-          <div className="relative flex flex-1 items-center justify-center w-full h-full min-h-42.5">
-            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" role="img" aria-label="No revenue yet">
-              <line x1="0" y1={H * 0.25} x2={W} y2={H * 0.25} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H * 0.5} x2={W} y2={H * 0.5} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H * 0.75} x2={W} y2={H * 0.75} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H - 10} x2={W} y2={H - 10} stroke="currentColor" className="text-border/80" strokeWidth="1.5" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
-              <span className="text-sm font-semibold text-foreground/80">0.00 USDC</span>
-              <span className="text-xs text-muted-foreground mt-0.5">No on-chain settlements recorded yet</span>
-            </div>
-          </div>
-        )}
-      </div>
-      <p className="mt-auto text-sm text-muted-foreground">
-        {hasData
-          ? "Net settled USDC per day across all active subscriptions."
-          : "Real-time settled revenue — data points appear as subscription epochs settle."}
-      </p>
     </div>
   );
 }

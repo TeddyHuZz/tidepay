@@ -72,6 +72,20 @@ export function useSubscription(planAddress: string | null) {
 
   const reload = useCallback(() => setVersion((current) => current + 1), []);
 
+  // Refresh automatically once a Solana epoch becomes due so the checkout UI transitions to the next cycle after crank settlement.
+  const nextEpochSec =
+    lookup.status === "active" || lookup.status === "past_due" ? Number(lookup.record.nextEpochTimestamp) : 0;
+  useEffect(() => {
+    if (nextEpochSec <= 0) return;
+    const msUntilDue = nextEpochSec * 1000 - Date.now();
+    if (msUntilDue > 0) {
+      const wake = setTimeout(reload, Math.min(msUntilDue + 2_000, 2_147_483_647));
+      return () => clearTimeout(wake);
+    }
+    const interval = setInterval(reload, 8_000);
+    return () => clearInterval(interval);
+  }, [nextEpochSec, reload, result]);
+
   const subscribe = useCallback(async () => {
     if (!publicKey || !plan) return;
     setAction({ status: "pending", kind: "subscribe" });

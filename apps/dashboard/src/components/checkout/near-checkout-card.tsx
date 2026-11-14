@@ -162,6 +162,17 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
   const isDue = nextEpochMs <= nowMs;
   const countdownText = formatCountdown(nextEpochMs, nowMs);
 
+  // Re-poll on-chain state once a due cycle is reached so the countdown advances automatically after crank settlement.
+  useEffect(() => {
+    if (!isSubscribed || !isDue || remainingCycles <= 0) return;
+    const initial = setTimeout(() => setVersion((v) => v + 1), 2_000);
+    const interval = setInterval(() => setVersion((v) => v + 1), 8_000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [isSubscribed, isDue, remainingCycles]);
+
   const handleChangeWallet = async () => {
     try {
       await wallet.disconnect();
@@ -233,7 +244,9 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
 
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-background/80 text-xs text-muted-foreground font-mono">
                   <Clock className="size-3.5 text-muted-foreground" />
-                  <span>{isDue ? "Next pull: Due now" : `Next pull in ${countdownText}`}</span>
+                  <span>
+                    {isDue ? (remainingCycles > 0 ? "Next pull: Due now" : "Top up runway to renew") : `Next pull in ${countdownText}`}
+                  </span>
                 </div>
               </div>
 

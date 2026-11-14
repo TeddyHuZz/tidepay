@@ -20,6 +20,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { CopyButton } from "@/components/copy-button";
 import { ShareBlinkButton } from "@/components/console/share-blink-button";
+import { buildNearPlanEvents, RevenueChart } from "@/components/console/revenue-chart";
 import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -282,36 +283,10 @@ function PlanDetailContent({
     (a) => a.plan === plan.id || a.plan === plan.name,
   );
 
-  const planChartEvents: PlanOnChainEvent[] = useMemo(() => {
-    if (isNear) {
-      return planSubscribers
-        .filter((s) => (s.cycleCount ?? 0) > 0 && s.lastBilledAt)
-        .map((s) => {
-          const gross = priceNum;
-          const at = s.lastBilledAt ? new Date(s.lastBilledAt).getTime() : Date.now();
-          return {
-            signature: s.id,
-            kind: ((s.cycleCount ?? 0) > 1 ? "settled" : "subscribed") as "settled" | "subscribed",
-            label: (s.cycleCount ?? 0) > 1 ? "Subscription Renewal" : "New Subscription",
-            timestamp: at,
-            timeFormatted: new Date(at).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            err: false,
-            amountGrossUsdc: gross.toFixed(2),
-            amountNetUsdc: netPerCycle,
-            keeperFeeUsdc: DEFAULT_CRANK_BOUNTY_USDC,
-            subscriber: s.wallet,
-            planName: plan.name,
-            planAddress: plan.id,
-          };
-        });
-    }
-    return onChainEvents;
-  }, [isNear, planSubscribers, priceNum, netPerCycle, plan.name, plan.id, onChainEvents]);
+  const planChartEvents: PlanOnChainEvent[] = useMemo(
+    () => (isNear ? buildNearPlanEvents(planSubscribers, [plan]) : onChainEvents),
+    [isNear, planSubscribers, plan, onChainEvents],
+  );
 
   const links = planLinks(plan.id);
   const checkoutLink = links.checkout;
@@ -546,7 +521,11 @@ function PlanDetailContent({
                 Last 30 days
               </Badge>
             </div>
-            <RevenueChart events={planChartEvents} />
+            <RevenueChart
+              events={planChartEvents}
+              caption="Net settled USDC per day across this plan's subscriptions."
+              captionClassName="text-xs"
+            />
           </Card>
 
           {/* Plan Specifications Card */}
@@ -830,62 +809,6 @@ function PlanDetailContent({
           </CardContent>
         </Card>
       )}
-    </div>
-  );
-}
-
-const DAY_MS = 86_400_000;
-
-function RevenueChart({ events }: { events: PlanOnChainEvent[] }) {
-  const [now] = useState(() => Date.now());
-  const start = now - 30 * DAY_MS;
-  const daily = new Array<number>(30).fill(0);
-  for (const e of events) {
-    const t = e.timestamp < 1e12 ? e.timestamp * 1000 : e.timestamp;
-    const day = Math.floor((t - start) / DAY_MS);
-    if (day >= 0 && day < 30) daily[day] += parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0;
-  }
-  const hasData = daily.some((v) => v > 0);
-  const max = Math.max(...daily, 1);
-  const W = 600;
-  const H = 200;
-  const pts = daily.map((v, i) => [(i / (daily.length - 1)) * W, H - 10 - (v / max) * (H - 30)]);
-  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-
-  return (
-    <div className="flex flex-1 flex-col justify-between w-full h-full min-h-55">
-      <div className="relative flex flex-1 items-center justify-center w-full my-4 min-h-42.5">
-        {hasData ? (
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Revenue over the last 30 days">
-            <defs>
-              <linearGradient id="planDetailRevenueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-            <path d={`${line} L${W},${H} L0,${H} Z`} fill="url(#planDetailRevenueGradient)" />
-            <path d={line} fill="none" stroke="var(--primary)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-          </svg>
-        ) : (
-          <div className="relative flex flex-1 items-center justify-center w-full h-full min-h-42.5">
-            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" role="img" aria-label="No revenue yet">
-              <line x1="0" y1={H * 0.25} x2={W} y2={H * 0.25} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H * 0.5} x2={W} y2={H * 0.5} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H * 0.75} x2={W} y2={H * 0.75} stroke="currentColor" strokeDasharray="4 4" className="text-border/40" strokeWidth="1" />
-              <line x1="0" y1={H - 10} x2={W} y2={H - 10} stroke="currentColor" className="text-border/80" strokeWidth="1.5" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
-              <span className="text-sm font-semibold text-foreground/80">0.00 USDC</span>
-              <span className="text-xs text-muted-foreground mt-0.5">No on-chain settlements recorded yet</span>
-            </div>
-          </div>
-        )}
-      </div>
-      <p className="mt-auto text-xs text-muted-foreground">
-        {hasData
-          ? "Net settled USDC per day across this plan's subscriptions."
-          : "Real-time settled revenue — data points appear as subscription epochs settle."}
-      </p>
     </div>
   );
 }
