@@ -117,7 +117,13 @@ export function NearMerchantProvider({ children }: { children: ReactNode }) {
   // where signMessage executes silently without prompting the user.
   useEffect(() => {
     if (!NEAR_CONTRACT_ID || !walletAddress || !wallet) return;
-    const isEmbedded = (wallet as unknown as { walletClientType?: string })?.walletClientType === "privy";
+    // Privy's ConnectedStandardSolanaWallet tags embedded wallets on standardWallet (not walletClientType).
+    const standard = (wallet as unknown as { standardWallet?: { name?: string; isPrivyWallet?: boolean } }).standardWallet;
+    const isEmbedded = Boolean(
+      standard?.isPrivyWallet ||
+        standard?.name === "Privy" ||
+        (wallet as unknown as { walletClientType?: string })?.walletClientType === "privy",
+    );
     if (isEmbedded && session.status === "idle" && !session.client) {
       void prepare();
     }

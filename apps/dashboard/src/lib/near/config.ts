@@ -2,7 +2,8 @@
 
 export const NEAR_NETWORK_ID = "testnet";
 export const NEAR_RPC_URL = process.env.NEXT_PUBLIC_NEAR_RPC_URL?.trim() || "https://test.rpc.fastnear.com";
-export const NEAR_CONTRACT_ID = process.env.NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT?.trim() || "";
+export const NEAR_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_TIDEPAY_NEAR_CONTRACT?.trim() || "tidepay-mw1rpoyp.tidepay-e2e-mw1rpm6j.testnet";
 
 /** Demo token with an open `mint`, 6 decimals (same as USDC). */
 export const NEAR_USDC_TOKEN_ID = "usdc.fakes.testnet";

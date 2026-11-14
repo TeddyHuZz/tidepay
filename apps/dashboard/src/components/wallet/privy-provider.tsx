@@ -97,8 +97,9 @@ function PrivySolanaBridge({ children }: { children: ReactNode }) {
       ? ({
           adapter: {
             name:
-              (solanaWallet as unknown as { walletClientType?: string })
-                .walletClientType || "Solana Wallet",
+              (solanaWallet as unknown as { walletClientType?: string }).walletClientType ||
+              solanaWallet.standardWallet?.name ||
+              "Solana Wallet",
             url: "https://privy.io",
             icon: "",
             publicKey,

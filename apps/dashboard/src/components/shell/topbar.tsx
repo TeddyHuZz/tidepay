@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WalletButton } from "@/components/wallet-button";
-import { Badge } from "@/components/ui/badge";
 
 const TITLES: Record<string, string> = {
   "/": "Overview",
@@ -14,13 +13,11 @@ const TITLES: Record<string, string> = {
   "/webhooks": "Webhooks & API Keys",
 };
 
-import { useProject } from "@/components/project-context";
 import { useTheme } from "@/components/theme-provider";
 import { Moon, Sun } from "lucide-react";
 
 export function Topbar() {
   const pathname = usePathname();
-  const { activeProject } = useProject();
   const { theme, toggleTheme } = useTheme();
   const isNestedPlan = pathname.startsWith("/plans/") && pathname !== "/plans";
   let title = TITLES[pathname];
@@ -30,8 +27,6 @@ export function Topbar() {
   if (!title) {
     title = "TidePay";
   }
-
-  const isLive = activeProject.environment === "live";
 
   return (
     <header className="flex items-center justify-between gap-2 border-b px-4 py-2.5 sm:py-3 md:px-8">
@@ -58,16 +53,6 @@ export function Topbar() {
         >
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </button>
-        <Badge
-          variant="outline"
-          className={`h-8 items-center px-2 sm:px-3 text-xs font-medium transition-colors shrink-0 ${
-            isLive
-              ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-              : "border-border/80 text-muted-foreground"
-          }`}
-        >
-          {isLive ? "Mainnet" : "Devnet"}
-        </Badge>
         <WalletButton size="sm" />
       </div>
     </header>
