@@ -64,7 +64,7 @@ export function CheckoutShell({
     <div className="min-h-dvh bg-background text-foreground relative flex flex-col font-sans transition-colors duration-200">
       {/* High-tech web3 background grid (adaptive to light/dark, no radial glow) */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] opacity-[0.035] bg-[size:32px_32px]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] opacity-[0.035] bg-size-[32px_32px]"
         aria-hidden="true"
       />
 
@@ -217,8 +217,8 @@ export function CheckoutLoadingSkeleton({ chainLabel }: { chainLabel: string }) 
         </div>
       </header>
       <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-5 h-[480px] rounded-2xl border border-border bg-card/60 animate-pulse" />
-        <div className="lg:col-span-7 h-[480px] rounded-2xl border border-border bg-card/60 animate-pulse" />
+        <div className="lg:col-span-5 h-120 rounded-2xl border border-border bg-card/60 animate-pulse" />
+        <div className="lg:col-span-7 h-120 rounded-2xl border border-border bg-card/60 animate-pulse" />
       </main>
     </div>
   );

@@ -148,7 +148,7 @@ export function CheckoutCard({ planAddress, name, priceUsdc, intervalSeconds, ac
       }}
       ownerNotice={ownerNotice}
     >
-      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-xl min-h-[470px] transition-colors">
+      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-xl min-h-117.5 transition-colors">
         {subscribed ? (
           /* ========================================================= */
           /* ACTIVE SUBSCRIBER VIEW (Image 2 sample design)             */

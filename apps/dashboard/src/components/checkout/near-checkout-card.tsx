@@ -218,7 +218,7 @@ export function NearCheckoutCard({ planId, merchant, name, priceUsdc, intervalSe
       }}
       ownerNotice={ownerNotice}
     >
-      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-xl min-h-[470px] transition-colors">
+      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-xl min-h-117.5 transition-colors">
         {isSubscribed ? (
           /* ========================================================= */
           /* ACTIVE SUBSCRIBER VIEW (Image 2 sample design)             */
