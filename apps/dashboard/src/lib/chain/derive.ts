@@ -58,6 +58,17 @@ export function parseUsdc(input: string, decimals = USDC_DECIMALS): bigint | nul
   return units > BigInt(0) ? units : null;
 }
 
+/** Sums formatted USDC strings in integer micro-units so decimal totals never drift. */
+export function sumUsdcStrings(values: Array<string | undefined>): string {
+  let total = BigInt(0);
+  for (const raw of values) {
+    if (!raw) continue;
+    const units = parseUsdc(raw.replace(/[+,]/g, ""));
+    if (units !== null) total += units;
+  }
+  return formatUsdc(total);
+}
+
 function isoFromUnix(seconds: bigint) {
   return new Date(Number(seconds) * 1000).toISOString();
 }

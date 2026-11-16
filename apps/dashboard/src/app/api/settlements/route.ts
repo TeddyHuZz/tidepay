@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sumUsdcStrings } from "@/lib/chain/derive";
 import { sql } from "@/lib/db";
 
 interface SettlementPayloadEvent {
@@ -77,23 +78,23 @@ export async function GET(req: NextRequest) {
 
     const byPlan: Record<string, { totalSettlements: number; totalEarnedNet: string; totalGrossBilled: string }> = {};
     let totalSettlements = 0;
-    let totalEarnedNetNum = 0;
-    let totalGrossBilledNum = 0;
+    const netParts: string[] = [];
+    const grossParts: string[] = [];
 
     for (const row of byPlanRows) {
-      const net = parseFloat(row.totalEarnedNet) || 0;
-      const gross = parseFloat(row.totalGrossBilled) || 0;
+      const netText = sumUsdcStrings([String(row.totalEarnedNet ?? "0")]);
+      const grossText = sumUsdcStrings([String(row.totalGrossBilled ?? "0")]);
       const count = Number(row.totalSettlements) || 0;
 
       byPlan[row.planAddress] = {
         totalSettlements: count,
-        totalEarnedNet: net.toFixed(2),
-        totalGrossBilled: gross.toFixed(2),
+        totalEarnedNet: netText,
+        totalGrossBilled: grossText,
       };
 
       totalSettlements += count;
-      totalEarnedNetNum += net;
-      totalGrossBilledNum += gross;
+      netParts.push(netText);
+      grossParts.push(grossText);
     }
 
     const events = await sql`
@@ -118,8 +119,8 @@ export async function GET(req: NextRequest) {
       success: true,
       summary: {
         totalSettlements,
-        totalEarnedNet: totalEarnedNetNum.toFixed(2),
-        totalGrossBilled: totalGrossBilledNum.toFixed(2),
+        totalEarnedNet: sumUsdcStrings(netParts),
+        totalGrossBilled: sumUsdcStrings(grossParts),
       },
       byPlan,
       events,

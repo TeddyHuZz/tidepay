@@ -19,7 +19,12 @@ export function nearPriceTooLow(amount: bigint, bounty: bigint = NEAR_CRANK_BOUN
   return feeOf(amount, feeBps) + bounty >= amount;
 }
 
-/** What the merchant receives per cycle. */
+/** What the merchant receives on Epoch 0 (subscribe), where no keeper bounty is deducted. */
+export function nearEpoch0Payout(amount: bigint, feeBps: number = NEAR_PROTOCOL_FEE_BPS): bigint {
+  return amount - feeOf(amount, feeBps);
+}
+
+/** What the merchant receives per renewal cycle (Cycle 2+). */
 export function nearNetPayout(amount: bigint, bounty: bigint = NEAR_CRANK_BOUNTY, feeBps: number = NEAR_PROTOCOL_FEE_BPS): bigint {
   return amount - feeOf(amount, feeBps) - bounty;
 }

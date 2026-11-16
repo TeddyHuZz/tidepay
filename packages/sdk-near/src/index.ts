@@ -32,6 +32,12 @@ export interface SubscriptionRecord {
   deposited_balance: string;
 }
 
+export interface PlanStats {
+  total_settlements: number;
+  total_gross_amount: string;
+  total_merchant_net: string;
+}
+
 export class TidePayNearClient {
   constructor(
     public readonly account: Account,
@@ -111,6 +117,21 @@ export class TidePayNearClient {
     });
   }
 
+  /** Transfers NEP-141 tokens (e.g. USDC) to `receiverId`; returns raw outcome for `transaction_outcome.id` / `transaction.hash`. */
+  transferFt(p: { tokenId: string; receiverId: string; amount: bigint; memo?: string }): Promise<TxOutcome> {
+    return this.account.callFunctionRaw({
+      contractId: p.tokenId,
+      methodName: "ft_transfer",
+      args: {
+        receiver_id: p.receiverId,
+        amount: p.amount.toString(),
+        ...(p.memo ? { memo: p.memo } : {}),
+      },
+      deposit: ONE_YOCTO,
+      gas: 30n * TGAS,
+    });
+  }
+
   async isStorageRegistered(tokenId: string, accountId: string): Promise<boolean> {
     return (await this.view("storage_balance_of", { account_id: accountId }, tokenId)) != null;
   }
@@ -129,6 +150,10 @@ export class TidePayNearClient {
 
   async getPlan(planId: string): Promise<MerchantPlan | null> {
     return (await this.view<MerchantPlan>("get_plan", { plan_id: planId })) ?? null;
+  }
+
+  async getPlanStats(planId: string): Promise<PlanStats | null> {
+    return (await this.view<PlanStats>("get_plan_stats", { plan_id: planId })) ?? null;
   }
 
   async getSubscription(planId: string, subscriberId: string): Promise<SubscriptionRecord | null> {

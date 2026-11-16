@@ -3,6 +3,7 @@ import {
   deriveMerchantData,
   formatUsdc,
   parseUsdc,
+  sumUsdcStrings,
   subscriptionStatus,
   type PlanAccount,
   type SubscriptionAccount,
@@ -64,6 +65,14 @@ describe("parseUsdc", () => {
 
   it.each(["", "0", "0.00", "-1", "1.1234567", "abc", "1e3"])("rejects %s", (input) => {
     expect(parseUsdc(input)).toBeNull();
+  });
+});
+
+describe("sumUsdcStrings", () => {
+  it("sums micro-units exactly without floating-point rounding drift", () => {
+    expect(sumUsdcStrings(["0.995", "0.945", "0.945"])).toBe("2.885");
+    expect(sumUsdcStrings(["+1,000.50", "0.25", undefined, "0.00"])).toBe("1,000.75");
+    expect(sumUsdcStrings([])).toBe("0.00");
   });
 });
 

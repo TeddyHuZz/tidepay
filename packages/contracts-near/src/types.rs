@@ -38,3 +38,12 @@ pub struct SubscriptionRecord {
     pub is_active: bool,
     pub deposited_balance: U128,
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct PlanStats {
+    pub total_settlements: u64,
+    pub total_gross_amount: U128,
+    pub total_merchant_net: U128,
+}

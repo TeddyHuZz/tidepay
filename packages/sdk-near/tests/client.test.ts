@@ -4,9 +4,10 @@ import { TOKEN_STORAGE_DEPOSIT_YOCTO, TidePayNearClient } from "../src/index.js"
 
 const mockAccount = () => {
   const callFunction = vi.fn().mockResolvedValue("ok");
+  const callFunctionRaw = vi.fn().mockResolvedValue({ status: { SuccessValue: "" }, transaction_outcome: { id: "tx1" } });
   const view = vi.fn().mockResolvedValue(null);
-  const account = { callFunction, provider: { callFunction: view } } as unknown as Account;
-  return { account, callFunction, view };
+  const account = { callFunction, callFunctionRaw, provider: { callFunction: view } } as unknown as Account;
+  return { account, callFunction, callFunctionRaw, view };
 };
 
 describe("TidePayNearClient", () => {
@@ -60,8 +61,10 @@ describe("TidePayNearClient", () => {
     const { account, view } = mockAccount();
     const client = new TidePayNearClient(account, "tidepay.testnet");
     expect(await client.getPlan("nope")).toBeNull();
+    expect(await client.getPlanStats("nope")).toBeNull();
     expect(await client.isSubscriptionDue("nope", "a.testnet")).toBe(false);
     expect(view).toHaveBeenCalledWith({ contractId: "tidepay.testnet", method: "get_plan", args: { plan_id: "nope" } });
+    expect(view).toHaveBeenCalledWith({ contractId: "tidepay.testnet", method: "get_plan_stats", args: { plan_id: "nope" } });
   });
 
   it("getMerchantPlans pages through the contract index and defaults to []", async () => {
@@ -124,5 +127,23 @@ describe("TidePayNearClient", () => {
       deposit: TOKEN_STORAGE_DEPOSIT_YOCTO,
     });
     expect(TOKEN_STORAGE_DEPOSIT_YOCTO).toBe(20_000_000_000_000_000_000_000n);
+  });
+
+  it("transferFt calls ft_transfer on the token with 1 yocto and raw outcome", async () => {
+    const { account, callFunctionRaw } = mockAccount();
+    await new TidePayNearClient(account, "tidepay.testnet").transferFt({
+      tokenId: "usdc.testnet",
+      receiverId: "bob.testnet",
+      amount: 12_500_000n,
+      memo: "withdraw",
+    });
+
+    expect(callFunctionRaw).toHaveBeenCalledWith({
+      contractId: "usdc.testnet",
+      methodName: "ft_transfer",
+      args: { receiver_id: "bob.testnet", amount: "12500000", memo: "withdraw" },
+      deposit: 1n,
+      gas: 30_000_000_000_000n,
+    });
   });
 });

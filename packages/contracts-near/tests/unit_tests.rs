@@ -224,3 +224,20 @@ fn test_limit_is_clamped() {
 
     assert_eq!(contract.get_plan_subscribers("p".to_string(), 0, 10_000).len(), 100);
 }
+
+#[test]
+fn test_plan_stats_accumulate_across_cancel_and_resubscribe() {
+    let mut contract = subscribed();
+    at("keeper.testnet", 160);
+    let _ = contract.process_epoch("saas-tier1".to_string(), acct("subscriber.testnet"));
+    at("subscriber.testnet", 170);
+    let _ = contract.cancel_subscription("saas-tier1".to_string());
+    at("usdc.testnet", 180);
+    contract.ft_on_transfer(acct("subscriber.testnet"), U128(10_000_000), subscribe_msg());
+
+    let stats = contract.get_plan_stats("saas-tier1".to_string()).expect("Stats missing");
+    assert_eq!(stats.total_settlements, 3);
+    assert_eq!(stats.total_gross_amount.0, 30_000_000);
+    // Epoch 0 (x2): 9_950_000 each + Renewal (x1): 9_900_000 = 29_800_000
+    assert_eq!(stats.total_merchant_net.0, 29_800_000);
+}

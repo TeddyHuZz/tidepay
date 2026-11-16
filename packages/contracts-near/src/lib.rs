@@ -30,6 +30,7 @@ pub struct TidePayContract {
     // shortcut: a Vec per key is unbounded; move to store::IterableSet if a merchant or plan grows past a few thousand entries
     pub merchant_plans: LookupMap<AccountId, Vec<String>>,
     pub plan_subscribers: LookupMap<String, Vec<AccountId>>,
+    pub plan_stats: LookupMap<String, PlanStats>,
 }
 
 #[near]
@@ -44,6 +45,7 @@ impl TidePayContract {
             subscriptions: LookupMap::new(b"s"),
             merchant_plans: LookupMap::new(b"m"),
             plan_subscribers: LookupMap::new(b"u"),
+            plan_stats: LookupMap::new(b"t"),
         }
     }
 
@@ -96,6 +98,10 @@ impl TidePayContract {
 
     pub fn get_plan(&self, plan_id: String) -> Option<MerchantPlan> {
         self.plans.get(&plan_id)
+    }
+
+    pub fn get_plan_stats(&self, plan_id: String) -> Option<PlanStats> {
+        self.plan_stats.get(&plan_id)
     }
 
     pub fn get_subscription(&self, plan_id: String, subscriber_id: AccountId) -> Option<SubscriptionRecord> {
@@ -157,9 +163,11 @@ impl TidePayContract {
 
                 // Epoch 0 is paid immediately; no crank bounty since no keeper is involved
                 let fee = plan.amount.0 * plan.protocol_fee_bps as u128 / BPS_DENOMINATOR;
+                let merchant_net = plan.amount.0 - fee;
+                self.record_settlement(&parsed.plan_id, plan.amount.0, merchant_net);
                 let _ = ext_ft::ext(token_id.clone())
                     .with_attached_deposit(ONE_YOCTO)
-                    .ft_transfer(plan.merchant_id, U128(plan.amount.0 - fee), Some("TidePay Epoch 0".to_string()));
+                    .ft_transfer(plan.merchant_id, U128(merchant_net), Some("TidePay Epoch 0".to_string()));
                 if fee > 0 {
                     let _ = ext_ft::ext(token_id)
                         .with_attached_deposit(ONE_YOCTO)
@@ -200,6 +208,7 @@ impl TidePayContract {
         let bounty = plan.crank_bounty.0;
         let fee = plan.amount.0 * plan.protocol_fee_bps as u128 / BPS_DENOMINATOR;
         let merchant_amount = plan.amount.0 - fee - bounty; // non-negative, enforced in create_plan
+        self.record_settlement(&plan_id, plan.amount.0, merchant_amount);
 
         env::log_str(&format!(
             "EVENT_EPOCH_PROCESSED: plan={}, sub={}, cycle={}, keeper={}",
@@ -240,6 +249,14 @@ impl TidePayContract {
         } else {
             Promise::new(subscriber_id) // no-op promise; nothing to refund
         }
+    }
+
+    fn record_settlement(&mut self, plan_id: &str, gross: u128, merchant_net: u128) {
+        let mut stats = self.plan_stats.get(&plan_id.to_string()).unwrap_or_default();
+        stats.total_settlements += 1;
+        stats.total_gross_amount = U128(stats.total_gross_amount.0 + gross);
+        stats.total_merchant_net = U128(stats.total_merchant_net.0 + merchant_net);
+        self.plan_stats.insert(&plan_id.to_string(), &stats);
     }
 }
 

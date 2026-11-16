@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketDailyRevenue, buildNearPlanEvents } from "./revenue-chart";
+import { bucketDailyRevenue, buildNearPlanEvents, mergeNearSettlementEvents } from "./revenue-chart";
 
 describe("bucketDailyRevenue", () => {
   it("sums net USDC and counts settlements per day across ms and second timestamps", () => {
@@ -69,6 +69,52 @@ describe("buildNearPlanEvents", () => {
 
     expect(events).toHaveLength(3);
     expect(events.map((e) => e.kind)).toEqual(["settled", "settled", "subscribed"]);
-    expect(events.every((e) => e.amountNetUsdc === "0.945")).toBe(true);
+    expect(events.map((e) => e.amountNetUsdc)).toEqual(["0.945", "0.945", "0.995"]);
+    expect(events.map((e) => e.keeperFeeUsdc)).toEqual(["0.05", "0.05", "0.00"]);
+    expect(events.every((e) => e.planAddress === "near:premium-pro")).toBe(true);
+    expect(events[2].signature).toBe("premium-pro:alice.testnet:2026-11-14T17:20:00.000Z:1");
+  });
+});
+
+describe("mergeNearSettlementEvents", () => {
+  it("retains prior DB settlements alongside current subscription cycles without duplicates", () => {
+    const live = buildNearPlanEvents(
+      [
+        {
+          id: "pro:alice.testnet",
+          wallet: "alice.testnet",
+          plan: "pro",
+          startedAt: "2026-11-15T10:00:00.000Z",
+          lastBilledAt: "2026-11-15T10:01:00.000Z",
+          nextDueAt: "2026-11-15T10:02:00.000Z",
+          status: "Active",
+          network: "near",
+          cycleCount: 2,
+        },
+      ],
+      [{ id: "near:pro", name: "pro", priceUsdc: "1.00", intervalSeconds: 60, subscribers: 1, active: true, network: "near" }],
+    );
+
+    const priorDb = [
+      ...live,
+      {
+        signature: "pro:alice.testnet:2026-11-14T10:00:00.000Z:1",
+        kind: "subscribed" as const,
+        label: "New Subscription",
+        timestamp: Date.parse("2026-11-14T10:00:00.000Z"),
+        timeFormatted: "Nov 14",
+        err: false,
+        amountGrossUsdc: "1.00",
+        amountNetUsdc: "0.995",
+        keeperFeeUsdc: "0.00",
+        subscriber: "alice.testnet",
+        planName: "pro",
+        planAddress: "near:pro",
+      },
+    ];
+
+    const merged = mergeNearSettlementEvents(live, priorDb);
+    expect(merged).toHaveLength(3);
+    expect(merged[0].timestamp).toBeGreaterThan(merged[2].timestamp);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -20,7 +20,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
 import { CopyButton } from "@/components/copy-button";
 import { ShareBlinkButton } from "@/components/console/share-blink-button";
-import { buildNearPlanEvents, RevenueChart } from "@/components/console/revenue-chart";
+import { buildNearPlanEvents, mergeNearSettlementEvents, RevenueChart } from "@/components/console/revenue-chart";
 import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,16 @@ import { useNearMerchant } from "@/hooks/use-near-merchant";
 import { describeNearError } from "@/lib/near/errors";
 import { fromNearPlanId, isNearPlanId } from "@/lib/near/ids";
 import { nearNetPayout } from "@/lib/near/plan-args";
-import { formatUsdc, parseUsdc } from "@/lib/chain/derive";
-import { createClient, DEFAULT_ACTIVITY_LIMIT, fetchDatabaseSettlements, fetchPlanActivity, parseAddress, type PlanOnChainEvent } from "@/lib/chain/accounts";
+import { formatUsdc, parseUsdc, sumUsdcStrings } from "@/lib/chain/derive";
+import {
+  createClient,
+  DEFAULT_ACTIVITY_LIMIT,
+  fetchDatabaseSettlements,
+  fetchPlanActivity,
+  parseAddress,
+  syncSettlementsToDatabase,
+  type PlanOnChainEvent,
+} from "@/lib/chain/accounts";
 import { useSendTransaction } from "@/hooks/use-send-transaction";
 import { intervalLabel, intervalUnit, type PlanSummary, type SubscriberRow, type ActivityEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -79,6 +87,7 @@ function PlanDetailContent({
 }) {
   const { connection } = useConnection();
   const [onChainEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
+  const [nearDbEvents, setNearDbEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [planDbStats, setPlanDbStats] = useState<{ totalSettlements: number; totalEarnedNet: string; totalGrossBilled: string } | null>(null);
 
@@ -91,8 +100,27 @@ function PlanDetailContent({
       (isNearPlanId(p.id) && fromNearPlanId(p.id) === decodedParam),
   );
 
+  const isNearPlan = plan ? isNearPlanId(plan.id) : false;
+  const planSubscribers = plan
+    ? subscribers.filter((s) => s.plan === plan.id || s.plan === plan.name)
+    : [];
+  const nearLiveEvents: PlanOnChainEvent[] =
+    plan && isNearPlan ? buildNearPlanEvents(planSubscribers, [plan]) : [];
+
   useEffect(() => {
     if (!plan?.id) return;
+    if (isNearPlanId(plan.id)) {
+      let active = true;
+      void fetchDatabaseSettlements([plan.id]).then((res) => {
+        if (active && res?.events) setNearDbEvents(res.events);
+      });
+      if (nearLiveEvents.length > 0) {
+        void syncSettlementsToDatabase(nearLiveEvents);
+      }
+      return () => {
+        active = false;
+      };
+    }
     const pubkey = parseAddress(plan.id);
     if (!pubkey) return;
 
@@ -231,13 +259,10 @@ function PlanDetailContent({
     );
   }
 
-  const isNear = isNearPlanId(plan.id);
+  const isNear = isNearPlan;
   const [activeTab, setActiveTab] = useState<"overview" | "subscribers" | "settlements" | "integrations">("overview");
 
   // Metrics calculations
-  const planSubscribers = subscribers.filter(
-    (s) => s.plan === plan.id || s.plan === plan.name,
-  );
   const activeCount = planSubscribers.filter((s) => s.status === "Active").length;
   const pastDueCount = planSubscribers.filter((s) => s.status === "PastDue").length;
   const totalEvaluated = activeCount + pastDueCount;
@@ -257,15 +282,26 @@ function PlanDetailContent({
       ? formatUsdc(nearNetPayout(priceUnits))
       : Math.max(0, priceNum - keeperFeeNum).toFixed(2);
 
+  const planChartEvents: PlanOnChainEvent[] = isNear
+    ? mergeNearSettlementEvents(nearLiveEvents, nearDbEvents)
+    : onChainEvents;
+
   // Approximate 30-day normalized MRR
   const cycleSeconds = plan.intervalSeconds || 2_592_000;
   const mrr = ((priceNum * activeCount * 2_592_000) / cycleSeconds).toFixed(2);
   const rpcPaidCount = onChainEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed").length;
-  // NEAR has no Solana event history; each paid cycle is counted from the subscription records.
-  const nearPaidCycles = planSubscribers.reduce((total, s) => total + (s.cycleCount ?? 0), 0);
-  const paidEventsCount = isNear ? nearPaidCycles : planDbStats ? planDbStats.totalSettlements : rpcPaidCount;
-  const totalSettledUsdc = planDbStats ? planDbStats.totalEarnedNet : (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
-  const grossSettledUsdc = planDbStats ? planDbStats.totalGrossBilled : (paidEventsCount * priceNum).toFixed(2);
+  const nearPaidEvents = planChartEvents.filter((e) => e.kind === "settled" || e.kind === "subscribed");
+  const paidEventsCount = isNear ? nearPaidEvents.length : planDbStats ? planDbStats.totalSettlements : rpcPaidCount;
+  const totalSettledUsdc = isNear
+    ? sumUsdcStrings(nearPaidEvents.map((e) => e.amountNetUsdc))
+    : planDbStats
+      ? planDbStats.totalEarnedNet
+      : (paidEventsCount * parseFloat(netPerCycle)).toFixed(2);
+  const grossSettledUsdc = isNear
+    ? sumUsdcStrings(nearPaidEvents.map((e) => e.amountGrossUsdc))
+    : planDbStats
+      ? planDbStats.totalGrossBilled
+      : (paidEventsCount * priceNum).toFixed(2);
 
   // Calculate all-time unique subscriber count (active + past/churned)
   const allTimeSubscribers = new Set<string>();
@@ -281,11 +317,6 @@ function PlanDetailContent({
   // Filtered activity for this plan
   const planActivity = activity.filter(
     (a) => a.plan === plan.id || a.plan === plan.name,
-  );
-
-  const planChartEvents: PlanOnChainEvent[] = useMemo(
-    () => (isNear ? buildNearPlanEvents(planSubscribers, [plan]) : onChainEvents),
-    [isNear, planSubscribers, plan, onChainEvents],
   );
 
   const links = planLinks(plan.id);

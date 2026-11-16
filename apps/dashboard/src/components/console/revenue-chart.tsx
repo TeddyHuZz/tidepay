@@ -4,7 +4,8 @@ import { useId, useState } from "react";
 import type { PlanOnChainEvent } from "@/lib/chain/accounts";
 import { DEFAULT_CRANK_BOUNTY_USDC } from "@/lib/chain/config";
 import { formatUsdc, parseUsdc } from "@/lib/chain/derive";
-import { nearNetPayout } from "@/lib/near/plan-args";
+import { toNearPlanId } from "@/lib/near/ids";
+import { nearEpoch0Payout, nearNetPayout } from "@/lib/near/plan-args";
 import type { PlanSummary, SubscriberRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,11 @@ export function buildNearPlanEvents(subscribers: SubscriberRow[], plans: PlanSum
     const p = plans.find((pl) => pl.id === s.plan || pl.name === s.plan);
     const gross = p ? parseFloat(p.priceUsdc) || 0 : 0;
     const priceUnits = p ? parseUsdc(p.priceUsdc) : null;
-    const net =
+    const epoch0Net =
+      priceUnits !== null
+        ? formatUsdc(nearEpoch0Payout(priceUnits))
+        : Math.max(0, gross * 0.995).toFixed(2);
+    const renewalNet =
       priceUnits !== null
         ? formatUsdc(nearNetPayout(priceUnits))
         : Math.max(0, gross * 0.995 - 0.05).toFixed(2);
@@ -38,8 +43,9 @@ export function buildNearPlanEvents(subscribers: SubscriberRow[], plans: PlanSum
     for (let i = 0; i < count; i++) {
       const isInitial = i === count - 1;
       const at = isInitial && !Number.isNaN(startMs) ? startMs : Math.max(startMs || 0, lastMs - i * intervalMs);
+      const sessionKey = s.startedAt ? `${s.id}:${s.startedAt}` : s.id;
       events.push({
-        signature: `${s.id}:${count - i}`,
+        signature: `${sessionKey}:${count - i}`,
         kind: isInitial ? "subscribed" : "settled",
         label: isInitial ? "New Subscription" : "Subscription Renewal",
         timestamp: at,
@@ -51,15 +57,34 @@ export function buildNearPlanEvents(subscribers: SubscriberRow[], plans: PlanSum
         }),
         err: false,
         amountGrossUsdc: gross.toFixed(2),
-        amountNetUsdc: net,
-        keeperFeeUsdc: DEFAULT_CRANK_BOUNTY_USDC,
+        amountNetUsdc: isInitial ? epoch0Net : renewalNet,
+        keeperFeeUsdc: isInitial ? "0.00" : DEFAULT_CRANK_BOUNTY_USDC,
         subscriber: s.wallet,
         planName: p?.name || s.plan,
-        planAddress: s.plan,
+        planAddress: p?.id ?? toNearPlanId(s.plan),
       });
     }
   }
   return events;
+}
+
+/**
+ * Merges live subscription-derived NEAR events with historical DB rows from prior
+ * cancelled subscriptions, deduplicating by signature so cycles are never double-counted.
+ */
+export function mergeNearSettlementEvents(
+  liveEvents: PlanOnChainEvent[],
+  dbEvents: PlanOnChainEvent[],
+): PlanOnChainEvent[] {
+  const seen = new Set(liveEvents.map((e) => e.signature));
+  const merged = [...liveEvents];
+  for (const event of dbEvents) {
+    if (!seen.has(event.signature)) {
+      seen.add(event.signature);
+      merged.push(event);
+    }
+  }
+  return merged.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 interface DayBucket {

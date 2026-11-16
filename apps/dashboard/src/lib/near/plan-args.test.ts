@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNearCreatePlanParams, nearNetPayout, nearPriceTooLow } from "./plan-args";
+import { buildNearCreatePlanParams, nearEpoch0Payout, nearNetPayout, nearPriceTooLow } from "./plan-args";
 
 describe("buildNearCreatePlanParams", () => {
   it("fills token, renewal fee and protocol fee from constants", () => {
@@ -22,6 +22,13 @@ describe("nearPriceTooLow", () => {
     expect(nearPriceTooLow(50_000n, 50_000n, 50)).toBe(true);
     expect(nearPriceTooLow(50_001n, 50_000n, 50)).toBe(true); // fee 250 + bounty 50_000 exceeds the price: the contract would reject it
     expect(nearPriceTooLow(60_000n, 50_000n, 50)).toBe(false); // fee 300 + bounty 50_000 leaves 9_700 for the merchant
+  });
+});
+
+describe("nearEpoch0Payout", () => {
+  it("subtracts only the protocol fee on Epoch 0", () => {
+    // 1 USDC with 50 bps fee -> 0.995 USDC
+    expect(nearEpoch0Payout(1_000_000n, 50)).toBe(995_000n);
   });
 });
 

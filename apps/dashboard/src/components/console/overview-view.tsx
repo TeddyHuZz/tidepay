@@ -1,27 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { RefreshCw, Plus, ArrowUpRight, ExternalLink } from "lucide-react";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { MerchantGate } from "@/components/console/merchant-gate";
+import { useProject } from "@/components/project-context";
 import { Badge } from "@/components/ui/badge";
+import { WithdrawModal } from "@/components/wallet/withdraw-modal";
+import { useNearMerchant } from "@/hooks/use-near-merchant";
 import { isNearPlanId } from "@/lib/near/ids";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShareBlinkButton } from "@/components/console/share-blink-button";
-import { buildNearPlanEvents, RevenueChart } from "@/components/console/revenue-chart";
+import { buildNearPlanEvents, mergeNearSettlementEvents, RevenueChart } from "@/components/console/revenue-chart";
 import {
   DEFAULT_CRANK_BOUNTY_USDC,
   explorerUrl,
+  getUsdcMint,
   planLinks,
 } from "@/lib/chain/config";
-import { nearExplorerUrl } from "@/lib/near/config";
+import { formatUsdc, sumUsdcStrings } from "@/lib/chain/derive";
+import { tryCreateNearReader } from "@/lib/near/chain-ops";
+import { NEAR_USDC_TOKEN_ID, nearExplorerUrl } from "@/lib/near/config";
 import {
   DEFAULT_ACTIVITY_LIMIT,
   fetchAllMerchantPlansActivity,
   fetchDatabaseSettlements,
+  syncSettlementsToDatabase,
   type DatabaseSettlementsResult,
   type PlanOnChainEvent,
 } from "@/lib/chain/accounts";
@@ -67,15 +75,47 @@ function OverviewContent({
   lastRefreshedAt: number | null;
 }) {
   const { connection } = useConnection();
+  const { publicKey } = useWallet();
+  const { activeProject } = useProject();
+  const near = useNearMerchant();
   const [chain, setChain] = useState<"solana" | "near">("solana");
   const isNear = chain === "near";
   const [rawEvents, setOnChainEvents] = useState<PlanOnChainEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [rawDbSummary, setDbSummary] = useState<DatabaseSettlementsResult["summary"] | null>(null);
   const [dbByPlan, setDbByPlan] = useState<DatabaseSettlementsResult["byPlan"]>({});
+  const [walletUsdc, setWalletUsdc] = useState<{ chain: "solana" | "near"; amount: bigint } | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [nearDbEvents, setNearDbEvents] = useState<PlanOnChainEvent[]>([]);
+
+  const fetchActiveWalletBalance = useCallback(async (): Promise<{ chain: "solana" | "near"; amount: bigint } | null> => {
+    if (isNear) {
+      const reader = tryCreateNearReader();
+      if (!reader || !near.accountId) return null;
+      const amount = await reader.getFtBalance(NEAR_USDC_TOKEN_ID, near.accountId).catch(() => null);
+      return amount === null ? null : { chain: "near", amount };
+    }
+    if (!publicKey) return null;
+    const mint = getUsdcMint(activeProject.environment);
+    const ata = getAssociatedTokenAddressSync(mint, publicKey);
+    const tokenBal = await connection.getTokenAccountBalance(ata).catch(() => null);
+    return { chain: "solana", amount: tokenBal ? BigInt(tokenBal.value.amount) : 0n };
+  }, [activeProject.environment, connection, isNear, near.accountId, publicKey]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchActiveWalletBalance().then((next) => {
+      if (active) setWalletUsdc(next);
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchActiveWalletBalance, lastRefreshedAt]);
 
   // NEAR plans have no Solana accounts; keep them out of every Solana fetch.
   const solanaPlans = useMemo(() => allPlans.filter((p) => !isNearPlanId(p.id)), [allPlans]);
+  const nearPlans = useMemo(() => allPlans.filter((p) => isNearPlanId(p.id)), [allPlans]);
+  const nearPlanIdsKey = useMemo(() => nearPlans.map((p) => p.id).join(","), [nearPlans]);
 
   // Chain tab scopes every stat below.
   const plans = useMemo(() => allPlans.filter((p) => isNearPlanId(p.id) === isNear), [allPlans, isNear]);
@@ -84,9 +124,31 @@ function OverviewContent({
     [allSubscribers, isNear],
   );
 
+  const nearLiveEvents: PlanOnChainEvent[] = useMemo(() => {
+    if (!isNear) return [];
+    return buildNearPlanEvents(subscribers, plans);
+  }, [isNear, subscribers, plans]);
+
+  useEffect(() => {
+    if (nearPlans.length === 0) return;
+    let active = true;
+    const ids = nearPlans.map((p) => p.id);
+    void fetchDatabaseSettlements(ids).then((res) => {
+      if (active && res?.events) setNearDbEvents(res.events);
+    });
+    return () => {
+      active = false;
+    };
+  }, [nearPlanIdsKey, nearPlans, lastRefreshedAt]);
+
+  useEffect(() => {
+    if (!isNear || nearLiveEvents.length === 0) return;
+    void syncSettlementsToDatabase(nearLiveEvents);
+  }, [isNear, nearLiveEvents]);
+
   const nearEvents: PlanOnChainEvent[] = useMemo(
-    () => (isNear ? buildNearPlanEvents(subscribers, plans) : []),
-    [isNear, subscribers, plans],
+    () => (isNear ? mergeNearSettlementEvents(nearLiveEvents, nearDbEvents) : []),
+    [isNear, nearLiveEvents, nearDbEvents],
   );
 
   const onChainEvents = isNear ? nearEvents : rawEvents;
@@ -183,16 +245,10 @@ function OverviewContent({
   const rpcSettlementsCount = paidEvents.length;
   const totalSettlementsCount = dbSummary?.totalSettlements ?? rpcSettlementsCount;
 
-  const rpcEarnedNetUsdc = paidEvents.reduce((sum, e) => {
-    const netVal = parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0;
-    return sum + netVal;
-  }, 0).toFixed(2);
+  const rpcEarnedNetUsdc = sumUsdcStrings(paidEvents.map((e) => e.amountNetUsdc));
   const totalEarnedNetUsdc = dbSummary ? dbSummary.totalEarnedNet : rpcEarnedNetUsdc;
 
-  const rpcGrossBilledUsdc = paidEvents.reduce((sum, e) => {
-    const grossVal = parseFloat(e.amountGrossUsdc || "0") || 0;
-    return sum + grossVal;
-  }, 0).toFixed(2);
+  const rpcGrossBilledUsdc = sumUsdcStrings(paidEvents.map((e) => e.amountGrossUsdc));
   const totalGrossBilledUsdc = dbSummary ? dbSummary.totalGrossBilled : rpcGrossBilledUsdc;
 
   // Renewal Success Rate
@@ -292,6 +348,22 @@ function OverviewContent({
               {k.value}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">{k.note}</p>
+            {k.label === "Total Earned (Net)" && walletUsdc?.chain === chain && (
+              <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5 text-xs">
+                <span className="text-muted-foreground tabular-nums">
+                  Wallet: <span className="font-mono font-semibold text-foreground">{formatUsdc(walletUsdc.amount)} USDC</span>
+                </span>
+                {walletUsdc.amount > 0n && (
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawOpen(true)}
+                    className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    Withdraw <ArrowUpRight className="size-3" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
           </Card>
         ))}
       </div>
@@ -396,9 +468,7 @@ function OverviewContent({
                   const planPulls = planDb ? planDb.totalSettlements : planPaidEvents.length;
                   const planEarnedNet = planDb
                     ? planDb.totalEarnedNet
-                    : planPaidEvents
-                        .reduce((sum, e) => sum + (parseFloat(e.amountNetUsdc?.replace("+", "") || "0") || 0), 0)
-                        .toFixed(2);
+                    : sumUsdcStrings(planPaidEvents.map((e) => e.amountNetUsdc));
 
                   return (
                     <TableRow key={p.id}>
@@ -569,6 +639,15 @@ function OverviewContent({
           </Link>
         </Button>
       </div>
+      {withdrawOpen && (
+        <WithdrawModal
+          initialChain={chain}
+          onClose={() => {
+            setWithdrawOpen(false);
+            void fetchActiveWalletBalance().then((next) => setWalletUsdc(next));
+          }}
+        />
+      )}
     </div>
   );
 }
